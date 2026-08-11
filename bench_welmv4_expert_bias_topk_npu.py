@@ -84,6 +84,14 @@ TOPK = 10
 SORT_WIDTH = 512
 OUTPUT_WIDTH = 16  # power-of-two local buffer; only the first TOPK lanes store
 
+# Triton 3.2 rejects ordinary module globals referenced from a @triton.jit
+# function.  Keep plain ints for the host-side harness and expose separate,
+# explicitly typed compile-time constants to the experimental kernels.
+_JIT_NUM_EXPERTS = tl.constexpr(NUM_EXPERTS)
+_JIT_TOPK = tl.constexpr(TOPK)
+_JIT_SORT_WIDTH = tl.constexpr(SORT_WIDTH)
+_JIT_OUTPUT_WIDTH = tl.constexpr(OUTPUT_WIDTH)
+
 VARIANTS = (
     "r0_legacy",
     "r1_constexpr",
@@ -204,10 +212,10 @@ def _r0_legacy_kernel(
 @triton.jit
 def _r1_constexpr_kernel(scores_ptr, bias_ptr, weights_ptr, ids_ptr):
     row = tl.program_id(0)
-    offs = tl.arange(0, SORT_WIDTH)
-    valid = offs < NUM_EXPERTS
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    valid = offs < _JIT_NUM_EXPERTS
 
-    scores = tl.load(scores_ptr + row * NUM_EXPERTS + offs)
+    scores = tl.load(scores_ptr + row * _JIT_NUM_EXPERTS + offs)
     scores = tl.where(scores == scores, scores, -float("inf"))
     bias = tl.load(bias_ptr + offs)
     routing_scores = scores + bias
@@ -220,9 +228,9 @@ def _r1_constexpr_kernel(scores_ptr, bias_ptr, weights_ptr, ids_ptr):
     lane_idx = (offs % copy_stride) // elems_per_copy
     local_idx = (offs // copy_stride) * elems_per_copy + (offs % elems_per_copy)
     tie_rank = lane_idx * 16 + local_idx
-    invalid_rank = NUM_EXPERTS + 1
+    invalid_rank = _JIT_NUM_EXPERTS + 1
 
-    for k in tl.static_range(0, TOPK):
+    for k in tl.static_range(0, _JIT_TOPK):
         max_routing_score = tl.max(routing_scores, axis=0)
         selected_rank = tl.min(
             tl.where(
@@ -248,8 +256,8 @@ def _r1_constexpr_kernel(scores_ptr, bias_ptr, weights_ptr, ids_ptr):
             ),
             axis=0,
         )
-        tl.store(weights_ptr + row * TOPK + k, selected_score)
-        tl.store(ids_ptr + row * TOPK + k, selected_idx)
+        tl.store(weights_ptr + row * _JIT_TOPK + k, selected_score)
+        tl.store(ids_ptr + row * _JIT_TOPK + k, selected_idx)
         candidate_mask = candidate_mask & (offs != selected_idx)
         routing_scores = tl.where(candidate_mask, routing_scores, -float("inf"))
 
@@ -271,24 +279,24 @@ def _r2_core_partition_kernel(
     row_start = pid * rows_per_program + extra_before
     row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
 
-    offs = tl.arange(0, SORT_WIDTH)
-    valid = offs < NUM_EXPERTS
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    valid = offs < _JIT_NUM_EXPERTS
     elems_per_copy = 4
     copy_stride = 128
     lane_idx = (offs % copy_stride) // elems_per_copy
     local_idx = (offs // copy_stride) * elems_per_copy + (offs % elems_per_copy)
     tie_rank = lane_idx * 16 + local_idx
-    invalid_rank = NUM_EXPERTS + 1
+    invalid_rank = _JIT_NUM_EXPERTS + 1
 
     for row in tl.range(row_start, row_end):
-        scores = tl.load(scores_ptr + row * NUM_EXPERTS + offs)
+        scores = tl.load(scores_ptr + row * _JIT_NUM_EXPERTS + offs)
         scores = tl.where(scores == scores, scores, -float("inf"))
         # Intentionally still inside the row loop; R4 isolates the hoist.
         bias = tl.load(bias_ptr + offs)
         routing_scores = scores + bias
         candidate_mask = valid
 
-        for k in tl.static_range(0, TOPK):
+        for k in tl.static_range(0, _JIT_TOPK):
             max_routing_score = tl.max(routing_scores, axis=0)
             selected_rank = tl.min(
                 tl.where(
@@ -314,8 +322,8 @@ def _r2_core_partition_kernel(
                 ),
                 axis=0,
             )
-            tl.store(weights_ptr + row * TOPK + k, selected_score)
-            tl.store(ids_ptr + row * TOPK + k, selected_idx)
+            tl.store(weights_ptr + row * _JIT_TOPK + k, selected_score)
+            tl.store(ids_ptr + row * _JIT_TOPK + k, selected_idx)
             candidate_mask = candidate_mask & (offs != selected_idx)
             routing_scores = tl.where(
                 candidate_mask, routing_scores, -float("inf")
@@ -338,17 +346,17 @@ def _sort_select_store_row(
     bias,
 ):
     """Select one row; all local vectors stay rank-1 for A5 vsort/vgather."""
-    scores = tl.load(scores_ptr + row * NUM_EXPERTS + offs)
+    scores = tl.load(scores_ptr + row * _JIT_NUM_EXPERTS + offs)
     scores = tl.where(scores == scores, scores, -float("inf"))
     routing_scores = scores + bias
     sorted_routing = al.sort(routing_scores, dim=-1, descending=True)
 
-    candidate_mask = offs < NUM_EXPERTS
-    invalid_rank = NUM_EXPERTS + 1
-    out_lanes = tl.arange(0, OUTPUT_WIDTH)
-    selected_ids = tl.zeros((OUTPUT_WIDTH,), dtype=tl.int32)
+    candidate_mask = offs < _JIT_NUM_EXPERTS
+    invalid_rank = _JIT_NUM_EXPERTS + 1
+    out_lanes = tl.arange(0, _JIT_OUTPUT_WIDTH)
+    selected_ids = tl.zeros((_JIT_OUTPUT_WIDTH,), dtype=tl.int32)
 
-    for k in tl.static_range(0, TOPK):
+    for k in tl.static_range(0, _JIT_TOPK):
         # k is compile-time, so get_element is a fixed vector-element extract.
         kth_routing_score = al.get_element(sorted_routing, indice=[k])
         selected_rank = tl.min(
@@ -372,8 +380,8 @@ def _sort_select_store_row(
     # F32 rank-1 UB gather is supported on A5; ids are explicitly I32.  This
     # preserves the exact unbiased score bits, including signed zero.
     selected_weights = tl.gather(scores, selected_ids, 0)
-    output_mask = out_lanes < TOPK
-    output_offsets = row * TOPK + out_lanes
+    output_mask = out_lanes < _JIT_TOPK
+    output_offsets = row * _JIT_TOPK + out_lanes
     tl.store(weights_ptr + output_offsets, selected_weights, mask=output_mask)
     tl.store(ids_ptr + output_offsets, selected_ids, mask=output_mask)
 
@@ -392,7 +400,7 @@ def _r3_sort_tie_kernel(
     row_start = pid * rows_per_program + extra_before
     row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
 
-    offs = tl.arange(0, SORT_WIDTH)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
     # Bitwise form is exactly the production copy/lane priority for N=512.
     tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
 
@@ -424,7 +432,7 @@ def _r4_bias_hoist_kernel(
     row_start = pid * rows_per_program + extra_before
     row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
 
-    offs = tl.arange(0, SORT_WIDTH)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
     tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
     bias = tl.load(bias_ptr + offs)
 
@@ -443,7 +451,7 @@ def _r4_bias_hoist_kernel(
 @triton.jit
 def _r5_small_direct_kernel(scores_ptr, bias_ptr, weights_ptr, ids_ptr):
     row = tl.program_id(0)
-    offs = tl.arange(0, SORT_WIDTH)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
     tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
     bias = tl.load(bias_ptr + offs)
     _sort_select_store_row(
@@ -472,7 +480,7 @@ def _r5_large_partition_kernel(
     row_start = pid * rows_per_program + extra_before
     row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
 
-    offs = tl.arange(0, SORT_WIDTH)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
     tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
     bias = tl.load(bias_ptr + offs)
 
