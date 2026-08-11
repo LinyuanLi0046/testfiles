@@ -3,7 +3,7 @@
 
 This is deliberately a manual, standalone experiment.  It does not replace or
 register any production SGLang operator.  R0 is a frozen 2026-08-11 copy of the
-old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R5 are
+old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R6 are
 cumulative experimental variants kept here so that every round remains
 measurable after a later optimized kernel is integrated into the model path.
 
@@ -30,6 +30,9 @@ Rounds:
 * R5: host dispatch: one-row/no-loop kernel for a small grid, partitioned
   kernel for a grid larger than the physical AIV count.  The large-grid body is
   intentionally the R4 body, so R5's incremental gain is expected on decode.
+* R6: empirical two-path dispatch from the R0--R5 A5 measurements.  M <= 256
+  reuses R3 (the winner at every measured small/medium shape); larger M reuses
+  the R5 large partition path.  This round changes only host dispatch.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -83,6 +86,7 @@ NUM_EXPERTS = 512
 TOPK = 10
 SORT_WIDTH = 512
 OUTPUT_WIDTH = 16  # power-of-two local buffer; only the first TOPK lanes store
+R6_DISPATCH_CUTOFF_M = 256
 
 # Triton 3.2 rejects ordinary module globals referenced from a @triton.jit
 # function.  Keep plain ints for the host-side harness and expose separate,
@@ -99,6 +103,7 @@ VARIANTS = (
     "r3_sort_tie",
     "r4_bias_hoist",
     "r5_dispatch",
+    "r6_empirical_dispatch",
 )
 
 VARIANT_DESCRIPTIONS = {
@@ -108,14 +113,45 @@ VARIANT_DESCRIPTIONS = {
     "r3_sort_tie": "FP32 sort + exact tie recovery",
     "r4_bias_hoist": "bias load hoisted outside row loop",
     "r5_dispatch": "small direct / large partition dispatch",
+    "r6_empirical_dispatch": "R3 through M=256 / R5-large above M=256",
 }
 
 COMMON_SHAPES = [1, 2, 4, 8, 16, 32, 56, 63, 64, 65, 128, 512, 9616, 16384]
 DECODE_SHAPES = list(range(1, 65))
-PREFILL_SHAPES = [65, 127, 128, 129, 256, 511, 512, 513, 1024, 9616, 16384]
+PREFILL_SHAPES = [
+    65,
+    127,
+    128,
+    129,
+    256,
+    257,
+    511,
+    512,
+    513,
+    1024,
+    9616,
+    16384,
+]
 ALL_CORRECTNESS_SHAPES = sorted(set(DECODE_SHAPES + PREFILL_SHAPES))
 ALL_PERFORMANCE_SHAPES = sorted(
-    set(DECODE_SHAPES + [65, 128, 256, 512, 1024, 9616, 16384])
+    set(
+        DECODE_SHAPES
+        + [
+            65,
+            128,
+            256,
+            257,
+            320,
+            384,
+            448,
+            480,
+            511,
+            512,
+            1024,
+            9616,
+            16384,
+        ]
+    )
 )
 
 EDGE_PATTERNS = (
@@ -543,7 +579,7 @@ class ModelNew(torch.nn.Module):
         assert scores.ndim == 2 and scores.shape[1] == NUM_EXPERTS
         assert scores.dtype == torch.float32
         assert scores.is_contiguous(), (
-            "R1-R5 specialize the actual WeLM common path: contiguous [M,512]"
+            "R1-R6 specialize the actual WeLM common path: contiguous [M,512]"
         )
         assert bias.shape == (NUM_EXPERTS,) and bias.dtype == torch.float32
         assert bias.is_contiguous()
@@ -691,6 +727,41 @@ class ModelNew(torch.nn.Module):
 
             return launch
 
+        if variant == "r6_empirical_dispatch":
+            # Optimization point 12 (grid/multipath specialization), isolated:
+            # bind the already-validated winning provider for each measured
+            # regime.  No JIT body, grid, compiler hint, or math is changed.
+            grid, rows_per_program, extra_rows = self._partition(m)
+            if m <= R6_DISPATCH_CUTOFF_M:
+
+                def launch() -> None:
+                    _r3_sort_tie_kernel[grid](
+                        scores,
+                        bias,
+                        weights,
+                        ids,
+                        rows_per_program,
+                        extra_rows,
+                        multibuffer=False,
+                        unit_flag=False,
+                    )
+
+                return launch
+
+            def launch() -> None:
+                _r5_large_partition_kernel[grid](
+                    scores,
+                    bias,
+                    weights,
+                    ids,
+                    rows_per_program,
+                    extra_rows,
+                    multibuffer=False,
+                    unit_flag=False,
+                )
+
+            return launch
+
         raise ValueError(f"Unknown variant: {variant}")
 
     def launch_into(
@@ -707,7 +778,7 @@ class ModelNew(torch.nn.Module):
         self,
         scores: torch.Tensor,
         bias: torch.Tensor,
-        variant: str = "r5_dispatch",
+        variant: str = "r6_empirical_dispatch",
     ) -> tuple[torch.Tensor, torch.Tensor]:
         weights, ids = self.allocate_outputs(scores)
         self.launch_into(variant, scores, bias, weights, ids)
@@ -1215,8 +1286,11 @@ def parse_shapes(spec: str, *, correctness: bool) -> list[int]:
 
 
 def parse_variants(spec: str) -> list[str]:
-    if spec.strip().lower() in ("all", "0-5", "r0-r5"):
+    normalized = spec.strip().lower()
+    if normalized in ("all", "0-6", "r0-r6"):
         return list(VARIANTS)
+    if normalized in ("0-5", "r0-r5"):
+        return list(VARIANTS[:6])
 
     aliases = {f"r{i}": name for i, name in enumerate(VARIANTS)}
     aliases.update({str(i): name for i, name in enumerate(VARIANTS)})
@@ -1254,7 +1328,7 @@ def write_csv(path_text: str, records: Sequence[dict[str, object]]) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="WeLM-v4 A5 expert-bias TopK R0-R5 accuracy/latency study"
+        description="WeLM-v4 A5 expert-bias TopK R0-R6 accuracy/latency study"
     )
     parser.add_argument(
         "--mode",
@@ -1268,8 +1342,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--variants",
-        default="0-5",
-        help="0-5, or comma list such as r3,r4,r5 (R0 is always added)",
+        default="all",
+        help="all, 0-6, or comma list such as r3,r5,r6 (R0 is always added)",
     )
     parser.add_argument("--device", default="npu:0")
     parser.add_argument("--seed", type=int, default=20260811)
