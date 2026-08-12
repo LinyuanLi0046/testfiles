@@ -3,7 +3,7 @@
 
 This is deliberately a manual, standalone experiment.  It does not replace or
 register any production SGLang operator.  R0 is a frozen 2026-08-11 copy of the
-old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R14 are
+old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R15 are
 cumulative experimental variants kept here so that every round remains
 measurable after a later optimized kernel is integrated into the model path.
 
@@ -69,6 +69,10 @@ Rounds:
   low-rank FP32 ``argmax(tie_break_left=True)`` on each eligible 0/1 mask.
   The returned lane is directly the exact tie-rank, replacing R10's integer
   min reduction while retaining its scalar equal-group threshold.
+* R15: detect whether the sorted top-10 routing values are unique.  The common
+  unique-value path recovers all IDs with one [512,16] equality/min pass; any
+  duplicate value falls back to exact R10.  Unlike R7/R9, the fast path has no
+  cumsum and performs only one rank-2 scan.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -148,6 +152,7 @@ VARIANTS = (
     "r12_two_row_tile",
     "r13_fp32_rank_reduce",
     "r14_priority_argmax",
+    "r15_unique_top10_fastpath",
 )
 
 VARIANT_DESCRIPTIONS = {
@@ -168,6 +173,7 @@ VARIANT_DESCRIPTIONS = {
     "r12_two_row_tile": "R10 with two adjacent rank-1 rows per loop iteration",
     "r13_fp32_rank_reduce": "R10 with exact FP32 tie-rank min reductions",
     "r14_priority_argmax": "R10 with priority gather + FP32 leftmost argmax",
+    "r15_unique_top10_fastpath": "one-pass unique top-10 recovery / exact R10 fallback",
 }
 
 COMMON_SHAPES = [1, 2, 4, 8, 16, 32, 56, 63, 64, 65, 128, 512, 9616, 16384]
@@ -672,6 +678,75 @@ def _priority_argmax_select_store_row(
         selected_ids = tl.where(out_lanes == k, selected_idx, selected_ids)
         previous_value = kth_routing_score
         previous_rank = selected_rank.to(tl.float32)
+
+    selected_weights = tl.gather(scores, selected_ids, 0)
+    output_mask = out_lanes < _JIT_TOPK
+    output_offsets = row * _JIT_TOPK + out_lanes
+    tl.store(weights_ptr + output_offsets, selected_weights, mask=output_mask)
+    tl.store(ids_ptr + output_offsets, selected_ids, mask=output_mask)
+
+
+@triton.jit
+def _unique_top10_select_store_row(
+    scores_ptr,
+    weights_ptr,
+    ids_ptr,
+    row,
+    offs,
+    tie_rank,
+    bias,
+):
+    """One-pass exact ID recovery when top-10 values are unique, else R10."""
+    scores = tl.load(scores_ptr + row * _JIT_NUM_EXPERTS + offs)
+    scores = tl.where(scores == scores, scores, -float("inf"))
+    routing_scores = scores + bias
+    sorted_routing = al.sort(routing_scores, dim=-1, descending=True)
+
+    out_lanes = tl.arange(0, _JIT_OUTPUT_WIDTH)
+    top_values = tl.gather(sorted_routing, out_lanes, 0)
+    next_lanes = tl.minimum(out_lanes + 1, _JIT_OUTPUT_WIDTH - 1)
+    next_values = tl.gather(top_values, next_lanes, 0)
+    adjacent_duplicate = (top_values == next_values) & (
+        out_lanes.to(tl.float32) < 9.0
+    )
+    has_duplicate = tl.sum(adjacent_duplicate.to(tl.float32), axis=0) > 0.0
+
+    selected_ids = tl.zeros((_JIT_OUTPUT_WIDTH,), dtype=tl.int32)
+    if ~has_duplicate:
+        matches = routing_scores[:, None] == top_values[None, :]
+        selected_rank = tl.min(
+            tl.where(
+                matches,
+                tie_rank[:, None],
+                _JIT_NUM_EXPERTS + 1,
+            ),
+            axis=0,
+        )
+        lane = selected_rank >> 4
+        local = selected_rank & 15
+        selected_ids = (
+            ((local >> 2) << 7) + (lane << 2) + (local & 3)
+        ).to(tl.int32)
+    else:
+        invalid_rank = _JIT_NUM_EXPERTS + 1
+        previous_value = float("inf")
+        previous_rank = -1.0
+        for k in tl.static_range(0, _JIT_TOPK):
+            kth_routing_score = al.get_element(sorted_routing, indice=[k])
+            same_group = kth_routing_score == previous_value
+            eligible = (routing_scores == kth_routing_score) & (
+                ~same_group | (tie_rank.to(tl.float32) > previous_rank)
+            )
+            selected_rank = tl.min(
+                tl.where(eligible, tie_rank, invalid_rank),
+                axis=0,
+            )
+            lane = selected_rank >> 4
+            local = selected_rank & 15
+            selected_idx = ((local >> 2) << 7) + (lane << 2) + (local & 3)
+            selected_ids = tl.where(out_lanes == k, selected_idx, selected_ids)
+            previous_value = kth_routing_score
+            previous_rank = selected_rank.to(tl.float32)
 
     selected_weights = tl.gather(scores, selected_ids, 0)
     output_mask = out_lanes < _JIT_TOPK
@@ -1340,6 +1415,52 @@ def _r14_priority_argmax_large_kernel(
         )
 
 
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _r15_unique_top10_medium_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
+
+    for row in tl.range(row_start, row_end):
+        bias = tl.load(bias_ptr + offs)
+        _unique_top10_select_store_row(
+            scores_ptr, weights_ptr, ids_ptr, row, offs, tie_rank, bias
+        )
+
+
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _r15_unique_top10_large_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
+    bias = tl.load(bias_ptr + offs)
+
+    for row in tl.range(row_start, row_end):
+        _unique_top10_select_store_row(
+            scores_ptr, weights_ptr, ids_ptr, row, offs, tie_rank, bias
+        )
+
+
 # ---------------------------------------------------------------------------
 # Host launchers.  No production call site is modified.
 # ---------------------------------------------------------------------------
@@ -1387,7 +1508,7 @@ class ModelNew(torch.nn.Module):
         assert scores.ndim == 2 and scores.shape[1] == NUM_EXPERTS
         assert scores.dtype == torch.float32
         assert scores.is_contiguous(), (
-            "R1-R14 specialize the actual WeLM common path: contiguous [M,512]"
+            "R1-R15 specialize the actual WeLM common path: contiguous [M,512]"
         )
         assert bias.shape == (NUM_EXPERTS,) and bias.dtype == torch.float32
         assert bias.is_contiguous()
@@ -1764,6 +1885,33 @@ class ModelNew(torch.nn.Module):
                 kernel = _r14_priority_argmax_medium_kernel
             else:
                 kernel = _r14_priority_argmax_large_kernel
+
+            def launch() -> None:
+                kernel[grid](
+                    scores,
+                    bias,
+                    weights,
+                    ids,
+                    rows_per_program,
+                    extra_rows,
+                    multibuffer=False,
+                    unit_flag=False,
+                )
+
+            return launch
+
+        if variant == "r15_unique_top10_fastpath":
+            # Optimization point 12 (data-dependent multipath), based on R10.
+            # Preserve its grid/schedule/small path/bias placement.  Above the
+            # AIV boundary, unique top-10 rows use one parallel equality/min;
+            # duplicate rows execute the exact R10 group-threshold fallback.
+            grid, rows_per_program, extra_rows = self._partition(m)
+            if m <= self.num_vector_cores:
+                kernel = _r7_vector_tie_small_kernel
+            elif m <= R6_DISPATCH_CUTOFF_M:
+                kernel = _r15_unique_top10_medium_kernel
+            else:
+                kernel = _r15_unique_top10_large_kernel
 
             def launch() -> None:
                 kernel[grid](
@@ -2304,8 +2452,10 @@ def parse_shapes(spec: str, *, correctness: bool) -> list[int]:
 
 def parse_variants(spec: str) -> list[str]:
     normalized = spec.strip().lower()
-    if normalized in ("all", "0-14", "r0-r14"):
+    if normalized in ("all", "0-15", "r0-r15"):
         return list(VARIANTS)
+    if normalized in ("0-14", "r0-r14"):
+        return list(VARIANTS[:15])
     if normalized in ("0-13", "r0-r13"):
         return list(VARIANTS[:14])
     if normalized in ("0-12", "r0-r12"):
@@ -2361,7 +2511,7 @@ def write_csv(path_text: str, records: Sequence[dict[str, object]]) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="WeLM-v4 A5 expert-bias TopK R0-R14 accuracy/latency study"
+        description="WeLM-v4 A5 expert-bias TopK R0-R15 accuracy/latency study"
     )
     parser.add_argument(
         "--mode",
@@ -2376,7 +2526,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--variants",
         default="all",
-        help="all, 0-14, or comma list such as r12,r13,r14 (R0 is always added)",
+        help="all, 0-15, or comma list such as r13,r14,r15 (R0 is always added)",
     )
     parser.add_argument("--device", default="npu:0")
     parser.add_argument("--seed", type=int, default=20260811)
