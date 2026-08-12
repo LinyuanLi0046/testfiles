@@ -1,0 +1,220 @@
+time: 2026-08-12T20:52:26+08:00
+command: /usr/local/python3.11.10/bin/python bench_welmv4_expert_bias_topk_npu.py --mode both --cases all --scope kernel --device npu:5 --output-csv welmv4_topk_r0_r5_all.csv
+return_code: 1
+reason: benchmark exited with status 1
+
+===== stdout + stderr =====
+NPU custom kernel packages unavailable: No module named 'custom_ops'
+/usr/local/python3.11.10/lib/python3.11/site-packages/torch_npu/contrib/transfer_to_npu.py:390: ImportWarning: 
+    *************************************************************************************************************
+    The torch.Tensor.cuda and torch.nn.Module.cuda are replaced with torch.Tensor.npu and torch.nn.Module.npu now..
+    The torch.cuda.DoubleTensor is replaced with torch.npu.FloatTensor cause the double type is not supported now..
+    The backend in torch.distributed.init_process_group set to hccl now..
+    The torch.cuda.* and torch.cuda.amp.* are replaced with torch.npu.* and torch.npu.amp.* now..
+    The device parameters have been replaced with npu in the function below:
+    torch.logspace, torch.randint, torch.hann_window, torch.rand, torch.full_like, torch.ones_like, torch.rand_like, torch.randperm, torch.arange, torch.frombuffer, torch.normal, torch._empty_per_channel_affine_quantized, torch.empty_strided, torch.empty_like, torch.scalar_tensor, torch.tril_indices, torch.bartlett_window, torch.ones, torch.sparse_coo_tensor, torch.randn, torch.kaiser_window, torch.tensor, torch.triu_indices, torch.as_tensor, torch.zeros, torch.randint_like, torch.full, torch.eye, torch._sparse_csr_tensor_unsafe, torch.empty, torch._sparse_coo_tensor_unsafe, torch.blackman_window, torch.zeros_like, torch.range, torch.sparse_csr_tensor, torch.randn_like, torch.from_file, torch._cudnn_init_dropout_state, torch._empty_affine_quantized, torch.linspace, torch.hamming_window, torch.empty_quantized, torch._pin_memory, torch.load, torch.set_default_device, torch.get_device_module, torch.sparse_compressed_tensor, torch.Tensor.new_empty, torch.Tensor.new_empty_strided, torch.Tensor.new_full, torch.Tensor.new_ones, torch.Tensor.new_tensor, torch.Tensor.new_zeros, torch.Tensor.to, torch.Tensor.pin_memory, torch.nn.Module.to, torch.nn.Module.to_empty
+    *************************************************************************************************************
+    
+  warnings.warn(msg, ImportWarning)
+/usr/local/python3.11.10/lib/python3.11/site-packages/torch_npu/contrib/transfer_to_npu.py:311: RuntimeWarning: torch.jit.script and torch.jit.script_method will be disabled by transfer_to_npu, which currently does not support them, if you need to enable them, please do not use transfer_to_npu.
+  warnings.warn(msg, RuntimeWarning)
+[W812 20:51:13.133663867 OptionRegister.cpp:95] Warning: Current device only support allow_internal_format=False, the requested value True is invalid and has been reverted to False. (function operator())
+WeLM-v4 expert-bias TopK manual A5 study
+device=npu:5 (Ascend950PR_957b), physical_AIV=56
+torch=2.10.0+cpu, torch_npu=2.10.0.post4.dev20260715, triton=3.2.0, CANN=9.1.0
+  r0_legacy: production kernel
+  r1_constexpr: N512/K10 contiguous specialization
+  r2_core_partition: physical-AIV contiguous row partition
+  r3_sort_tie: FP32 sort + exact tie recovery
+  r4_bias_hoist: bias load hoisted outside row loop
+  r5_dispatch: small direct / large partition dispatch
+  r6_empirical_dispatch: R3 through M=320 / R5-large above M=320
+  r7_vector_tie_recovery: FP32 2D vector tie recovery on R6 dispatch
+  r8_safe_vector_dispatch: R7 through physical AIV / R6 above it
+  r9_pair_tie_recovery: R8 small path / five [512,2] tie scans above it
+  r10_group_rank_threshold: R8 small path / scalar equal-group rank threshold above it
+  r11_packed_exact_sort: rejected I64 sort experiment; exact R10 fallback
+  r12_two_row_tile: R10 with two adjacent rank-1 rows per loop iteration
+  r13_fp32_rank_reduce: R10 with exact FP32 tie-rank min reductions
+  r14_priority_argmax: R10 with priority gather + FP32 leftmost argmax
+  r15_unique_top10_fastpath: one-pass unique top-10 recovery / exact R10 fallback
+  r16_split_unique_recovery: rejected [512,8] experiment; exact R15 fallback
+  r17_parallel_priority_argmax: rejected rank-2 argmax; exact R15 fallback
+  r18_hierarchical_partial_sort: rejected hierarchical sort; exact R15 fallback
+  r19_unique_id_sum: rejected FP32 ID sum; exact R15 fallback
+  r20_iterative_rank1_maxarg: rejected iterative maxarg; exact R15 fallback
+  r21_prefill_partition_constexpr: rejected prefill constexpr; exact R15 fallback
+  r22_physical_core_grid: rejected 28-program grid; exact R15 fallback
+  r23_sort_index_capability: device al.sort values+indices probe; exact R15 fallback
+  r24_paired_max_index: rejected paired max-index; exact R15 fallback
+  r25_lexicographic_tuple_reduce: A5 lowering rejected; exact R15 fallback
+  r26_unique_direct_expert_id: rejected direct-ID reduce; exact R15 fallback
+  r27_last_axis_rank_reduce: R15 [16,512] unique match tile with contiguous last-axis rank min
+  r28_split_last_axis_rank_reduce: rejected two rank-2 tiles; exact R27 fallback
+  r29_eight_plus_rank1_tail: rejected rank-1 tail split; exact R27 fallback
+  r30_last_axis_direct_id: rejected last-axis FP32 ID reduce; exact R27 fallback
+  r31_partial_top16: rejected scalar-lowered tl.topk; exact R27 fallback
+  r32_last_axis_priority_argmax: rejected rank-2 argmax; exact R27 fallback
+  r33_last_axis_paired_min_index: rejected paired min-index; exact R27 fallback
+  r34_last_axis_int16_rank: rejected INT16 rank min; exact R27 fallback
+  r35_last_axis_direct_int32_id: rejected direct INT32 ID min; exact R27 fallback
+  r36_large_multibuffer: rejected multibuffer gain; exact R27 fallback
+  r37_small_unit_flag: rejected unit_flag gain; exact R27 fallback
+  r38_large_grid_stride: rejected grid stride; exact R27 fallback
+  r39_two_row_load_ahead: sub-threshold two-row gain; exact R27 fallback
+  r40_four_row_load_ahead: rejected four-row load ahead; exact R27 fallback
+  r41_duplicate_any_max: rejected max duplicate gate; exact R27 fallback
+  r42_last_axis_rank_sum: R27 one-hot INT32 MMQ-rank sum reduction
+  r43_last_axis_rank_max: R27 one-hot INT32 MMQ-rank max reduction
+  r44_two_half_partial_sort: R27 two sort256 + sort32 value selection
+  r45_priority_order_rank_min: R27 priority-order contiguous rank min
+
+R23 al.sort values+indices capability probe
+  signature: (ptr, dim=-1, descending=False, _builder=None)
+  status=UNAVAILABLE, values_exact=False, indices_exact=False
+  expected probe failure: CompilationError: at 5:36: def _r23_sort_index_probe_kernel(input_ptr, values_ptr, indices_ptr): """Capability-only kernel; failure is caught and reported by the harness.""" offs = tl.arange(0, 32) values = tl.load(input_ptr + offs) sorted_values, sorted_indices = al.sort( ^ TypeError("sort() got an unexpected keyword argument 'return_indices'")
+
+Correctness: 121 input cases x 46 variants
+  [PASS   1/121] M=1     pattern=random_bias
+  [PASS   2/121] M=2     pattern=random_bias
+  [PASS   3/121] M=3     pattern=random_bias
+  [PASS   4/121] M=4     pattern=random_bias
+  [PASS   5/121] M=5     pattern=random_bias
+  [PASS   6/121] M=6     pattern=random_bias
+  [PASS   7/121] M=7     pattern=random_bias
+  [PASS   8/121] M=8     pattern=random_bias
+  [PASS   9/121] M=9     pattern=random_bias
+  [PASS  10/121] M=10    pattern=random_bias
+  [PASS  11/121] M=11    pattern=random_bias
+  [PASS  12/121] M=12    pattern=random_bias
+  [PASS  13/121] M=13    pattern=random_bias
+  [PASS  14/121] M=14    pattern=random_bias
+  [PASS  15/121] M=15    pattern=random_bias
+  [PASS  16/121] M=16    pattern=random_bias
+  [PASS  17/121] M=17    pattern=random_bias
+  [PASS  18/121] M=18    pattern=random_bias
+  [PASS  19/121] M=19    pattern=random_bias
+  [PASS  20/121] M=20    pattern=random_bias
+  [PASS  21/121] M=21    pattern=random_bias
+  [PASS  22/121] M=22    pattern=random_bias
+  [PASS  23/121] M=23    pattern=random_bias
+  [PASS  24/121] M=24    pattern=random_bias
+  [PASS  25/121] M=25    pattern=random_bias
+  [PASS  26/121] M=26    pattern=random_bias
+  [PASS  27/121] M=27    pattern=random_bias
+  [PASS  28/121] M=28    pattern=random_bias
+  [PASS  29/121] M=29    pattern=random_bias
+  [PASS  30/121] M=30    pattern=random_bias
+  [PASS  31/121] M=31    pattern=random_bias
+  [PASS  32/121] M=32    pattern=random_bias
+  [PASS  33/121] M=33    pattern=random_bias
+  [PASS  34/121] M=34    pattern=random_bias
+  [PASS  35/121] M=35    pattern=random_bias
+  [PASS  36/121] M=36    pattern=random_bias
+  [PASS  37/121] M=37    pattern=random_bias
+  [PASS  38/121] M=38    pattern=random_bias
+  [PASS  39/121] M=39    pattern=random_bias
+  [PASS  40/121] M=40    pattern=random_bias
+  [PASS  41/121] M=41    pattern=random_bias
+  [PASS  42/121] M=42    pattern=random_bias
+  [PASS  43/121] M=43    pattern=random_bias
+  [PASS  44/121] M=44    pattern=random_bias
+  [PASS  45/121] M=45    pattern=random_bias
+  [PASS  46/121] M=46    pattern=random_bias
+  [PASS  47/121] M=47    pattern=random_bias
+  [PASS  48/121] M=48    pattern=random_bias
+  [PASS  49/121] M=49    pattern=random_bias
+  [PASS  50/121] M=50    pattern=random_bias
+  [PASS  51/121] M=51    pattern=random_bias
+  [PASS  52/121] M=52    pattern=random_bias
+  [PASS  53/121] M=53    pattern=random_bias
+  [PASS  54/121] M=54    pattern=random_bias
+  [PASS  55/121] M=55    pattern=random_bias
+  [PASS  56/121] M=56    pattern=random_bias
+Traceback (most recent call last):
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/core.py", line 35, in wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/core.py", line 2214, in gather
+    return semantic.gather(src, index, axis, _builder)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py", line 1818, in gather
+    raise ValueError(f"Expected dtype fp16/fp32/bf16/f8E5M2/f8E4M3FN/int8, but got {src.dtype}")
+ValueError: Expected dtype fp16/fp32/bf16/f8E5M2/f8E4M3FN/int8, but got int32
+
+The above exception was the direct cause of the following exception:
+
+triton.compiler.errors.CompilationError: at 41:23:
+        priority_ids = (
+            ((priority_local >> 2) << 7)
+            + (priority_lane << 2)
+            + (priority_local & 3)
+        ).to(tl.int32)
+        routing_by_priority = tl.gather(routing_scores, priority_ids, 0)
+        matches = top_values[:, None] == routing_by_priority[None, :]
+        selected_rank = tl.min(
+            tl.where(matches, priority_rank[None, :], _JIT_NUM_EXPERTS + 1),
+            axis=1,
+        )
+        selected_ids = tl.gather(priority_ids, selected_rank, 0)
+                       ^
+ValueError('Expected dtype fp16/fp32/bf16/f8E5M2/f8E4M3FN/int8, but got int32')
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/data2/hw_lly/testfiles/bench_welmv4_expert_bias_topk_npu.py", line 7268, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/data2/hw_lly/testfiles/bench_welmv4_expert_bias_topk_npu.py", line 7232, in main
+    correctness_records, failures = run_correctness(
+                                    ^^^^^^^^^^^^^^^^
+  File "/data2/hw_lly/testfiles/bench_welmv4_expert_bias_topk_npu.py", line 6249, in run_correctness
+    weights, ids = model(scores, bias, variant)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data2/hw_lly/testfiles/bench_welmv4_expert_bias_topk_npu.py", line 5916, in forward
+    self.launch_into(variant, scores, bias, weights, ids)
+  File "/data2/hw_lly/testfiles/bench_welmv4_expert_bias_topk_npu.py", line 5907, in launch_into
+    self.bind_kernel(variant, scores, bias, weights, ids)()
+  File "/data2/hw_lly/testfiles/bench_welmv4_expert_bias_topk_npu.py", line 5884, in launch
+    kernel[grid](
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/runtime/jit.py", line 333, in <lambda>
+    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/runtime/jit.py", line 622, in run
+    kernel = self._do_compile(key, signature, device, backend, target, constants, options, configs[0], warmup)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/runtime/jit.py", line 787, in _do_compile
+    kernel = self.compile(src, target=target, options=options.__dict__)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/compiler/compiler.py", line 282, in compile
+    module = src.make_ir(options, codegen_fns, module_map, context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/__init__.py", line 38, in _patched_make_ir
+    module = _original_make_ir(self, options, codegen_fns, module_map, context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/compiler/compiler.py", line 102, in make_ir
+    return ast_to_ttir(self.fn, self, context=context, options=options, codegen_fns=codegen_fns,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+triton.compiler.errors.CompilationError: at 17:8:
+    rows_per_program,
+    extra_rows,
+):
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
+    for row in tl.range(row_start, row_end):
+        bias = tl.load(bias_ptr + offs)
+        _priority_order_rank_min_select_store_row(
+        ^
+CompilationError('def _priority_order_rank_min_select_store_row(\n    scores_ptr,\n    weights_ptr,\n    ids_ptr,\n    row,\n    offs,\n    tie_rank,\n    bias,\n):\n    """R27 unique path with MMQ-priority columns as the rank axis."""\n    scores = tl.load(scores_ptr + row * _JIT_NUM_EXPERTS + offs)\n    scores = tl.where(scores == scores, scores, -float("inf"))\n    routing_scores = scores + bias\n    sorted_routing = al.sort(routing_scores, dim=-1, descending=True)\n\n    out_lanes = tl.arange(0, _JIT_OUTPUT_WIDTH)\n    top_values = tl.gather(sorted_routing, out_lanes, 0)\n    next_lanes = tl.minimum(out_lanes + 1, _JIT_OUTPUT_WIDTH - 1)\n    next_values = tl.gather(top_values, next_lanes, 0)\n    adjacent_duplicate = (top_values == next_values) & (\n        out_lanes.to(tl.float32) < 9.0\n    )\n    has_duplicate = tl.sum(adjacent_duplicate.to(tl.float32), axis=0) > 0.0\n\n    selected_ids = tl.zeros((_JIT_OUTPUT_WIDTH,), dtype=tl.int32)\n    if ~has_duplicate:\n        priority_rank = offs\n        priority_lane = priority_rank >> 4\n        priority_local = priority_rank & 15\n        priority_ids = (\n            ((priority_local >> 2) << 7)\n            + (priority_lane << 2)\n            + (priority_local & 3)\n        ).to(tl.int32)\n        routing_by_priority = tl.gather(routing_scores, priority_ids, 0)\n        matches = top_values[:, None] == routing_by_priority[None, :]\n        selected_rank = tl.min(\n            tl.where(matches, priority_rank[None, :], _JIT_NUM_EXPERTS + 1),\n            axis=1,\n        )\n        selected_ids = tl.gather(priority_ids, selected_rank, 0)\n    else:\n        invalid_rank = _JIT_NUM_EXPERTS + 1\n        previous_value = float("inf")\n        previous_rank = -1.0\n        for k in tl.static_range(0, _JIT_TOPK):\n            kth_routing_score = al.get_element(sorted_routing, indice=[k])\n            same_group = kth_routing_score == previous_value\n            eligible = (routing_scores == kth_routing_score) & (\n                ~same_group | (tie_rank.to(tl.float32) > previous_rank)\n            )\n            fallback_rank = tl.min(\n                tl.where(eligible, tie_rank, invalid_rank), axis=0\n            )\n            fallback_lane = fallback_rank >> 4\n            fallback_local = fallback_rank & 15\n            fallback_idx = (\n                ((fallback_local >> 2) << 7)\n                + (fallback_lane << 2)\n                + (fallback_local & 3)\n            )\n            selected_ids = tl.where(out_lanes == k, fallback_idx, selected_ids)\n            previous_value = kth_routing_score\n            previous_rank = fallback_rank.to(tl.float32)\n\n    selected_weights = tl.gather(scores, selected_ids, 0)\n    output_mask = out_lanes < _JIT_TOPK\n    output_offsets = row * _JIT_TOPK + out_lanes\n    tl.store(weights_ptr + output_offsets, selected_weights, mask=output_mask)\n    tl.store(ids_ptr + output_offsets, selected_ids, mask=output_mask)\n', <ast.Call object at 0x7f0b1838d0f0>, "ValueError('Expected dtype fp16/fp32/bf16/f8E5M2/f8E4M3FN/int8, but got int32')")
+[ERROR] 2026-08-12-20:52:23 (PID:3310298, Device:5, RankID:-1) ERR99999 UNKNOWN applicaiton exception
