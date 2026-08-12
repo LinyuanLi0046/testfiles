@@ -3,7 +3,7 @@
 
 This is deliberately a manual, standalone experiment.  It does not replace or
 register any production SGLang operator.  R0 is a frozen 2026-08-11 copy of the
-old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R7 are
+old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R8 are
 cumulative experimental variants kept here so that every round remains
 measurable after a later optimized kernel is integrated into the model path.
 
@@ -38,6 +38,10 @@ Rounds:
   cumsum.  The hardware FP32 sort remains the ranking primitive, while all ten
   exact MMQ tie occurrences are recovered in parallel.  R6's M=320 dispatch
   and bias-placement choices are otherwise unchanged.
+* R8: dispatch R7 only while every program processes exactly one row
+  (M <= physical AIV); above that boundary, reuse R6 unchanged.  This isolates
+  the measured one-row vectorization win without carrying R7's rank-2 UB
+  matrix across multiple row-loop iterations.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -110,6 +114,7 @@ VARIANTS = (
     "r5_dispatch",
     "r6_empirical_dispatch",
     "r7_vector_tie_recovery",
+    "r8_safe_vector_dispatch",
 )
 
 VARIANT_DESCRIPTIONS = {
@@ -121,6 +126,7 @@ VARIANT_DESCRIPTIONS = {
     "r5_dispatch": "small direct / large partition dispatch",
     "r6_empirical_dispatch": "R3 through M=320 / R5-large above M=320",
     "r7_vector_tie_recovery": "FP32 2D vector tie recovery on R6 dispatch",
+    "r8_safe_vector_dispatch": "R7 through physical AIV / R6 above it",
 }
 
 COMMON_SHAPES = [1, 2, 4, 8, 16, 32, 56, 63, 64, 65, 128, 512, 9616, 16384]
@@ -711,7 +717,7 @@ class ModelNew(torch.nn.Module):
         assert scores.ndim == 2 and scores.shape[1] == NUM_EXPERTS
         assert scores.dtype == torch.float32
         assert scores.is_contiguous(), (
-            "R1-R7 specialize the actual WeLM common path: contiguous [M,512]"
+            "R1-R8 specialize the actual WeLM common path: contiguous [M,512]"
         )
         assert bias.shape == (NUM_EXPERTS,) and bias.dtype == torch.float32
         assert bias.is_contiguous()
@@ -904,6 +910,32 @@ class ModelNew(torch.nn.Module):
                 if m <= R6_DISPATCH_CUTOFF_M
                 else _r7_vector_tie_large_kernel
             )
+
+            def launch() -> None:
+                kernel[grid](
+                    scores,
+                    bias,
+                    weights,
+                    ids,
+                    rows_per_program,
+                    extra_rows,
+                    multibuffer=False,
+                    unit_flag=False,
+                )
+
+            return launch
+
+        if variant == "r8_safe_vector_dispatch":
+            # Optimization point 12 (grid/multipath specialization): R7 is a
+            # win only while each program owns one row.  Once M exceeds the
+            # physical AIV count, bind the exact R6 winner instead.
+            grid, rows_per_program, extra_rows = self._partition(m)
+            if m <= self.num_vector_cores:
+                kernel = _r7_vector_tie_small_kernel
+            elif m <= R6_DISPATCH_CUTOFF_M:
+                kernel = _r3_sort_tie_kernel
+            else:
+                kernel = _r5_large_partition_kernel
 
             def launch() -> None:
                 kernel[grid](
@@ -1444,8 +1476,10 @@ def parse_shapes(spec: str, *, correctness: bool) -> list[int]:
 
 def parse_variants(spec: str) -> list[str]:
     normalized = spec.strip().lower()
-    if normalized in ("all", "0-7", "r0-r7"):
+    if normalized in ("all", "0-8", "r0-r8"):
         return list(VARIANTS)
+    if normalized in ("0-7", "r0-r7"):
+        return list(VARIANTS[:8])
     if normalized in ("0-6", "r0-r6"):
         return list(VARIANTS[:7])
     if normalized in ("0-5", "r0-r5"):
@@ -1487,7 +1521,7 @@ def write_csv(path_text: str, records: Sequence[dict[str, object]]) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="WeLM-v4 A5 expert-bias TopK R0-R7 accuracy/latency study"
+        description="WeLM-v4 A5 expert-bias TopK R0-R8 accuracy/latency study"
     )
     parser.add_argument(
         "--mode",
@@ -1502,7 +1536,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--variants",
         default="all",
-        help="all, 0-7, or comma list such as r3,r6,r7 (R0 is always added)",
+        help="all, 0-8, or comma list such as r6,r7,r8 (R0 is always added)",
     )
     parser.add_argument("--device", default="npu:0")
     parser.add_argument("--seed", type=int, default=20260811)
