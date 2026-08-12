@@ -3,7 +3,7 @@
 
 This is deliberately a manual, standalone experiment.  It does not replace or
 register any production SGLang operator.  R0 is a frozen 2026-08-11 copy of the
-old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R27 are
+old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R28 are
 cumulative experimental variants kept here so that every round remains
 measurable after a later optimized kernel is integrated into the model path.
 
@@ -135,6 +135,10 @@ Rounds:
   transpose its unique-path match tile from [512,16] to [16,512].  The same
   values are reduced along the contiguous last axis instead of axis 0; sort,
   duplicate detection, fallback, grid and bias schedule are unchanged.
+* R28: keep R27's contiguous last-axis reduction but split its padded
+  [16,512] unique tile into [8,512] plus [2,512].  This reduces active match
+  and min-reduction lanes from 8192 to 5120 while preserving the same ten
+  values, exact integer MMQ ranks, duplicate fallback and output order.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -228,6 +232,7 @@ VARIANTS = (
     "r25_lexicographic_tuple_reduce",
     "r26_unique_direct_expert_id",
     "r27_last_axis_rank_reduce",
+    "r28_split_last_axis_rank_reduce",
 )
 
 VARIANT_DESCRIPTIONS = {
@@ -262,6 +267,9 @@ VARIANT_DESCRIPTIONS = {
     "r26_unique_direct_expert_id": "rejected direct-ID reduce; exact R15 fallback",
     "r27_last_axis_rank_reduce": (
         "R15 [16,512] unique match tile with contiguous last-axis rank min"
+    ),
+    "r28_split_last_axis_rank_reduce": (
+        "R27 [8,512]+[2,512] exact unique-rank reductions"
     ),
 }
 
@@ -1004,6 +1012,116 @@ def _last_axis_rank_select_store_row(
     output_offsets = row * _JIT_TOPK + out_lanes
     tl.store(weights_ptr + output_offsets, selected_weights, mask=output_mask)
     tl.store(ids_ptr + output_offsets, selected_ids, mask=output_mask)
+
+
+@triton.jit
+def _split_last_axis_rank_select_store_row(
+    scores_ptr,
+    weights_ptr,
+    ids_ptr,
+    row,
+    offs,
+    tie_rank,
+    bias,
+):
+    """R27 exact semantics with 8+2 rather than 16 output columns."""
+    scores = tl.load(scores_ptr + row * _JIT_NUM_EXPERTS + offs)
+    scores = tl.where(scores == scores, scores, -float("inf"))
+    routing_scores = scores + bias
+    sorted_routing = al.sort(routing_scores, dim=-1, descending=True)
+
+    detection_lanes = tl.arange(0, _JIT_OUTPUT_WIDTH)
+    top_values = tl.gather(sorted_routing, detection_lanes, 0)
+    next_lanes = tl.minimum(detection_lanes + 1, _JIT_OUTPUT_WIDTH - 1)
+    next_values = tl.gather(top_values, next_lanes, 0)
+    adjacent_duplicate = (top_values == next_values) & (
+        detection_lanes.to(tl.float32) < 9.0
+    )
+    has_duplicate = tl.sum(adjacent_duplicate.to(tl.float32), axis=0) > 0.0
+
+    if ~has_duplicate:
+        first_lanes = tl.arange(0, 8)
+        first_values = tl.gather(top_values, first_lanes, 0)
+        first_matches = first_values[:, None] == routing_scores[None, :]
+        first_ranks = tl.min(
+            tl.where(
+                first_matches,
+                tie_rank[None, :],
+                _JIT_NUM_EXPERTS + 1,
+            ),
+            axis=1,
+        )
+        first_lane = first_ranks >> 4
+        first_local = first_ranks & 15
+        first_ids = (
+            ((first_local >> 2) << 7)
+            + (first_lane << 2)
+            + (first_local & 3)
+        ).to(tl.int32)
+        first_weights = tl.gather(scores, first_ids, 0)
+        first_offsets = row * _JIT_TOPK + first_lanes
+        tl.store(weights_ptr + first_offsets, first_weights)
+        tl.store(ids_ptr + first_offsets, first_ids)
+
+        tail_lanes = tl.arange(0, 2)
+        tail_values = tl.gather(top_values, tail_lanes + 8, 0)
+        tail_matches = tail_values[:, None] == routing_scores[None, :]
+        tail_ranks = tl.min(
+            tl.where(
+                tail_matches,
+                tie_rank[None, :],
+                _JIT_NUM_EXPERTS + 1,
+            ),
+            axis=1,
+        )
+        tail_lane = tail_ranks >> 4
+        tail_local = tail_ranks & 15
+        tail_ids = (
+            ((tail_local >> 2) << 7)
+            + (tail_lane << 2)
+            + (tail_local & 3)
+        ).to(tl.int32)
+        tail_weights = tl.gather(scores, tail_ids, 0)
+        tail_offsets = row * _JIT_TOPK + tail_lanes + 8
+        tl.store(weights_ptr + tail_offsets, tail_weights)
+        tl.store(ids_ptr + tail_offsets, tail_ids)
+    else:
+        fallback_lanes = tl.arange(0, _JIT_OUTPUT_WIDTH)
+        fallback_ids = tl.zeros((_JIT_OUTPUT_WIDTH,), dtype=tl.int32)
+        invalid_rank = _JIT_NUM_EXPERTS + 1
+        previous_value = float("inf")
+        previous_rank = -1.0
+        for k in tl.static_range(0, _JIT_TOPK):
+            kth_routing_score = al.get_element(sorted_routing, indice=[k])
+            same_group = kth_routing_score == previous_value
+            eligible = (routing_scores == kth_routing_score) & (
+                ~same_group | (tie_rank.to(tl.float32) > previous_rank)
+            )
+            fallback_rank = tl.min(
+                tl.where(eligible, tie_rank, invalid_rank), axis=0
+            )
+            fallback_lane = fallback_rank >> 4
+            fallback_local = fallback_rank & 15
+            fallback_idx = (
+                ((fallback_local >> 2) << 7)
+                + (fallback_lane << 2)
+                + (fallback_local & 3)
+            )
+            fallback_ids = tl.where(
+                fallback_lanes == k, fallback_idx, fallback_ids
+            )
+            previous_value = kth_routing_score
+            previous_rank = fallback_rank.to(tl.float32)
+
+        fallback_weights = tl.gather(scores, fallback_ids, 0)
+        fallback_mask = fallback_lanes < _JIT_TOPK
+        fallback_offsets = row * _JIT_TOPK + fallback_lanes
+        tl.store(
+            weights_ptr + fallback_offsets,
+            fallback_weights,
+            mask=fallback_mask,
+        )
+        tl.store(ids_ptr + fallback_offsets, fallback_ids, mask=fallback_mask)
 
 
 @triton.jit
@@ -2716,6 +2834,52 @@ def _r27_last_axis_rank_large_kernel(
         )
 
 
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _r28_split_last_axis_rank_medium_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
+
+    for row in tl.range(row_start, row_end):
+        bias = tl.load(bias_ptr + offs)
+        _split_last_axis_rank_select_store_row(
+            scores_ptr, weights_ptr, ids_ptr, row, offs, tie_rank, bias
+        )
+
+
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _r28_split_last_axis_rank_large_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
+    bias = tl.load(bias_ptr + offs)
+
+    for row in tl.range(row_start, row_end):
+        _split_last_axis_rank_select_store_row(
+            scores_ptr, weights_ptr, ids_ptr, row, offs, tie_rank, bias
+        )
+
+
 @triton.jit
 def _r21_prefill_partition_constexpr_kernel(
     scores_ptr,
@@ -3498,6 +3662,32 @@ class ModelNew(torch.nn.Module):
 
             return launch
 
+        if variant == "r28_split_last_axis_rank_reduce":
+            # Optimization point 2 (tiling), isolated from R27.  Keep the
+            # last-axis exact rank min, but remove six padded output columns
+            # by splitting the unique path into [8,512] and [2,512].
+            grid, rows_per_program, extra_rows = self._partition(m)
+            if m <= self.num_vector_cores:
+                kernel = _r7_vector_tie_small_kernel
+            elif m <= R6_DISPATCH_CUTOFF_M:
+                kernel = _r28_split_last_axis_rank_medium_kernel
+            else:
+                kernel = _r28_split_last_axis_rank_large_kernel
+
+            def launch() -> None:
+                kernel[grid](
+                    scores,
+                    bias,
+                    weights,
+                    ids,
+                    rows_per_program,
+                    extra_rows,
+                    multibuffer=False,
+                    unit_flag=False,
+                )
+
+            return launch
+
         raise ValueError(f"Unknown variant: {variant}")
 
     def launch_into(
@@ -4112,8 +4302,10 @@ def parse_shapes(spec: str, *, correctness: bool) -> list[int]:
 
 def parse_variants(spec: str) -> list[str]:
     normalized = spec.strip().lower()
-    if normalized in ("all", "0-27", "r0-r27"):
+    if normalized in ("all", "0-28", "r0-r28"):
         return list(VARIANTS)
+    if normalized in ("0-27", "r0-r27"):
+        return list(VARIANTS[:28])
     if normalized in ("0-26", "r0-r26"):
         return list(VARIANTS[:27])
     if normalized in ("0-25", "r0-r25"):
@@ -4195,7 +4387,7 @@ def write_csv(path_text: str, records: Sequence[dict[str, object]]) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="WeLM-v4 A5 expert-bias TopK R0-R27 accuracy/latency study"
+        description="WeLM-v4 A5 expert-bias TopK R0-R28 accuracy/latency study"
     )
     parser.add_argument(
         "--mode",
@@ -4210,7 +4402,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--variants",
         default="all",
-        help="all, 0-27, or comma list such as r25,r26,r27 (R0 is always added)",
+        help="all, 0-28, or comma list such as r26,r27,r28 (R0 is always added)",
     )
     parser.add_argument("--device", default="npu:0")
     parser.add_argument("--seed", type=int, default=20260811)
