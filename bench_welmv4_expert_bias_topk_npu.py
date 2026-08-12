@@ -3,7 +3,7 @@
 
 This is deliberately a manual, standalone experiment.  It does not replace or
 register any production SGLang operator.  R0 is a frozen 2026-08-11 copy of the
-old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R21 are
+old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R22 are
 cumulative experimental variants kept here so that every round remains
 measurable after a later optimized kernel is integrated into the model path.
 
@@ -98,6 +98,10 @@ Rounds:
 * R21: specialize R15's rows-per-program and extra-row partition constants for
   the two common fixed prefill shapes M=9616 and M=16384.  Every other shape
   remains an exact R15 dispatch to avoid a general-shape JIT cache explosion.
+  It showed no gain, so R21 is retained as an explicit R15 fallback.
+* R22: for M >= 512, launch one program per physical core (28 programs on the
+  test A5) instead of one per AIV (56).  This tests whether two simultaneous
+  sort-heavy AIV programs per core contend for Vector/UB resources.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -184,6 +188,7 @@ VARIANTS = (
     "r19_unique_id_sum",
     "r20_iterative_rank1_maxarg",
     "r21_prefill_partition_constexpr",
+    "r22_physical_core_grid",
 )
 
 VARIANT_DESCRIPTIONS = {
@@ -210,7 +215,8 @@ VARIANT_DESCRIPTIONS = {
     "r18_hierarchical_partial_sort": "rejected hierarchical sort; exact R15 fallback",
     "r19_unique_id_sum": "rejected FP32 ID sum; exact R15 fallback",
     "r20_iterative_rank1_maxarg": "rejected iterative maxarg; exact R15 fallback",
-    "r21_prefill_partition_constexpr": "R15 fixed-partition specialization for M=9616/16384",
+    "r21_prefill_partition_constexpr": "rejected prefill constexpr; exact R15 fallback",
+    "r22_physical_core_grid": "R15 with one sort-heavy program per physical core",
 }
 
 COMMON_SHAPES = [1, 2, 4, 8, 16, 32, 56, 63, 64, 65, 128, 512, 9616, 16384]
@@ -2768,33 +2774,47 @@ class ModelNew(torch.nn.Module):
             return launch
 
         if variant == "r21_prefill_partition_constexpr":
-            # Optimization point 1 (constexpr), based on R15.  Specialize only
-            # the two production-critical fixed prefill shapes; every other M
-            # reuses R15 so arbitrary requests do not create a JIT-cache storm.
+            # Fixed prefill constexpr showed no gain.  Keep this rejected round
+            # measurable as the exact R15 implementation.
             grid, rows_per_program, extra_rows = self._partition(m)
-            if m in (9616, 16384):
-                kernel = _r21_prefill_partition_constexpr_kernel
-
-                def launch() -> None:
-                    kernel[grid](
-                        scores,
-                        bias,
-                        weights,
-                        ids,
-                        rows_per_program,
-                        extra_rows,
-                        multibuffer=False,
-                        unit_flag=False,
-                    )
-
-                return launch
-
             if m <= self.num_vector_cores:
                 kernel = _r7_vector_tie_small_kernel
             elif m <= R6_DISPATCH_CUTOFF_M:
                 kernel = _r15_unique_top10_medium_kernel
             else:
                 kernel = _r15_unique_top10_large_kernel
+
+            def launch() -> None:
+                kernel[grid](
+                    scores,
+                    bias,
+                    weights,
+                    ids,
+                    rows_per_program,
+                    extra_rows,
+                    multibuffer=False,
+                    unit_flag=False,
+                )
+
+            return launch
+
+        if variant == "r22_physical_core_grid":
+            # Optimization point 3 (core partition), based on R15.  A5 exposes
+            # two AIVs per physical core.  For sort-heavy prefill, test one
+            # program per physical core while preserving contiguous row ranges.
+            if m >= 512:
+                program_count = min(m, max(1, self.num_vector_cores // 2))
+                rows_per_program, extra_rows = divmod(m, program_count)
+                grid = (program_count,)
+                kernel = _r15_unique_top10_large_kernel
+            else:
+                grid, rows_per_program, extra_rows = self._partition(m)
+                if m <= self.num_vector_cores:
+                    kernel = _r7_vector_tie_small_kernel
+                elif m <= R6_DISPATCH_CUTOFF_M:
+                    kernel = _r15_unique_top10_medium_kernel
+                else:
+                    kernel = _r15_unique_top10_large_kernel
 
             def launch() -> None:
                 kernel[grid](
@@ -3335,8 +3355,10 @@ def parse_shapes(spec: str, *, correctness: bool) -> list[int]:
 
 def parse_variants(spec: str) -> list[str]:
     normalized = spec.strip().lower()
-    if normalized in ("all", "0-21", "r0-r21"):
+    if normalized in ("all", "0-22", "r0-r22"):
         return list(VARIANTS)
+    if normalized in ("0-21", "r0-r21"):
+        return list(VARIANTS[:22])
     if normalized in ("0-20", "r0-r20"):
         return list(VARIANTS[:21])
     if normalized in ("0-19", "r0-r19"):
@@ -3406,7 +3428,7 @@ def write_csv(path_text: str, records: Sequence[dict[str, object]]) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="WeLM-v4 A5 expert-bias TopK R0-R21 accuracy/latency study"
+        description="WeLM-v4 A5 expert-bias TopK R0-R22 accuracy/latency study"
     )
     parser.add_argument(
         "--mode",
@@ -3421,7 +3443,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--variants",
         default="all",
-        help="all, 0-21, or comma list such as r19,r20,r21 (R0 is always added)",
+        help="all, 0-22, or comma list such as r20,r21,r22 (R0 is always added)",
     )
     parser.add_argument("--device", default="npu:0")
     parser.add_argument("--seed", type=int, default=20260811)
