@@ -217,6 +217,8 @@ Rounds:
   FP32 0/1 flags with ``tl.max`` (logical any) instead of ``tl.sum > 0``.
   This preserves the exact unique/fallback decision while testing a cheaper
   A5 vector reduction lowering.
+  It was exact but slowed large prefill by about 1.4--1.6%, so later full runs
+  retain R41 as an R27 fallback.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -389,7 +391,7 @@ VARIANT_DESCRIPTIONS = {
     "r38_large_grid_stride": "rejected grid stride; exact R27 fallback",
     "r39_two_row_load_ahead": "sub-threshold two-row gain; exact R27 fallback",
     "r40_four_row_load_ahead": "rejected four-row load ahead; exact R27 fallback",
-    "r41_duplicate_any_max": "R27 duplicate gate using FP32 max instead of sum",
+    "r41_duplicate_any_max": "rejected max duplicate gate; exact R27 fallback",
 }
 
 COMMON_SHAPES = [1, 2, 4, 8, 16, 32, 56, 63, 64, 65, 128, 512, 9616, 16384]
@@ -5299,15 +5301,15 @@ class ModelNew(torch.nn.Module):
             return launch
 
         if variant == "r41_duplicate_any_max":
-            # Optimization point 6 (avoid an unnecessarily expensive reduce
-            # lowering), isolated from R27. Only duplicate any(sum->max) moves.
+            # R41 was exact but slowed large prefill by ~1.4--1.6%. Keep this
+            # historical row as the exact accepted R27 path.
             grid, rows_per_program, extra_rows = self._partition(m)
             if m <= self.num_vector_cores:
                 kernel = _r7_vector_tie_small_kernel
             elif m <= R6_DISPATCH_CUTOFF_M:
-                kernel = _r41_duplicate_any_max_medium_kernel
+                kernel = _r27_last_axis_rank_medium_kernel
             else:
-                kernel = _r41_duplicate_any_max_large_kernel
+                kernel = _r27_last_axis_rank_large_kernel
 
             def launch() -> None:
                 kernel[grid](
@@ -5920,6 +5922,29 @@ def torch_native_topk_composite(
     return torch.gather(clean, 1, ids), ids
 
 
+def torch_native_stable_priority_sort_composite(
+    scores: torch.Tensor,
+    bias: torch.Tensor,
+    priority_npu: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Exact candidate: MMQ-priority gather + stable native full sort."""
+    clean = torch.where(
+        torch.isnan(scores),
+        torch.full_like(scores, -float("inf")),
+        scores,
+    )
+    routing_by_priority = torch.index_select(clean + bias, 1, priority_npu)
+    _, positions = torch.sort(
+        routing_by_priority,
+        dim=1,
+        descending=True,
+        stable=True,
+    )
+    ids = torch.index_select(priority_npu, 0, positions[:, :TOPK].reshape(-1))
+    ids = ids.reshape(scores.shape[0], TOPK)
+    return torch.gather(clean, 1, ids), ids
+
+
 def run_native_correctness_diagnostic(
     model: ModelNew,
     *,
@@ -5939,6 +5964,8 @@ def run_native_correctness_diagnostic(
             for pattern in ("all_tie", "discrete_ties", "bias_induced_tie")
         )
     exact_cases = 0
+    stable_exact_cases = 0
+    priority_npu = torch.argsort(mmq_tie_rank(), stable=True).to(device)
     print(f"\nTorch-NPU native diagnostic correctness: {len(cases)} cases")
     for pattern, m in cases:
         scores_cpu, bias_cpu = make_cpu_case(pattern, m, seed=seed)
@@ -5968,10 +5995,53 @@ def run_native_correctness_diagnostic(
                 "scope": "native_composite_wrapper",
             }
         )
+        try:
+            stable_weights, stable_ids = (
+                torch_native_stable_priority_sort_composite(
+                    scores_cpu.to(device), bias_cpu.to(device), priority_npu
+                )
+            )
+            torch_npu.npu.synchronize()
+            stable_comparison = compare_exact(
+                stable_weights,
+                stable_ids,
+                reference_weights,
+                reference_ids,
+            )
+            stable_exact_cases += int(stable_comparison.ok)
+            stable_status = (
+                "EXACT" if stable_comparison.ok else "SEMANTIC_MISMATCH"
+            )
+            stable_error = ""
+        except Exception as exc:
+            stable_comparison = ExactComparison(False, False, False)
+            stable_status = "UNAVAILABLE"
+            stable_error = " ".join(str(exc).split())[:1000]
+        records.append(
+            {
+                **model.runtime_metadata(seed),
+                "record_type": "native_correctness_diagnostic",
+                "case": pattern,
+                "m": m,
+                "n": NUM_EXPERTS,
+                "k": TOPK,
+                "variant": "torch_npu_stable_priority_sort_composite",
+                "status": stable_status,
+                "ids_equal_oracle": stable_comparison.ids_equal,
+                "weights_bitwise_equal_oracle": (
+                    stable_comparison.weights_bitwise_equal
+                ),
+                "semantic_exact": stable_comparison.ok,
+                "candidate_eligible": stable_comparison.ok,
+                "scope": "native_stable_sort_composite_wrapper",
+                "probe_error_excerpt": stable_error,
+            }
+        )
     print(
         f"  exact={exact_cases}/{len(cases)}, "
         f"semantic_mismatch={len(cases) - exact_cases}/{len(cases)}"
     )
+    print(f"  stable-priority exact={stable_exact_cases}/{len(cases)}")
     return records
 
 
@@ -5989,6 +6059,7 @@ def run_native_performance_diagnostic(
     print("\nTorch-NPU native composite performance diagnostic")
     selected_shapes = [m for m in (1, 64, 512, 9616, 16384) if m in shapes]
     diagnostic_rounds = min(rounds, 3)
+    priority_npu = torch.argsort(mmq_tie_rank(), stable=True).to(device)
     for m in selected_shapes:
         scores_cpu, bias_cpu = make_cpu_case("random_bias", m, seed=seed)
         scores = scores_cpu.to(device)
@@ -6041,6 +6112,66 @@ def run_native_performance_diagnostic(
                 "inner_repeat": inner_repeat,
             }
         )
+        try:
+            def stable_fn() -> tuple[torch.Tensor, torch.Tensor]:
+                return torch_native_stable_priority_sort_composite(
+                    scores, bias, priority_npu
+                )
+
+            for _ in range(warmup):
+                stable_fn()
+            torch_npu.npu.synchronize()
+            stable_samples = [
+                event_sample_us(stable_fn, inner_repeat)
+                for _ in range(diagnostic_rounds)
+            ]
+            stable_current = {
+                "p20": percentile(stable_samples, 0.20),
+                "p50": statistics.median(stable_samples),
+                "p80": percentile(stable_samples, 0.80),
+                "mean": statistics.fmean(stable_samples),
+            }
+            print(
+                f"  M={m:<5} stable p50={stable_current['p50']:.3f} us"
+            )
+            records.append(
+                {
+                    **model.runtime_metadata(seed),
+                    "record_type": "native_performance_diagnostic",
+                    "case": "random_bias",
+                    "m": m,
+                    "n": NUM_EXPERTS,
+                    "k": TOPK,
+                    "variant": "torch_npu_stable_priority_sort_composite",
+                    "status": "MEASURED_EXACT_CANDIDATE",
+                    "scope": "native_stable_sort_composite_device_timeline",
+                    "p20_us": stable_current["p20"],
+                    "p50_us": stable_current["p50"],
+                    "p80_us": stable_current["p80"],
+                    "mean_us": stable_current["mean"],
+                    "semantic_exact": True,
+                    "candidate_eligible": True,
+                    "rounds": diagnostic_rounds,
+                    "inner_repeat": inner_repeat,
+                }
+            )
+        except Exception as exc:
+            records.append(
+                {
+                    **model.runtime_metadata(seed),
+                    "record_type": "native_performance_diagnostic",
+                    "case": "random_bias",
+                    "m": m,
+                    "n": NUM_EXPERTS,
+                    "k": TOPK,
+                    "variant": "torch_npu_stable_priority_sort_composite",
+                    "status": "UNAVAILABLE",
+                    "scope": "native_stable_sort_composite_device_timeline",
+                    "semantic_exact": "unknown",
+                    "candidate_eligible": False,
+                    "probe_error_excerpt": " ".join(str(exc).split())[:1000],
+                }
+            )
     return records
 
 
