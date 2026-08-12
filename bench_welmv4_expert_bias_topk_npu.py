@@ -3,7 +3,7 @@
 
 This is deliberately a manual, standalone experiment.  It does not replace or
 register any production SGLang operator.  R0 is a frozen 2026-08-11 copy of the
-old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R15 are
+old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R16 are
 cumulative experimental variants kept here so that every round remains
 measurable after a later optimized kernel is integrated into the model path.
 
@@ -73,6 +73,9 @@ Rounds:
   unique-value path recovers all IDs with one [512,16] equality/min pass; any
   duplicate value falls back to exact R10.  Unlike R7/R9, the fast path has no
   cumsum and performs only one rank-2 scan.
+* R16: keep R15's exact unique/fallback dispatch, but recover the ten unique
+  IDs with [512,8] and [512,2] equality/min tiles.  This reduces comparison
+  lanes from 8192 to 5120 while testing the cost of one additional reduction.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -153,6 +156,7 @@ VARIANTS = (
     "r13_fp32_rank_reduce",
     "r14_priority_argmax",
     "r15_unique_top10_fastpath",
+    "r16_split_unique_recovery",
 )
 
 VARIANT_DESCRIPTIONS = {
@@ -174,6 +178,7 @@ VARIANT_DESCRIPTIONS = {
     "r13_fp32_rank_reduce": "R10 with exact FP32 tie-rank min reductions",
     "r14_priority_argmax": "R10 with priority gather + FP32 leftmost argmax",
     "r15_unique_top10_fastpath": "one-pass unique top-10 recovery / exact R10 fallback",
+    "r16_split_unique_recovery": "split [512,8]+[512,2] unique recovery / exact R10 fallback",
 }
 
 COMMON_SHAPES = [1, 2, 4, 8, 16, 32, 56, 63, 64, 65, 128, 512, 9616, 16384]
@@ -761,6 +766,109 @@ def _unique_top10_select_store_row(
     output_offsets = row * _JIT_TOPK + out_lanes
     tl.store(weights_ptr + output_offsets, selected_weights, mask=output_mask)
     tl.store(ids_ptr + output_offsets, selected_ids, mask=output_mask)
+
+
+@triton.jit
+def _split_unique_top10_select_store_row(
+    scores_ptr,
+    weights_ptr,
+    ids_ptr,
+    row,
+    offs,
+    tie_rank,
+    bias,
+):
+    """R15 semantics with [512,8] + [512,2] unique-value recovery."""
+    scores = tl.load(scores_ptr + row * _JIT_NUM_EXPERTS + offs)
+    scores = tl.where(scores == scores, scores, -float("inf"))
+    routing_scores = scores + bias
+    sorted_routing = al.sort(routing_scores, dim=-1, descending=True)
+
+    detection_lanes = tl.arange(0, _JIT_OUTPUT_WIDTH)
+    top_values = tl.gather(sorted_routing, detection_lanes, 0)
+    next_lanes = tl.minimum(detection_lanes + 1, _JIT_OUTPUT_WIDTH - 1)
+    next_values = tl.gather(top_values, next_lanes, 0)
+    adjacent_duplicate = (top_values == next_values) & (
+        detection_lanes.to(tl.float32) < 9.0
+    )
+    has_duplicate = tl.sum(adjacent_duplicate.to(tl.float32), axis=0) > 0.0
+
+    if ~has_duplicate:
+        first_lanes = tl.arange(0, 8)
+        first_values = tl.gather(top_values, first_lanes, 0)
+        first_matches = routing_scores[:, None] == first_values[None, :]
+        first_ranks = tl.min(
+            tl.where(first_matches, tie_rank[:, None], _JIT_NUM_EXPERTS + 1),
+            axis=0,
+        )
+        first_lane = first_ranks >> 4
+        first_local = first_ranks & 15
+        first_ids = (
+            ((first_local >> 2) << 7)
+            + (first_lane << 2)
+            + (first_local & 3)
+        ).to(tl.int32)
+        first_weights = tl.gather(scores, first_ids, 0)
+        first_offsets = row * _JIT_TOPK + first_lanes
+        tl.store(weights_ptr + first_offsets, first_weights)
+        tl.store(ids_ptr + first_offsets, first_ids)
+
+        tail_lanes = tl.arange(0, 2)
+        tail_positions = tail_lanes + 8
+        tail_values = tl.gather(top_values, tail_positions, 0)
+        tail_matches = routing_scores[:, None] == tail_values[None, :]
+        tail_ranks = tl.min(
+            tl.where(tail_matches, tie_rank[:, None], _JIT_NUM_EXPERTS + 1),
+            axis=0,
+        )
+        tail_lane = tail_ranks >> 4
+        tail_local = tail_ranks & 15
+        tail_ids = (
+            ((tail_local >> 2) << 7)
+            + (tail_lane << 2)
+            + (tail_local & 3)
+        ).to(tl.int32)
+        tail_weights = tl.gather(scores, tail_ids, 0)
+        tail_offsets = row * _JIT_TOPK + tail_positions
+        tl.store(weights_ptr + tail_offsets, tail_weights)
+        tl.store(ids_ptr + tail_offsets, tail_ids)
+    else:
+        fallback_lanes = tl.arange(0, _JIT_OUTPUT_WIDTH)
+        fallback_ids = tl.zeros((_JIT_OUTPUT_WIDTH,), dtype=tl.int32)
+        invalid_rank = _JIT_NUM_EXPERTS + 1
+        previous_value = float("inf")
+        previous_rank = -1.0
+        for k in tl.static_range(0, _JIT_TOPK):
+            kth_routing_score = al.get_element(sorted_routing, indice=[k])
+            same_group = kth_routing_score == previous_value
+            eligible = (routing_scores == kth_routing_score) & (
+                ~same_group | (tie_rank.to(tl.float32) > previous_rank)
+            )
+            fallback_rank = tl.min(
+                tl.where(eligible, tie_rank, invalid_rank), axis=0
+            )
+            fallback_lane = fallback_rank >> 4
+            fallback_local = fallback_rank & 15
+            fallback_idx = (
+                ((fallback_local >> 2) << 7)
+                + (fallback_lane << 2)
+                + (fallback_local & 3)
+            )
+            fallback_ids = tl.where(
+                fallback_lanes == k, fallback_idx, fallback_ids
+            )
+            previous_value = kth_routing_score
+            previous_rank = fallback_rank.to(tl.float32)
+
+        fallback_weights = tl.gather(scores, fallback_ids, 0)
+        fallback_mask = fallback_lanes < _JIT_TOPK
+        fallback_offsets = row * _JIT_TOPK + fallback_lanes
+        tl.store(
+            weights_ptr + fallback_offsets,
+            fallback_weights,
+            mask=fallback_mask,
+        )
+        tl.store(ids_ptr + fallback_offsets, fallback_ids, mask=fallback_mask)
 
 
 @triton.jit
@@ -1469,6 +1577,52 @@ def _r15_unique_top10_large_kernel(
         )
 
 
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _r16_split_unique_medium_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
+
+    for row in tl.range(row_start, row_end):
+        bias = tl.load(bias_ptr + offs)
+        _split_unique_top10_select_store_row(
+            scores_ptr, weights_ptr, ids_ptr, row, offs, tie_rank, bias
+        )
+
+
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _r16_split_unique_large_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
+    bias = tl.load(bias_ptr + offs)
+
+    for row in tl.range(row_start, row_end):
+        _split_unique_top10_select_store_row(
+            scores_ptr, weights_ptr, ids_ptr, row, offs, tie_rank, bias
+        )
+
+
 # ---------------------------------------------------------------------------
 # Host launchers.  No production call site is modified.
 # ---------------------------------------------------------------------------
@@ -1920,6 +2074,32 @@ class ModelNew(torch.nn.Module):
                 kernel = _r15_unique_top10_medium_kernel
             else:
                 kernel = _r15_unique_top10_large_kernel
+
+            def launch() -> None:
+                kernel[grid](
+                    scores,
+                    bias,
+                    weights,
+                    ids,
+                    rows_per_program,
+                    extra_rows,
+                    multibuffer=False,
+                    unit_flag=False,
+                )
+
+            return launch
+
+        if variant == "r16_split_unique_recovery":
+            # Optimization point 12 (data-dependent multipath), based on R15.
+            # Only the unique-value recovery tile changes: [512,16] becomes
+            # [512,8] + [512,2].  The exact R10 duplicate fallback is retained.
+            grid, rows_per_program, extra_rows = self._partition(m)
+            if m <= self.num_vector_cores:
+                kernel = _r7_vector_tie_small_kernel
+            elif m <= R6_DISPATCH_CUTOFF_M:
+                kernel = _r16_split_unique_medium_kernel
+            else:
+                kernel = _r16_split_unique_large_kernel
 
             def launch() -> None:
                 kernel[grid](
@@ -2460,8 +2640,10 @@ def parse_shapes(spec: str, *, correctness: bool) -> list[int]:
 
 def parse_variants(spec: str) -> list[str]:
     normalized = spec.strip().lower()
-    if normalized in ("all", "0-15", "r0-r15"):
+    if normalized in ("all", "0-16", "r0-r16"):
         return list(VARIANTS)
+    if normalized in ("0-15", "r0-r15"):
+        return list(VARIANTS[:16])
     if normalized in ("0-14", "r0-r14"):
         return list(VARIANTS[:15])
     if normalized in ("0-13", "r0-r13"):
@@ -2519,7 +2701,7 @@ def write_csv(path_text: str, records: Sequence[dict[str, object]]) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="WeLM-v4 A5 expert-bias TopK R0-R15 accuracy/latency study"
+        description="WeLM-v4 A5 expert-bias TopK R0-R16 accuracy/latency study"
     )
     parser.add_argument(
         "--mode",
@@ -2534,7 +2716,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--variants",
         default="all",
-        help="all, 0-15, or comma list such as r13,r14,r15 (R0 is always added)",
+        help="all, 0-16, or comma list such as r14,r15,r16 (R0 is always added)",
     )
     parser.add_argument("--device", default="npu:0")
     parser.add_argument("--seed", type=int, default=20260811)
