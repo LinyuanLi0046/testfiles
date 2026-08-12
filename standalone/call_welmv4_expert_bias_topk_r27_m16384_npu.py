@@ -68,16 +68,16 @@ def _r27_select_store_row(
     selected_ids = tl.zeros((_JIT_OUTPUT_WIDTH,), dtype=tl.int32)
     if ~has_duplicate:
         matches = top_values[:, None] == routing_scores[None, :]
-        selected_rank = tl.min(
+        fast_selected_rank = tl.min(
             tl.where(matches, tie_rank[None, :], _JIT_NUM_EXPERTS + 1),
             axis=1,
         )
-        selected_lane = selected_rank >> 4
-        selected_local = selected_rank & 15
+        fast_lane = fast_selected_rank >> 4
+        fast_local = fast_selected_rank & 15
         selected_ids = (
-            ((selected_local >> 2) << 7)
-            + (selected_lane << 2)
-            + (selected_local & 3)
+            ((fast_local >> 2) << 7)
+            + (fast_lane << 2)
+            + (fast_local & 3)
         ).to(tl.int32)
     else:
         invalid_rank = _JIT_NUM_EXPERTS + 1
@@ -89,20 +89,22 @@ def _r27_select_store_row(
             eligible = (routing_scores == kth_routing_score) & (
                 ~same_group | (tie_rank.to(tl.float32) > previous_rank)
             )
-            selected_rank = tl.min(
+            fallback_selected_rank = tl.min(
                 tl.where(eligible, tie_rank, invalid_rank),
                 axis=0,
             )
-            selected_lane = selected_rank >> 4
-            selected_local = selected_rank & 15
-            selected_idx = (
-                ((selected_local >> 2) << 7)
-                + (selected_lane << 2)
-                + (selected_local & 3)
+            fallback_lane = fallback_selected_rank >> 4
+            fallback_local = fallback_selected_rank & 15
+            fallback_selected_idx = (
+                ((fallback_local >> 2) << 7)
+                + (fallback_lane << 2)
+                + (fallback_local & 3)
             )
-            selected_ids = tl.where(out_lanes == k, selected_idx, selected_ids)
+            selected_ids = tl.where(
+                out_lanes == k, fallback_selected_idx, selected_ids
+            )
             previous_value = kth_routing_score
-            previous_rank = selected_rank.to(tl.float32)
+            previous_rank = fallback_selected_rank.to(tl.float32)
 
     selected_weights = tl.gather(scores, selected_ids, 0)
     output_mask = out_lanes < _JIT_TOPK
