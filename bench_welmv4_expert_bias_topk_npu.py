@@ -3,7 +3,7 @@
 
 This is deliberately a manual, standalone experiment.  It does not replace or
 register any production SGLang operator.  R0 is a frozen 2026-08-11 copy of the
-old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R45 are
+old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R46 are
 cumulative experimental variants kept here so that every round remains
 measurable after a later optimized kernel is integrated into the model path.
 
@@ -244,6 +244,13 @@ Rounds:
   backend cannot gather from an INT32 source, so expert IDs are recovered with
   the exact cheap inverse permutation after the rank reduction.  This still
   removes R27's broadcast MMQ-rank tensor.
+  It was exact but slowed M=1024/9616/16384 by about 47--49%, so later full
+  runs retain R45 as an explicit R27 fallback.
+* R46: keep the exact R27 algorithm, contiguous row partition, 56-AIV grid,
+  hoisted bias and launch flags.  Add only ``flatten=True`` to the M>320
+  dynamic row loop, following the control-flow flattening hint used by
+  NEWSGLANG's optimized Ascend Triton kernels.  Small and medium paths remain
+  the exact R27 dispatch.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -358,6 +365,7 @@ VARIANTS = (
     "r43_last_axis_rank_max",
     "r44_two_half_partial_sort",
     "r45_priority_order_rank_min",
+    "r46_large_loop_flatten",
 )
 
 VARIANT_DESCRIPTIONS = {
@@ -425,6 +433,7 @@ VARIANT_DESCRIPTIONS = {
     "r43_last_axis_rank_max": "R27 one-hot INT32 MMQ-rank max reduction",
     "r44_two_half_partial_sort": "R27 two sort256 + sort32 value selection",
     "r45_priority_order_rank_min": "R27 priority-order contiguous rank min",
+    "r46_large_loop_flatten": "R27 large row-loop flatten hint",
 }
 
 COMMON_SHAPES = [1, 2, 4, 8, 16, 32, 56, 63, 64, 65, 128, 512, 9616, 16384]
@@ -4306,6 +4315,30 @@ def _r45_priority_order_rank_min_large_kernel(
 
 
 @triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _r46_last_axis_rank_flatten_large_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    """Exact R27 large path with only the dynamic row loop flattened."""
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
+    bias = tl.load(bias_ptr + offs)
+
+    for row in tl.range(row_start, row_end, flatten=True):
+        _last_axis_rank_select_store_row(
+            scores_ptr, weights_ptr, ids_ptr, row, offs, tie_rank, bias
+        )
+
+
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
 def _r28_split_last_axis_rank_medium_kernel(
     scores_ptr,
     bias_ptr,
@@ -5881,16 +5914,40 @@ class ModelNew(torch.nn.Module):
             return launch
 
         if variant == "r45_priority_order_rank_min":
-            # Optimization point 8 (index/layout simplification), isolated
-            # from R27. Unique rows use MMQ-priority columns directly; the
-            # exact R27 duplicate fallback and every other choice stay fixed.
+            # R45 was exact but slowed large prefill by about 49%. Keep this
+            # historical provider row as the exact accepted R27 path.
             grid, rows_per_program, extra_rows = self._partition(m)
             if m <= self.num_vector_cores:
                 kernel = _r7_vector_tie_small_kernel
             elif m <= R6_DISPATCH_CUTOFF_M:
-                kernel = _r45_priority_order_rank_min_medium_kernel
+                kernel = _r27_last_axis_rank_medium_kernel
             else:
-                kernel = _r45_priority_order_rank_min_large_kernel
+                kernel = _r27_last_axis_rank_large_kernel
+
+            def launch() -> None:
+                kernel[grid](
+                    scores,
+                    bias,
+                    weights,
+                    ids,
+                    rows_per_program,
+                    extra_rows,
+                    multibuffer=False,
+                    unit_flag=False,
+                )
+
+            return launch
+
+        if variant == "r46_large_loop_flatten":
+            # Optimization point 8, isolated from accepted R27. Only the
+            # large dynamic row loop gets the compiler flatten hint.
+            grid, rows_per_program, extra_rows = self._partition(m)
+            if m <= self.num_vector_cores:
+                kernel = _r7_vector_tie_small_kernel
+            elif m <= R6_DISPATCH_CUTOFF_M:
+                kernel = _r27_last_axis_rank_medium_kernel
+            else:
+                kernel = _r46_last_axis_rank_flatten_large_kernel
 
             def launch() -> None:
                 kernel[grid](
@@ -7042,8 +7099,10 @@ def parse_shapes(spec: str, *, correctness: bool) -> list[int]:
 
 def parse_variants(spec: str) -> list[str]:
     normalized = spec.strip().lower()
-    if normalized in ("all", "0-45", "r0-r45"):
+    if normalized in ("all", "0-46", "r0-r46"):
         return list(VARIANTS)
+    if normalized in ("0-45", "r0-r45"):
+        return list(VARIANTS[:46])
     if normalized in ("0-44", "r0-r44"):
         return list(VARIANTS[:45])
     if normalized in ("0-43", "r0-r43"):
@@ -7161,7 +7220,7 @@ def write_csv(path_text: str, records: Sequence[dict[str, object]]) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="WeLM-v4 A5 expert-bias TopK R0-R45 accuracy/latency study"
+        description="WeLM-v4 A5 expert-bias TopK R0-R46 accuracy/latency study"
     )
     parser.add_argument(
         "--mode",
@@ -7176,7 +7235,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--variants",
         default="all",
-        help="all, 0-45, or comma list such as r27,r45 (R0 is always added)",
+        help="all, 0-46, or comma list such as r27,r46 (R0 is always added)",
     )
     parser.add_argument("--device", default="npu:0")
     parser.add_argument("--seed", type=int, default=20260811)
