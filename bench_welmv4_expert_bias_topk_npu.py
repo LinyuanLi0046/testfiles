@@ -1358,7 +1358,6 @@ def _partial_top16_last_axis_select_store_row(
         routing_scores,
         _JIT_OUTPUT_WIDTH,
         dim=0,
-        descending=True,
     )
 
     out_lanes = tl.arange(0, _JIT_OUTPUT_WIDTH)
