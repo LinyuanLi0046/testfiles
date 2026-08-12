@@ -3,7 +3,7 @@
 
 This is deliberately a manual, standalone experiment.  It does not replace or
 register any production SGLang operator.  R0 is a frozen 2026-08-11 copy of the
-old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R19 are
+old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R20 are
 cumulative experimental variants kept here so that every round remains
 measurable after a later optimized kernel is integrated into the model path.
 
@@ -89,7 +89,11 @@ Rounds:
   slower at M=16384, so R18 is retained as an explicit R15 fallback.
 * R19: on R15's unique path, recover the single matching expert per column by
   an exact FP32 sum of ``match * expert_id``.  This replaces integer tie-rank
-  min plus inverse-rank arithmetic; duplicate values still use exact R10.
+  min plus inverse-rank arithmetic; duplicate values still use exact R10.  It
+  was about 27% slower at M=16384, so R19 is retained as an R15 fallback.
+* R20: remove sorting entirely.  Reorder scores once into exact MMQ priority,
+  then repeat a rank-1 max-value reduction plus a leftmost equality argmax for
+  each of the ten selections.  A candidate mask removes each selected rank.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -174,6 +178,7 @@ VARIANTS = (
     "r17_parallel_priority_argmax",
     "r18_hierarchical_partial_sort",
     "r19_unique_id_sum",
+    "r20_iterative_rank1_maxarg",
 )
 
 VARIANT_DESCRIPTIONS = {
@@ -198,7 +203,8 @@ VARIANT_DESCRIPTIONS = {
     "r16_split_unique_recovery": "rejected [512,8] experiment; exact R15 fallback",
     "r17_parallel_priority_argmax": "rejected rank-2 argmax; exact R15 fallback",
     "r18_hierarchical_partial_sort": "rejected hierarchical sort; exact R15 fallback",
-    "r19_unique_id_sum": "parallel exact FP32 unique-ID sum / exact R10 fallback",
+    "r19_unique_id_sum": "rejected FP32 ID sum; exact R15 fallback",
+    "r20_iterative_rank1_maxarg": "10x rank-1 max + leftmost argmax, no sort",
 }
 
 COMMON_SHAPES = [1, 2, 4, 8, 16, 32, 56, 63, 64, 65, 128, 512, 9616, 16384]
@@ -1145,6 +1151,60 @@ def _unique_id_sum_select_store_row(
 
 
 @triton.jit
+def _iterative_rank1_maxarg_select_store_row(
+    scores_ptr,
+    weights_ptr,
+    ids_ptr,
+    row,
+    offs,
+    bias,
+):
+    """Exact MMQ top-10 via rank-1 max then leftmost argmax per round."""
+    scores = tl.load(scores_ptr + row * _JIT_NUM_EXPERTS + offs)
+    scores = tl.where(scores == scores, scores, -float("inf"))
+    routing_scores = scores + bias
+
+    priority_rank = offs
+    priority_lane = priority_rank >> 4
+    priority_local = priority_rank & 15
+    priority_ids = (
+        ((priority_local >> 2) << 7)
+        + (priority_lane << 2)
+        + (priority_local & 3)
+    ).to(tl.int32)
+    routing_by_priority = tl.gather(routing_scores, priority_ids, 0)
+    scores_by_priority = tl.gather(scores, priority_ids, 0)
+
+    out_lanes = tl.arange(0, _JIT_OUTPUT_WIDTH)
+    selected_ids = tl.zeros((_JIT_OUTPUT_WIDTH,), dtype=tl.int32)
+    selected_weights = tl.zeros((_JIT_OUTPUT_WIDTH,), dtype=tl.float32)
+    candidate = tl.full((_JIT_SORT_WIDTH,), 1, dtype=tl.int1)
+
+    for k in tl.static_range(0, _JIT_TOPK):
+        active_scores = tl.where(candidate, routing_by_priority, -float("inf"))
+        selected_value = tl.max(active_scores, axis=0)
+        first_match = candidate & (routing_by_priority == selected_value)
+        selected_rank = tl.argmax(
+            first_match.to(tl.float32), axis=0, tie_break_left=True
+        ).to(tl.int32)
+        selected_rank_vec = selected_rank + tl.arange(0, 1)
+        selected_idx = tl.gather(priority_ids, selected_rank_vec, 0)
+        selected_weight = tl.gather(
+            scores_by_priority, selected_rank_vec, 0
+        )
+        selected_ids = tl.where(out_lanes == k, selected_idx, selected_ids)
+        selected_weights = tl.where(
+            out_lanes == k, selected_weight, selected_weights
+        )
+        candidate = candidate & (priority_rank != selected_rank)
+
+    output_mask = out_lanes < _JIT_TOPK
+    output_offsets = row * _JIT_TOPK + out_lanes
+    tl.store(weights_ptr + output_offsets, selected_weights, mask=output_mask)
+    tl.store(ids_ptr + output_offsets, selected_ids, mask=output_mask)
+
+
+@triton.jit
 def _vector_tie_select_store_row(
     scores_ptr,
     weights_ptr,
@@ -2034,6 +2094,50 @@ def _r19_unique_id_sum_large_kernel(
         )
 
 
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _r20_iterative_maxarg_medium_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+
+    for row in tl.range(row_start, row_end):
+        bias = tl.load(bias_ptr + offs)
+        _iterative_rank1_maxarg_select_store_row(
+            scores_ptr, weights_ptr, ids_ptr, row, offs, bias
+        )
+
+
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _r20_iterative_maxarg_large_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    bias = tl.load(bias_ptr + offs)
+
+    for row in tl.range(row_start, row_end):
+        _iterative_rank1_maxarg_select_store_row(
+            scores_ptr, weights_ptr, ids_ptr, row, offs, bias
+        )
+
+
 # ---------------------------------------------------------------------------
 # Host launchers.  No production call site is modified.
 # ---------------------------------------------------------------------------
@@ -2576,16 +2680,41 @@ class ModelNew(torch.nn.Module):
             return launch
 
         if variant == "r19_unique_id_sum":
-            # Optimization point 4 (reduction primitive), based on R15.
-            # Unique columns use an exact one-hot FP32 expert-ID sum; the sort,
-            # schedule, tile shape, duplicate detection/fallback are unchanged.
+            # FP32 ID sum was ~27% slower at M=16384.  Keep this rejected round
+            # measurable as the exact R15 implementation.
             grid, rows_per_program, extra_rows = self._partition(m)
             if m <= self.num_vector_cores:
                 kernel = _r7_vector_tie_small_kernel
             elif m <= R6_DISPATCH_CUTOFF_M:
-                kernel = _r19_unique_id_sum_medium_kernel
+                kernel = _r15_unique_top10_medium_kernel
             else:
-                kernel = _r19_unique_id_sum_large_kernel
+                kernel = _r15_unique_top10_large_kernel
+
+            def launch() -> None:
+                kernel[grid](
+                    scores,
+                    bias,
+                    weights,
+                    ids,
+                    rows_per_program,
+                    extra_rows,
+                    multibuffer=False,
+                    unit_flag=False,
+                )
+
+            return launch
+
+        if variant == "r20_iterative_rank1_maxarg":
+            # Optimization point 5 (selection algorithm), based on R15.
+            # Remove sort and rank-2 recovery; use only supported rank-1 max,
+            # leftmost argmax, and a candidate mask for ten exact selections.
+            grid, rows_per_program, extra_rows = self._partition(m)
+            if m <= self.num_vector_cores:
+                kernel = _r7_vector_tie_small_kernel
+            elif m <= R6_DISPATCH_CUTOFF_M:
+                kernel = _r20_iterative_maxarg_medium_kernel
+            else:
+                kernel = _r20_iterative_maxarg_large_kernel
 
             def launch() -> None:
                 kernel[grid](
@@ -3126,8 +3255,10 @@ def parse_shapes(spec: str, *, correctness: bool) -> list[int]:
 
 def parse_variants(spec: str) -> list[str]:
     normalized = spec.strip().lower()
-    if normalized in ("all", "0-19", "r0-r19"):
+    if normalized in ("all", "0-20", "r0-r20"):
         return list(VARIANTS)
+    if normalized in ("0-19", "r0-r19"):
+        return list(VARIANTS[:20])
     if normalized in ("0-18", "r0-r18"):
         return list(VARIANTS[:19])
     if normalized in ("0-17", "r0-r17"):
@@ -3193,7 +3324,7 @@ def write_csv(path_text: str, records: Sequence[dict[str, object]]) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="WeLM-v4 A5 expert-bias TopK R0-R19 accuracy/latency study"
+        description="WeLM-v4 A5 expert-bias TopK R0-R20 accuracy/latency study"
     )
     parser.add_argument(
         "--mode",
@@ -3208,7 +3339,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--variants",
         default="all",
-        help="all, 0-19, or comma list such as r17,r18,r19 (R0 is always added)",
+        help="all, 0-20, or comma list such as r18,r19,r20 (R0 is always added)",
     )
     parser.add_argument("--device", default="npu:0")
     parser.add_argument("--seed", type=int, default=20260811)
