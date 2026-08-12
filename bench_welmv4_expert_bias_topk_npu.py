@@ -244,6 +244,10 @@ The script intentionally uses ``torch_npu.npu.Event``.  Do not replace it with
 Every run also records a non-candidate Torch-NPU composite diagnostic
 (``where + bias + topk + gather``) in the same CSV.  Native TopK's default tie
 order is measured against, but is not assumed to satisfy, the MMQ contract.
+It additionally probes an exact hybrid: native Top-11 supplies sorted values,
+then one Triton kernel copies unique rows or repairs every row with a duplicate
+among positions 0..10 using the original MMQ priority.  Position 10 is kept
+only to make a tie crossing the Top-10 boundary observable.
 """
 
 from __future__ import annotations
@@ -438,6 +442,7 @@ EDGE_PATTERNS = (
     "all_tie",
     "discrete_ties",
     "bias_induced_tie",
+    "topk_boundary_tie",
     "nan_at_least_k_finite",
     "nan_less_than_k_finite",
     "all_nan",
@@ -5521,6 +5526,13 @@ def make_cpu_case(
         one_row = ((expert_id & 3).to(torch.float32) * 0.125).contiguous()
         scores = one_row.repeat(m, 1)
         bias = 1.0 - one_row
+    elif pattern == "topk_boundary_tie":
+        scores = torch.zeros((m, NUM_EXPERTS), dtype=torch.float32)
+        priority = torch.argsort(mmq_tie_rank(), stable=True)
+        scores[:, priority[:9]] = torch.linspace(
+            1.0, 0.6, 9, dtype=torch.float32
+        )
+        scores[:, priority[9:11]] = 0.5
     elif pattern in (
         "nan_at_least_k_finite",
         "nan_less_than_k_finite",
@@ -5945,6 +5957,127 @@ def torch_native_stable_priority_sort_composite(
     return torch.gather(clean, 1, ids), ids
 
 
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _native_top11_exact_repair_kernel(
+    clean_ptr,
+    bias_ptr,
+    top_values_ptr,
+    native_ids_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    """Repair only rows whose native Top-11 exposes an exact-value tie."""
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    output_lanes = tl.arange(0, _JIT_OUTPUT_WIDTH)
+    top11_mask = output_lanes < 11
+    output_mask = output_lanes < _JIT_TOPK
+
+    for row in tl.range(row_start, row_end):
+        top_values = tl.load(
+            top_values_ptr + row * 11 + output_lanes,
+            mask=top11_mask,
+            other=-float("inf"),
+        )
+        next_lanes = tl.minimum(output_lanes + 1, 10)
+        next_values = tl.gather(top_values, next_lanes, 0)
+        adjacent_tie = (top_values == next_values) & output_mask
+        has_top11_tie = tl.max(adjacent_tie.to(tl.float32), axis=0) > 0.0
+
+        selected_ids = tl.load(
+            native_ids_ptr + row * 11 + output_lanes,
+            mask=output_mask,
+            other=0,
+        ).to(tl.int32)
+
+        if has_top11_tie:
+            expert_offsets = tl.arange(0, _JIT_SORT_WIDTH)
+            clean_scores = tl.load(
+                clean_ptr + row * _JIT_NUM_EXPERTS + expert_offsets
+            )
+            bias = tl.load(bias_ptr + expert_offsets)
+            routing_scores = clean_scores + bias
+            tie_rank = (
+                ((expert_offsets & 127) >> 2) * 16
+                + ((expert_offsets >> 7) << 2)
+                + (expert_offsets & 3)
+            )
+            previous_value = float("inf")
+            previous_rank = -1.0
+            repaired_ids = tl.zeros((_JIT_OUTPUT_WIDTH,), dtype=tl.int32)
+            for k in tl.static_range(0, _JIT_TOPK):
+                kth_value = al.get_element(top_values, indice=[k])
+                same_group = kth_value == previous_value
+                eligible = (routing_scores == kth_value) & (
+                    ~same_group | (tie_rank.to(tl.float32) > previous_rank)
+                )
+                selected_rank = tl.min(
+                    tl.where(eligible, tie_rank, _JIT_NUM_EXPERTS + 1),
+                    axis=0,
+                )
+                selected_lane = selected_rank >> 4
+                selected_local = selected_rank & 15
+                selected_expert = (
+                    ((selected_local >> 2) << 7)
+                    + (selected_lane << 2)
+                    + (selected_local & 3)
+                )
+                repaired_ids = tl.where(
+                    output_lanes == k, selected_expert, repaired_ids
+                )
+                previous_value = kth_value
+                previous_rank = selected_rank.to(tl.float32)
+            selected_ids = repaired_ids
+
+        selected_weights = tl.load(
+            clean_ptr + row * _JIT_NUM_EXPERTS + selected_ids,
+            mask=output_mask,
+            other=0.0,
+        )
+        output_offsets = row * _JIT_TOPK + output_lanes
+        tl.store(weights_ptr + output_offsets, selected_weights, mask=output_mask)
+        tl.store(ids_ptr + output_offsets, selected_ids, mask=output_mask)
+
+
+def torch_native_top11_exact_repair_composite(
+    scores: torch.Tensor,
+    bias: torch.Tensor,
+    num_vector_cores: int,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Exact hybrid: native value selection plus MMQ tie-only repair."""
+    clean = torch.where(
+        torch.isnan(scores),
+        torch.full_like(scores, -float("inf")),
+        scores,
+    )
+    routing = clean + bias
+    top_values, native_ids = torch.topk(
+        routing, 11, dim=1, largest=True, sorted=True
+    )
+    m = scores.shape[0]
+    weights = torch.empty((m, TOPK), dtype=torch.float32, device=scores.device)
+    ids = torch.empty((m, TOPK), dtype=torch.int64, device=scores.device)
+    program_count = min(m, num_vector_cores)
+    rows_per_program, extra_rows = divmod(m, program_count)
+    _native_top11_exact_repair_kernel[(program_count,)](
+        clean,
+        bias,
+        top_values,
+        native_ids,
+        weights,
+        ids,
+        rows_per_program,
+        extra_rows,
+        multibuffer=False,
+        unit_flag=False,
+    )
+    return weights, ids
+
+
 def run_native_correctness_diagnostic(
     model: ModelNew,
     *,
@@ -5958,13 +6091,12 @@ def run_native_correctness_diagnostic(
     # torch-npu releases and is unnecessary to prove the known tie mismatch.
     selected_shapes = [m for m in (1, 64, 512, 9616, 16384) if m in shapes]
     cases = [("random_bias", m) for m in selected_shapes]
-    if 1 in shapes:
-        cases.extend(
-            (pattern, 1)
-            for pattern in ("all_tie", "discrete_ties", "bias_induced_tie")
-        )
+    for edge_m in (1, 64):
+        if edge_m in shapes:
+            cases.extend((pattern, edge_m) for pattern in EDGE_PATTERNS)
     exact_cases = 0
     stable_exact_cases = 0
+    hybrid_exact_cases = 0
     priority_npu = torch.argsort(mmq_tie_rank(), stable=True).to(device)
     print(f"\nTorch-NPU native diagnostic correctness: {len(cases)} cases")
     for pattern, m in cases:
@@ -5993,6 +6125,50 @@ def run_native_correctness_diagnostic(
                 "semantic_exact": comparison.ok,
                 "candidate_eligible": False,
                 "scope": "native_composite_wrapper",
+            }
+        )
+        try:
+            hybrid_weights, hybrid_ids = (
+                torch_native_top11_exact_repair_composite(
+                    scores_cpu.to(device),
+                    bias_cpu.to(device),
+                    model.num_vector_cores,
+                )
+            )
+            torch_npu.npu.synchronize()
+            hybrid_comparison = compare_exact(
+                hybrid_weights,
+                hybrid_ids,
+                reference_weights,
+                reference_ids,
+            )
+            hybrid_exact_cases += int(hybrid_comparison.ok)
+            hybrid_status = (
+                "EXACT" if hybrid_comparison.ok else "SEMANTIC_MISMATCH"
+            )
+            hybrid_error = ""
+        except Exception as exc:
+            hybrid_comparison = ExactComparison(False, False, False)
+            hybrid_status = "UNAVAILABLE"
+            hybrid_error = " ".join(str(exc).split())[:1000]
+        records.append(
+            {
+                **model.runtime_metadata(seed),
+                "record_type": "native_correctness_diagnostic",
+                "case": pattern,
+                "m": m,
+                "n": NUM_EXPERTS,
+                "k": TOPK,
+                "variant": "torch_npu_top11_exact_repair_composite",
+                "status": hybrid_status,
+                "ids_equal_oracle": hybrid_comparison.ids_equal,
+                "weights_bitwise_equal_oracle": (
+                    hybrid_comparison.weights_bitwise_equal
+                ),
+                "semantic_exact": hybrid_comparison.ok,
+                "candidate_eligible": hybrid_comparison.ok,
+                "scope": "native_top11_triton_repair_wrapper",
+                "probe_error_excerpt": hybrid_error,
             }
         )
         # Full stable sort on large M can be pathologically slow on the target
@@ -6050,6 +6226,10 @@ def run_native_correctness_diagnostic(
     print(
         f"  stable-priority exact={stable_exact_cases}/"
         f"{stable_tested_cases} tested cases"
+    )
+    print(
+        f"  native-top11 exact-repair={hybrid_exact_cases}/"
+        f"{len(cases)} tested cases"
     )
     return records
 
@@ -6121,6 +6301,67 @@ def run_native_performance_diagnostic(
                 "inner_repeat": inner_repeat,
             }
         )
+        try:
+            def hybrid_fn() -> tuple[torch.Tensor, torch.Tensor]:
+                return torch_native_top11_exact_repair_composite(
+                    scores, bias, model.num_vector_cores
+                )
+
+            for _ in range(warmup):
+                hybrid_fn()
+            torch_npu.npu.synchronize()
+            hybrid_samples = [
+                event_sample_us(hybrid_fn, inner_repeat)
+                for _ in range(diagnostic_rounds)
+            ]
+            hybrid_current = {
+                "p20": percentile(hybrid_samples, 0.20),
+                "p50": statistics.median(hybrid_samples),
+                "p80": percentile(hybrid_samples, 0.80),
+                "mean": statistics.fmean(hybrid_samples),
+            }
+            print(
+                f"  M={m:<5} top11+repair "
+                f"p50={hybrid_current['p50']:.3f} us"
+            )
+            records.append(
+                {
+                    **model.runtime_metadata(seed),
+                    "record_type": "native_performance_diagnostic",
+                    "case": "random_bias",
+                    "m": m,
+                    "n": NUM_EXPERTS,
+                    "k": TOPK,
+                    "variant": "torch_npu_top11_exact_repair_composite",
+                    "status": "MEASURED_CANDIDATE",
+                    "scope": "native_top11_triton_repair_device_timeline",
+                    "p20_us": hybrid_current["p20"],
+                    "p50_us": hybrid_current["p50"],
+                    "p80_us": hybrid_current["p80"],
+                    "mean_us": hybrid_current["mean"],
+                    "semantic_exact": "see_correctness_diagnostic",
+                    "candidate_eligible": "see_correctness_diagnostic",
+                    "rounds": diagnostic_rounds,
+                    "inner_repeat": inner_repeat,
+                }
+            )
+        except Exception as exc:
+            records.append(
+                {
+                    **model.runtime_metadata(seed),
+                    "record_type": "native_performance_diagnostic",
+                    "case": "random_bias",
+                    "m": m,
+                    "n": NUM_EXPERTS,
+                    "k": TOPK,
+                    "variant": "torch_npu_top11_exact_repair_composite",
+                    "status": "UNAVAILABLE",
+                    "scope": "native_top11_triton_repair_device_timeline",
+                    "semantic_exact": "unknown",
+                    "candidate_eligible": False,
+                    "probe_error_excerpt": " ".join(str(exc).split())[:1000],
+                }
+            )
         if m != 1:
             continue
         try:
