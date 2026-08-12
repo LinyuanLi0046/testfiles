@@ -3,7 +3,7 @@
 
 This is deliberately a manual, standalone experiment.  It does not replace or
 register any production SGLang operator.  R0 is a frozen 2026-08-11 copy of the
-old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R35 are
+old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R36 are
 cumulative experimental variants kept here so that every round remains
 measurable after a later optimized kernel is integrated into the model path.
 
@@ -181,6 +181,12 @@ Rounds:
   original expert ID directly and remove MMQ-rank inversion.  The unique-path
   gate also checks the 9/10 boundary, making each stored output globally
   one-hot; all duplicate cases use the unchanged exact R27 fallback.
+  It was exact but about 31% slower on large prefill, so later full runs retain
+  R35 as an R27 fallback.
+* R36: keep the exact R27 kernel and dispatch, but enable the A5 compiler's
+  ``multibuffer`` option only on the M>320 large row-loop path.  This isolates
+  whether next-row score loads can overlap the current row's vector sort and
+  reduction; decode and medium paths remain single-buffered.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -282,6 +288,7 @@ VARIANTS = (
     "r33_last_axis_paired_min_index",
     "r34_last_axis_int16_rank",
     "r35_last_axis_direct_int32_id",
+    "r36_large_multibuffer",
 )
 
 VARIANT_DESCRIPTIONS = {
@@ -337,8 +344,9 @@ VARIANT_DESCRIPTIONS = {
     ),
     "r34_last_axis_int16_rank": "rejected INT16 rank min; exact R27 fallback",
     "r35_last_axis_direct_int32_id": (
-        "R27 last-axis direct INT32 expert-ID min"
+        "rejected direct INT32 ID min; exact R27 fallback"
     ),
+    "r36_large_multibuffer": "R27 large path with compiler multibuffer enabled",
 }
 
 COMMON_SHAPES = [1, 2, 4, 8, 16, 32, 56, 63, 64, 65, 128, 512, 9616, 16384]
@@ -4799,15 +4807,15 @@ class ModelNew(torch.nn.Module):
             return launch
 
         if variant == "r35_last_axis_direct_int32_id":
-            # Optimization point 2 (last-axis reduced value), isolated from
-            # R27. Unique matches return original INT32 expert IDs directly.
+            # R35 was exact but about 31% slower on large prefill. Keep this
+            # historical row as the accepted R27 path.
             grid, rows_per_program, extra_rows = self._partition(m)
             if m <= self.num_vector_cores:
                 kernel = _r7_vector_tie_small_kernel
             elif m <= R6_DISPATCH_CUTOFF_M:
-                kernel = _r35_last_axis_direct_int32_id_medium_kernel
+                kernel = _r27_last_axis_rank_medium_kernel
             else:
-                kernel = _r35_last_axis_direct_int32_id_large_kernel
+                kernel = _r27_last_axis_rank_large_kernel
 
             def launch() -> None:
                 kernel[grid](
@@ -4818,6 +4826,32 @@ class ModelNew(torch.nn.Module):
                     rows_per_program,
                     extra_rows,
                     multibuffer=False,
+                    unit_flag=False,
+                )
+
+            return launch
+
+        if variant == "r36_large_multibuffer":
+            # Optimization point 3 (A5 compiler load/compute overlap),
+            # isolated from R27. Only the multi-row large launch flag changes.
+            grid, rows_per_program, extra_rows = self._partition(m)
+            if m <= self.num_vector_cores:
+                kernel = _r7_vector_tie_small_kernel
+            elif m <= R6_DISPATCH_CUTOFF_M:
+                kernel = _r27_last_axis_rank_medium_kernel
+            else:
+                kernel = _r27_last_axis_rank_large_kernel
+            enable_multibuffer = m > R6_DISPATCH_CUTOFF_M
+
+            def launch() -> None:
+                kernel[grid](
+                    scores,
+                    bias,
+                    weights,
+                    ids,
+                    rows_per_program,
+                    extra_rows,
+                    multibuffer=enable_multibuffer,
                     unit_flag=False,
                 )
 
@@ -5437,8 +5471,10 @@ def parse_shapes(spec: str, *, correctness: bool) -> list[int]:
 
 def parse_variants(spec: str) -> list[str]:
     normalized = spec.strip().lower()
-    if normalized in ("all", "0-35", "r0-r35"):
+    if normalized in ("all", "0-36", "r0-r36"):
         return list(VARIANTS)
+    if normalized in ("0-35", "r0-r35"):
+        return list(VARIANTS[:36])
     if normalized in ("0-34", "r0-r34"):
         return list(VARIANTS[:35])
     if normalized in ("0-33", "r0-r33"):
@@ -5536,7 +5572,7 @@ def write_csv(path_text: str, records: Sequence[dict[str, object]]) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="WeLM-v4 A5 expert-bias TopK R0-R35 accuracy/latency study"
+        description="WeLM-v4 A5 expert-bias TopK R0-R36 accuracy/latency study"
     )
     parser.add_argument(
         "--mode",
@@ -5551,7 +5587,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--variants",
         default="all",
-        help="all, 0-35, or comma list such as r33,r34,r35 (R0 is always added)",
+        help="all, 0-36, or comma list such as r34,r35,r36 (R0 is always added)",
     )
     parser.add_argument("--device", default="npu:0")
     parser.add_argument("--seed", type=int, default=20260811)
