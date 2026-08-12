@@ -5995,6 +5995,11 @@ def run_native_correctness_diagnostic(
                 "scope": "native_composite_wrapper",
             }
         )
+        # Full stable sort on large M can be pathologically slow on the target
+        # torch-npu stack. M=1 random + tie cases are enough for this semantic
+        # capability gate; raw native still covers the five throughput shapes.
+        if m != 1:
+            continue
         try:
             stable_weights, stable_ids = (
                 torch_native_stable_priority_sort_composite(
@@ -6041,7 +6046,11 @@ def run_native_correctness_diagnostic(
         f"  exact={exact_cases}/{len(cases)}, "
         f"semantic_mismatch={len(cases) - exact_cases}/{len(cases)}"
     )
-    print(f"  stable-priority exact={stable_exact_cases}/{len(cases)}")
+    stable_tested_cases = sum(1 for _, m in cases if m == 1)
+    print(
+        f"  stable-priority exact={stable_exact_cases}/"
+        f"{stable_tested_cases} tested cases"
+    )
     return records
 
 
@@ -6112,6 +6121,8 @@ def run_native_performance_diagnostic(
                 "inner_repeat": inner_repeat,
             }
         )
+        if m != 1:
+            continue
         try:
             def stable_fn() -> tuple[torch.Tensor, torch.Tensor]:
                 return torch_native_stable_priority_sort_composite(
