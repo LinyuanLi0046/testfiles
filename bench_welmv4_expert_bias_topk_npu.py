@@ -3,7 +3,7 @@
 
 This is deliberately a manual, standalone experiment.  It does not replace or
 register any production SGLang operator.  R0 is a frozen 2026-08-11 copy of the
-old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R9 are
+old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R10 are
 cumulative experimental variants kept here so that every round remains
 measurable after a later optimized kernel is integrated into the model path.
 
@@ -46,6 +46,11 @@ Rounds:
   [512,2] priority-match matrix.  Five vector scans replace ten serial tie
   reductions while avoiding R7's [512,16] multi-row UB pressure.  The R8
   one-row path remains unchanged.
+* R10: return to R8's rank-1 path and replace its full candidate-mask state
+  with a scalar threshold inside each equal-value group.  Sorted equal values
+  are contiguous, so the next exact MMQ tie only needs a larger tie-rank than
+  the previous selection when the routing value is unchanged.  This removes
+  the per-round 512-lane candidate-mask update without any rank-2 tensor.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -120,6 +125,7 @@ VARIANTS = (
     "r7_vector_tie_recovery",
     "r8_safe_vector_dispatch",
     "r9_pair_tie_recovery",
+    "r10_group_rank_threshold",
 )
 
 VARIANT_DESCRIPTIONS = {
@@ -133,6 +139,9 @@ VARIANT_DESCRIPTIONS = {
     "r7_vector_tie_recovery": "FP32 2D vector tie recovery on R6 dispatch",
     "r8_safe_vector_dispatch": "R7 through physical AIV / R6 above it",
     "r9_pair_tie_recovery": "R8 small path / five [512,2] tie scans above it",
+    "r10_group_rank_threshold": (
+        "R8 small path / scalar equal-group rank threshold above it"
+    ),
 }
 
 COMMON_SHAPES = [1, 2, 4, 8, 16, 32, 56, 63, 64, 65, 128, 512, 9616, 16384]
@@ -435,6 +444,54 @@ def _sort_select_store_row(
 
     # F32 rank-1 UB gather is supported on A5; ids are explicitly I32.  This
     # preserves the exact unbiased score bits, including signed zero.
+    selected_weights = tl.gather(scores, selected_ids, 0)
+    output_mask = out_lanes < _JIT_TOPK
+    output_offsets = row * _JIT_TOPK + out_lanes
+    tl.store(weights_ptr + output_offsets, selected_weights, mask=output_mask)
+    tl.store(ids_ptr + output_offsets, selected_ids, mask=output_mask)
+
+
+@triton.jit
+def _group_rank_select_store_row(
+    scores_ptr,
+    weights_ptr,
+    ids_ptr,
+    row,
+    offs,
+    tie_rank,
+    bias,
+):
+    """Exact ties via a scalar rank threshold within each equal-value group."""
+    scores = tl.load(scores_ptr + row * _JIT_NUM_EXPERTS + offs)
+    scores = tl.where(scores == scores, scores, -float("inf"))
+    routing_scores = scores + bias
+    sorted_routing = al.sort(routing_scores, dim=-1, descending=True)
+
+    invalid_rank = _JIT_NUM_EXPERTS + 1
+    out_lanes = tl.arange(0, _JIT_OUTPUT_WIDTH)
+    selected_ids = tl.zeros((_JIT_OUTPUT_WIDTH,), dtype=tl.int32)
+    previous_value = float("inf")
+    previous_rank = -1.0
+
+    for k in tl.static_range(0, _JIT_TOPK):
+        kth_routing_score = al.get_element(sorted_routing, indice=[k])
+        same_group = kth_routing_score == previous_value
+        rank_after_previous = tie_rank.to(tl.float32) > previous_rank
+        eligible = (routing_scores == kth_routing_score) & (
+            ~same_group | rank_after_previous
+        )
+        selected_rank = tl.min(
+            tl.where(eligible, tie_rank, invalid_rank),
+            axis=0,
+        )
+
+        lane = selected_rank >> 4
+        local = selected_rank & 15
+        selected_idx = ((local >> 2) << 7) + (lane << 2) + (local & 3)
+        selected_ids = tl.where(out_lanes == k, selected_idx, selected_ids)
+        previous_value = kth_routing_score
+        previous_rank = selected_rank.to(tl.float32)
+
     selected_weights = tl.gather(scores, selected_ids, 0)
     output_mask = out_lanes < _JIT_TOPK
     output_offsets = row * _JIT_TOPK + out_lanes
@@ -812,6 +869,66 @@ def _r9_pair_tie_large_kernel(
         )
 
 
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _r10_group_rank_medium_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    # Match R8/R6 for physical_AIV < M <= 320: load bias per row.
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
+
+    for row in tl.range(row_start, row_end):
+        bias = tl.load(bias_ptr + offs)
+        _group_rank_select_store_row(
+            scores_ptr,
+            weights_ptr,
+            ids_ptr,
+            row,
+            offs,
+            tie_rank,
+            bias,
+        )
+
+
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _r10_group_rank_large_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    # Match R8/R6 above M=320: keep the invariant bias hoisted.
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
+    bias = tl.load(bias_ptr + offs)
+
+    for row in tl.range(row_start, row_end):
+        _group_rank_select_store_row(
+            scores_ptr,
+            weights_ptr,
+            ids_ptr,
+            row,
+            offs,
+            tie_rank,
+            bias,
+        )
+
+
 # ---------------------------------------------------------------------------
 # Host launchers.  No production call site is modified.
 # ---------------------------------------------------------------------------
@@ -859,7 +976,7 @@ class ModelNew(torch.nn.Module):
         assert scores.ndim == 2 and scores.shape[1] == NUM_EXPERTS
         assert scores.dtype == torch.float32
         assert scores.is_contiguous(), (
-            "R1-R9 specialize the actual WeLM common path: contiguous [M,512]"
+            "R1-R10 specialize the actual WeLM common path: contiguous [M,512]"
         )
         assert bias.shape == (NUM_EXPERTS,) and bias.dtype == torch.float32
         assert bias.is_contiguous()
@@ -1102,6 +1219,34 @@ class ModelNew(torch.nn.Module):
                 kernel = _r9_pair_tie_medium_kernel
             else:
                 kernel = _r9_pair_tie_large_kernel
+
+            def launch() -> None:
+                kernel[grid](
+                    scores,
+                    bias,
+                    weights,
+                    ids,
+                    rows_per_program,
+                    extra_rows,
+                    multibuffer=False,
+                    unit_flag=False,
+                )
+
+            return launch
+
+        if variant == "r10_group_rank_threshold":
+            # Optimization point 7 (redundant state/pass elimination), based
+            # on R8 rather than the regressed R9.  Keep R8's single-row R7
+            # path, grid, cutoff, and bias placement; above the physical-AIV
+            # boundary only replace candidate-mask maintenance with one scalar
+            # threshold inside each contiguous equal-routing-value group.
+            grid, rows_per_program, extra_rows = self._partition(m)
+            if m <= self.num_vector_cores:
+                kernel = _r7_vector_tie_small_kernel
+            elif m <= R6_DISPATCH_CUTOFF_M:
+                kernel = _r10_group_rank_medium_kernel
+            else:
+                kernel = _r10_group_rank_large_kernel
 
             def launch() -> None:
                 kernel[grid](
@@ -1642,8 +1787,10 @@ def parse_shapes(spec: str, *, correctness: bool) -> list[int]:
 
 def parse_variants(spec: str) -> list[str]:
     normalized = spec.strip().lower()
-    if normalized in ("all", "0-9", "r0-r9"):
+    if normalized in ("all", "0-10", "r0-r10"):
         return list(VARIANTS)
+    if normalized in ("0-9", "r0-r9"):
+        return list(VARIANTS[:10])
     if normalized in ("0-8", "r0-r8"):
         return list(VARIANTS[:9])
     if normalized in ("0-7", "r0-r7"):
@@ -1689,7 +1836,7 @@ def write_csv(path_text: str, records: Sequence[dict[str, object]]) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="WeLM-v4 A5 expert-bias TopK R0-R9 accuracy/latency study"
+        description="WeLM-v4 A5 expert-bias TopK R0-R10 accuracy/latency study"
     )
     parser.add_argument(
         "--mode",
@@ -1704,7 +1851,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--variants",
         default="all",
-        help="all, 0-9, or comma list such as r7,r8,r9 (R0 is always added)",
+        help="all, 0-10, or comma list such as r8,r9,r10 (R0 is always added)",
     )
     parser.add_argument("--device", default="npu:0")
     parser.add_argument("--seed", type=int, default=20260811)
