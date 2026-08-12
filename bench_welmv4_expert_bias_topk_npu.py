@@ -3,7 +3,7 @@
 
 This is deliberately a manual, standalone experiment.  It does not replace or
 register any production SGLang operator.  R0 is a frozen 2026-08-11 copy of the
-old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R43 are
+old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R44 are
 cumulative experimental variants kept here so that every round remains
 measurable after a later optimized kernel is integrated into the model path.
 
@@ -230,6 +230,12 @@ Rounds:
 * R43: retain R42's one-hot gate and all R27 dataflow, but replace only the
   INT32 rank ``sum`` with ``max(match * rank)``.  Ranks are non-negative and
   unmatched lanes contribute zero, so rank zero also remains exact.
+  It was exact but neutral on decode and slightly slower at M=16384, so later
+  full runs retain R43 as an R27 fallback.
+* R44: replace only R27's full 512-value sort with two independent 256-value
+  sorts, retain 16 values from each half, then sort the 32-value merge buffer.
+  Since global K=10, retaining 16 per half is lossless.  Exact 512-lane MMQ ID
+  recovery, duplicate fallback, row partition and bias schedule are unchanged.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -342,6 +348,7 @@ VARIANTS = (
     "r41_duplicate_any_max",
     "r42_last_axis_rank_sum",
     "r43_last_axis_rank_max",
+    "r44_two_half_partial_sort",
 )
 
 VARIANT_DESCRIPTIONS = {
@@ -407,6 +414,7 @@ VARIANT_DESCRIPTIONS = {
     "r41_duplicate_any_max": "rejected max duplicate gate; exact R27 fallback",
     "r42_last_axis_rank_sum": "R27 one-hot INT32 MMQ-rank sum reduction",
     "r43_last_axis_rank_max": "R27 one-hot INT32 MMQ-rank max reduction",
+    "r44_two_half_partial_sort": "R27 two sort256 + sort32 value selection",
 }
 
 COMMON_SHAPES = [1, 2, 4, 8, 16, 32, 56, 63, 64, 65, 128, 512, 9616, 16384]
@@ -2348,6 +2356,88 @@ def _hierarchical_partial_sort_select_store_row(
 
 
 @triton.jit
+def _two_half_partial_sort_select_store_row(
+    scores_ptr,
+    weights_ptr,
+    ids_ptr,
+    row,
+    offs,
+    tie_rank,
+    bias,
+):
+    """Exact R27 recovery after two sort256 plus one sort32 value merge."""
+    scores = tl.load(scores_ptr + row * _JIT_NUM_EXPERTS + offs)
+    scores = tl.where(scores == scores, scores, -float("inf"))
+    routing_scores = scores + bias
+
+    half_lanes = tl.arange(0, 256)
+    half0 = tl.gather(routing_scores, half_lanes, 0)
+    half1 = tl.gather(routing_scores, half_lanes + 256, 0)
+    sorted0 = al.sort(half0, dim=-1, descending=True)
+    sorted1 = al.sort(half1, dim=-1, descending=True)
+
+    candidate_lanes = tl.arange(0, 32)
+    candidate_pos = candidate_lanes & 15
+    candidates0 = tl.gather(sorted0, candidate_pos, 0)
+    candidates1 = tl.gather(sorted1, candidate_pos, 0)
+    candidates = tl.where(candidate_lanes < 16, candidates0, candidates1)
+    sorted_candidates = al.sort(candidates, dim=-1, descending=True)
+
+    out_lanes = tl.arange(0, _JIT_OUTPUT_WIDTH)
+    top_values = tl.gather(sorted_candidates, out_lanes, 0)
+    next_lanes = tl.minimum(out_lanes + 1, _JIT_OUTPUT_WIDTH - 1)
+    next_values = tl.gather(top_values, next_lanes, 0)
+    adjacent_duplicate = (top_values == next_values) & (
+        out_lanes.to(tl.float32) < 9.0
+    )
+    has_duplicate = tl.sum(adjacent_duplicate.to(tl.float32), axis=0) > 0.0
+
+    selected_ids = tl.zeros((_JIT_OUTPUT_WIDTH,), dtype=tl.int32)
+    if ~has_duplicate:
+        matches = top_values[:, None] == routing_scores[None, :]
+        fast_rank = tl.min(
+            tl.where(matches, tie_rank[None, :], _JIT_NUM_EXPERTS + 1),
+            axis=1,
+        )
+        fast_lane = fast_rank >> 4
+        fast_local = fast_rank & 15
+        selected_ids = (
+            ((fast_local >> 2) << 7)
+            + (fast_lane << 2)
+            + (fast_local & 3)
+        ).to(tl.int32)
+    else:
+        invalid_rank = _JIT_NUM_EXPERTS + 1
+        previous_value = float("inf")
+        previous_rank = -1.0
+        for k in tl.static_range(0, _JIT_TOPK):
+            kth_routing_score = al.get_element(sorted_candidates, indice=[k])
+            same_group = kth_routing_score == previous_value
+            eligible = (routing_scores == kth_routing_score) & (
+                ~same_group | (tie_rank.to(tl.float32) > previous_rank)
+            )
+            fallback_rank = tl.min(
+                tl.where(eligible, tie_rank, invalid_rank), axis=0
+            )
+            fallback_lane = fallback_rank >> 4
+            fallback_local = fallback_rank & 15
+            fallback_idx = (
+                ((fallback_local >> 2) << 7)
+                + (fallback_lane << 2)
+                + (fallback_local & 3)
+            )
+            selected_ids = tl.where(out_lanes == k, fallback_idx, selected_ids)
+            previous_value = kth_routing_score
+            previous_rank = fallback_rank.to(tl.float32)
+
+    selected_weights = tl.gather(scores, selected_ids, 0)
+    output_mask = out_lanes < _JIT_TOPK
+    output_offsets = row * _JIT_TOPK + out_lanes
+    tl.store(weights_ptr + output_offsets, selected_weights, mask=output_mask)
+    tl.store(ids_ptr + output_offsets, selected_ids, mask=output_mask)
+
+
+@triton.jit
 def _unique_id_sum_select_store_row(
     scores_ptr,
     weights_ptr,
@@ -4035,6 +4125,50 @@ def _r43_last_axis_rank_max_large_kernel(
 
 
 @triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _r44_two_half_partial_sort_medium_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
+    for row in tl.range(row_start, row_end):
+        bias = tl.load(bias_ptr + offs)
+        _two_half_partial_sort_select_store_row(
+            scores_ptr, weights_ptr, ids_ptr, row, offs, tie_rank, bias
+        )
+
+
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _r44_two_half_partial_sort_large_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
+    bias = tl.load(bias_ptr + offs)
+    for row in tl.range(row_start, row_end):
+        _two_half_partial_sort_select_store_row(
+            scores_ptr, weights_ptr, ids_ptr, row, offs, tie_rank, bias
+        )
+
+
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
 def _r28_split_last_axis_rank_medium_kernel(
     scores_ptr,
     bias_ptr,
@@ -5560,16 +5694,40 @@ class ModelNew(torch.nn.Module):
             return launch
 
         if variant == "r43_last_axis_rank_max":
-            # Optimization point 7 (reduction simplification), isolated from
-            # R27: after the exact 9/10 one-hot gate, replace only rank min by
-            # INT32 max(match * rank). Duplicate rows retain R27 fallback.
+            # R43 was exact but neutral/slightly slower. Keep its historical
+            # row as the exact accepted R27 path.
             grid, rows_per_program, extra_rows = self._partition(m)
             if m <= self.num_vector_cores:
                 kernel = _r7_vector_tie_small_kernel
             elif m <= R6_DISPATCH_CUTOFF_M:
-                kernel = _r43_last_axis_rank_max_medium_kernel
+                kernel = _r27_last_axis_rank_medium_kernel
             else:
-                kernel = _r43_last_axis_rank_max_large_kernel
+                kernel = _r27_last_axis_rank_large_kernel
+
+            def launch() -> None:
+                kernel[grid](
+                    scores,
+                    bias,
+                    weights,
+                    ids,
+                    rows_per_program,
+                    extra_rows,
+                    multibuffer=False,
+                    unit_flag=False,
+                )
+
+            return launch
+
+        if variant == "r44_two_half_partial_sort":
+            # Optimization point 2 (UB-aware TopK tiling), isolated from R27:
+            # replace sort512 only by two sort256 plus a sort32 candidate merge.
+            grid, rows_per_program, extra_rows = self._partition(m)
+            if m <= self.num_vector_cores:
+                kernel = _r7_vector_tie_small_kernel
+            elif m <= R6_DISPATCH_CUTOFF_M:
+                kernel = _r44_two_half_partial_sort_medium_kernel
+            else:
+                kernel = _r44_two_half_partial_sort_large_kernel
 
             def launch() -> None:
                 kernel[grid](
@@ -6721,8 +6879,10 @@ def parse_shapes(spec: str, *, correctness: bool) -> list[int]:
 
 def parse_variants(spec: str) -> list[str]:
     normalized = spec.strip().lower()
-    if normalized in ("all", "0-43", "r0-r43"):
+    if normalized in ("all", "0-44", "r0-r44"):
         return list(VARIANTS)
+    if normalized in ("0-43", "r0-r43"):
+        return list(VARIANTS[:44])
     if normalized in ("0-42", "r0-r42"):
         return list(VARIANTS[:43])
     if normalized in ("0-41", "r0-r41"):
@@ -6836,7 +6996,7 @@ def write_csv(path_text: str, records: Sequence[dict[str, object]]) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="WeLM-v4 A5 expert-bias TopK R0-R43 accuracy/latency study"
+        description="WeLM-v4 A5 expert-bias TopK R0-R44 accuracy/latency study"
     )
     parser.add_argument(
         "--mode",
@@ -6851,7 +7011,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--variants",
         default="all",
-        help="all, 0-43, or comma list such as r27,r43 (R0 is always added)",
+        help="all, 0-44, or comma list such as r27,r44 (R0 is always added)",
     )
     parser.add_argument("--device", default="npu:0")
     parser.add_argument("--seed", type=int, default=20260811)
