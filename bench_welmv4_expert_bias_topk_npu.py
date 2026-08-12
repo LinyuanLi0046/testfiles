@@ -3,7 +3,7 @@
 
 This is deliberately a manual, standalone experiment.  It does not replace or
 register any production SGLang operator.  R0 is a frozen 2026-08-11 copy of the
-old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R31 are
+old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R32 are
 cumulative experimental variants kept here so that every round remains
 measurable after a later optimized kernel is integrated into the model path.
 
@@ -157,7 +157,12 @@ Rounds:
   ``tl.topk(..., k=16)`` partial selection.  The R27 [16,512] exact integer
   rank recovery, duplicate detection/fallback, grid and bias schedule remain
   unchanged.  This round is also an A5 Triton 3.2 capability/performance test
-  for public partial TopK lowering.
+  for public partial TopK lowering.  It was exact but scalar-lowered to about
+  27.9 ms at M=16384, so later full runs retain R31 as an R27 fallback.
+* R32: keep R27's full hardware value sort and [16,512] last-axis layout, but
+  gather routing into MMQ-priority order and recover each unique ID with one
+  last-axis FP32 leftmost argmax.  This tests the efficient-axis counterpart of
+  rejected R17; duplicate detection/fallback and output semantics are unchanged.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -255,6 +260,7 @@ VARIANTS = (
     "r29_eight_plus_rank1_tail",
     "r30_last_axis_direct_id",
     "r31_partial_top16",
+    "r32_last_axis_priority_argmax",
 )
 
 VARIANT_DESCRIPTIONS = {
@@ -300,7 +306,10 @@ VARIANT_DESCRIPTIONS = {
         "rejected last-axis FP32 ID reduce; exact R27 fallback"
     ),
     "r31_partial_top16": (
-        "public tl.topk K=16 + R27 exact last-axis rank recovery"
+        "rejected scalar-lowered tl.topk; exact R27 fallback"
+    ),
+    "r32_last_axis_priority_argmax": (
+        "R27 [16,512] MMQ-priority match + last-axis FP32 argmax"
     ),
 }
 
@@ -1392,6 +1401,86 @@ def _partial_top16_last_axis_select_store_row(
         previous_rank = -1.0
         for k in tl.static_range(0, _JIT_TOPK):
             kth_routing_score = al.get_element(top_values, indice=[k])
+            same_group = kth_routing_score == previous_value
+            eligible = (routing_scores == kth_routing_score) & (
+                ~same_group | (tie_rank.to(tl.float32) > previous_rank)
+            )
+            fallback_rank = tl.min(
+                tl.where(eligible, tie_rank, invalid_rank), axis=0
+            )
+            fallback_lane = fallback_rank >> 4
+            fallback_local = fallback_rank & 15
+            fallback_idx = (
+                ((fallback_local >> 2) << 7)
+                + (fallback_lane << 2)
+                + (fallback_local & 3)
+            )
+            selected_ids = tl.where(out_lanes == k, fallback_idx, selected_ids)
+            previous_value = kth_routing_score
+            previous_rank = fallback_rank.to(tl.float32)
+
+    selected_weights = tl.gather(scores, selected_ids, 0)
+    output_mask = out_lanes < _JIT_TOPK
+    output_offsets = row * _JIT_TOPK + out_lanes
+    tl.store(weights_ptr + output_offsets, selected_weights, mask=output_mask)
+    tl.store(ids_ptr + output_offsets, selected_ids, mask=output_mask)
+
+
+@triton.jit
+def _last_axis_priority_argmax_select_store_row(
+    scores_ptr,
+    weights_ptr,
+    ids_ptr,
+    row,
+    offs,
+    tie_rank,
+    bias,
+):
+    """R27 layout with FP32 argmax over MMQ-priority ordered lanes."""
+    scores = tl.load(scores_ptr + row * _JIT_NUM_EXPERTS + offs)
+    scores = tl.where(scores == scores, scores, -float("inf"))
+    routing_scores = scores + bias
+    sorted_routing = al.sort(routing_scores, dim=-1, descending=True)
+
+    out_lanes = tl.arange(0, _JIT_OUTPUT_WIDTH)
+    top_values = tl.gather(sorted_routing, out_lanes, 0)
+    next_lanes = tl.minimum(out_lanes + 1, _JIT_OUTPUT_WIDTH - 1)
+    next_values = tl.gather(top_values, next_lanes, 0)
+    adjacent_duplicate = (top_values == next_values) & (
+        out_lanes.to(tl.float32) < 9.0
+    )
+    has_duplicate = tl.sum(adjacent_duplicate.to(tl.float32), axis=0) > 0.0
+
+    selected_ids = tl.zeros((_JIT_OUTPUT_WIDTH,), dtype=tl.int32)
+    if ~has_duplicate:
+        priority_rank = offs
+        priority_lane = priority_rank >> 4
+        priority_local = priority_rank & 15
+        priority_ids = (
+            ((priority_local >> 2) << 7)
+            + (priority_lane << 2)
+            + (priority_local & 3)
+        ).to(tl.int32)
+        routing_by_priority = tl.gather(routing_scores, priority_ids, 0)
+        matches = top_values[:, None] == routing_by_priority[None, :]
+        selected_rank = tl.argmax(
+            matches.to(tl.float32),
+            axis=1,
+            tie_break_left=True,
+        ).to(tl.int32)
+        selected_lane = selected_rank >> 4
+        selected_local = selected_rank & 15
+        selected_ids = (
+            ((selected_local >> 2) << 7)
+            + (selected_lane << 2)
+            + (selected_local & 3)
+        ).to(tl.int32)
+    else:
+        invalid_rank = _JIT_NUM_EXPERTS + 1
+        previous_value = float("inf")
+        previous_rank = -1.0
+        for k in tl.static_range(0, _JIT_TOPK):
+            kth_routing_score = al.get_element(sorted_routing, indice=[k])
             same_group = kth_routing_score == previous_value
             eligible = (routing_scores == kth_routing_score) & (
                 ~same_group | (tie_rank.to(tl.float32) > previous_rank)
@@ -3311,6 +3400,52 @@ def _r31_partial_top16_large_kernel(
         )
 
 
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _r32_last_axis_priority_argmax_medium_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
+
+    for row in tl.range(row_start, row_end):
+        bias = tl.load(bias_ptr + offs)
+        _last_axis_priority_argmax_select_store_row(
+            scores_ptr, weights_ptr, ids_ptr, row, offs, tie_rank, bias
+        )
+
+
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _r32_last_axis_priority_argmax_large_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
+    bias = tl.load(bias_ptr + offs)
+
+    for row in tl.range(row_start, row_end):
+        _last_axis_priority_argmax_select_store_row(
+            scores_ptr, weights_ptr, ids_ptr, row, offs, tie_rank, bias
+        )
+
+
 @triton.jit
 def _r21_prefill_partition_constexpr_kernel(
     scores_ptr,
@@ -4169,16 +4304,41 @@ class ModelNew(torch.nn.Module):
             return launch
 
         if variant == "r31_partial_top16":
-            # Optimization point 7 (partial-sort pass elimination), isolated
-            # from R27.  Replace only its full value sort with public tl.topk
-            # K=16; retain exact rank recovery and duplicate fallback.
+            # Public tl.topk was exact but scalar-lowered to ~27.9 ms at
+            # M=16384.  Keep this historical row as the accepted R27 path.
             grid, rows_per_program, extra_rows = self._partition(m)
             if m <= self.num_vector_cores:
                 kernel = _r7_vector_tie_small_kernel
             elif m <= R6_DISPATCH_CUTOFF_M:
-                kernel = _r31_partial_top16_medium_kernel
+                kernel = _r27_last_axis_rank_medium_kernel
             else:
-                kernel = _r31_partial_top16_large_kernel
+                kernel = _r27_last_axis_rank_large_kernel
+
+            def launch() -> None:
+                kernel[grid](
+                    scores,
+                    bias,
+                    weights,
+                    ids,
+                    rows_per_program,
+                    extra_rows,
+                    multibuffer=False,
+                    unit_flag=False,
+                )
+
+            return launch
+
+        if variant == "r32_last_axis_priority_argmax":
+            # Optimization point 6 (avoid weak integer lowering), isolated
+            # from R27.  Keep its [16,512] last-axis tile, but reorder lanes to
+            # MMQ priority and use one leftmost FP32 argmax for exact ranks.
+            grid, rows_per_program, extra_rows = self._partition(m)
+            if m <= self.num_vector_cores:
+                kernel = _r7_vector_tie_small_kernel
+            elif m <= R6_DISPATCH_CUTOFF_M:
+                kernel = _r32_last_axis_priority_argmax_medium_kernel
+            else:
+                kernel = _r32_last_axis_priority_argmax_large_kernel
 
             def launch() -> None:
                 kernel[grid](
@@ -4808,8 +4968,10 @@ def parse_shapes(spec: str, *, correctness: bool) -> list[int]:
 
 def parse_variants(spec: str) -> list[str]:
     normalized = spec.strip().lower()
-    if normalized in ("all", "0-31", "r0-r31"):
+    if normalized in ("all", "0-32", "r0-r32"):
         return list(VARIANTS)
+    if normalized in ("0-31", "r0-r31"):
+        return list(VARIANTS[:32])
     if normalized in ("0-30", "r0-r30"):
         return list(VARIANTS[:31])
     if normalized in ("0-29", "r0-r29"):
@@ -4899,7 +5061,7 @@ def write_csv(path_text: str, records: Sequence[dict[str, object]]) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="WeLM-v4 A5 expert-bias TopK R0-R31 accuracy/latency study"
+        description="WeLM-v4 A5 expert-bias TopK R0-R32 accuracy/latency study"
     )
     parser.add_argument(
         "--mode",
@@ -4914,7 +5076,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--variants",
         default="all",
-        help="all, 0-31, or comma list such as r29,r30,r31 (R0 is always added)",
+        help="all, 0-32, or comma list such as r30,r31,r32 (R0 is always added)",
     )
     parser.add_argument("--device", default="npu:0")
     parser.add_argument("--seed", type=int, default=20260811)
