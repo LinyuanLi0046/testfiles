@@ -5775,7 +5775,16 @@ def run_native_correctness_diagnostic(
     seed: int,
 ) -> list[dict[str, object]]:
     records: list[dict[str, object]] = []
-    cases = build_correctness_cases(shapes)
+    # Keep this non-candidate diagnostic bounded.  Running every NaN/Inf case
+    # through a multi-op native composite can be pathologically slow on some
+    # torch-npu releases and is unnecessary to prove the known tie mismatch.
+    selected_shapes = [m for m in (1, 64, 512, 9616, 16384) if m in shapes]
+    cases = [("random_bias", m) for m in selected_shapes]
+    if 1 in shapes:
+        cases.extend(
+            (pattern, 1)
+            for pattern in ("all_tie", "discrete_ties", "bias_induced_tie")
+        )
     exact_cases = 0
     print(f"\nTorch-NPU native diagnostic correctness: {len(cases)} cases")
     for pattern, m in cases:
@@ -5825,7 +5834,9 @@ def run_native_performance_diagnostic(
 ) -> list[dict[str, object]]:
     records: list[dict[str, object]] = []
     print("\nTorch-NPU native composite performance diagnostic")
-    for m in shapes:
+    selected_shapes = [m for m in (1, 64, 512, 9616, 16384) if m in shapes]
+    diagnostic_rounds = min(rounds, 3)
+    for m in selected_shapes:
         scores_cpu, bias_cpu = make_cpu_case("random_bias", m, seed=seed)
         scores = scores_cpu.to(device)
         bias = bias_cpu.to(device)
@@ -5836,13 +5847,15 @@ def run_native_performance_diagnostic(
         for _ in range(warmup):
             native_fn()
         torch_npu.npu.synchronize()
-        inner_repeat = (
+        requested_inner_repeat = (
             inner_repeat_override
             if inner_repeat_override > 0
             else auto_inner_repeat(m)
         )
+        inner_repeat = min(requested_inner_repeat, 10)
         samples = [
-            event_sample_us(native_fn, inner_repeat) for _ in range(rounds)
+            event_sample_us(native_fn, inner_repeat)
+            for _ in range(diagnostic_rounds)
         ]
         current = {
             "p20": percentile(samples, 0.20),
@@ -5871,7 +5884,7 @@ def run_native_performance_diagnostic(
                 "mean_us": current["mean"],
                 "semantic_exact": "data_dependent",
                 "candidate_eligible": False,
-                "rounds": rounds,
+                "rounds": diagnostic_rounds,
                 "inner_repeat": inner_repeat,
             }
         )
