@@ -111,8 +111,9 @@ Rounds:
 * R24: AscendC ``WholeReduceMax(ORDER_VALUE_INDEX)`` analogue.  Starting from
   R20's exact MMQ-priority order, each selection uses one public
   ``tl.max(..., return_indices=True)`` paired reduction instead of a value max
-  followed by a separate equality argmax.  Selected lanes become quiet NaNs;
-  ``propagate_nan=False`` keeps genuine cleaned ``-inf`` candidates eligible.
+  followed by a separate equality argmax.  A remaining-candidate fallback is
+  used only when the maximum reaches ``-inf`` so all-NaN and fewer-than-K
+  finite rows preserve the exact no-duplicate legacy contract.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -1265,15 +1266,19 @@ def _paired_max_index_select_store_row(
         + (priority_lane << 2)
         + (priority_local & 3)
     ).to(tl.int32)
-    active_scores = tl.gather(routing_scores, priority_ids, 0)
+    routing_by_priority = tl.gather(routing_scores, priority_ids, 0)
     scores_by_priority = tl.gather(scores, priority_ids, 0)
 
     out_lanes = tl.arange(0, _JIT_OUTPUT_WIDTH)
     selected_ids = tl.zeros((_JIT_OUTPUT_WIDTH,), dtype=tl.int32)
     selected_weights = tl.zeros((_JIT_OUTPUT_WIDTH,), dtype=tl.float32)
+    candidate = tl.full((_JIT_SORT_WIDTH,), 1, dtype=tl.int1)
 
     for k in tl.static_range(0, _JIT_TOPK):
-        _, selected_rank = tl.max(
+        active_scores = tl.where(
+            candidate, routing_by_priority, -float("inf")
+        )
+        selected_value, selected_rank = tl.max(
             active_scores,
             axis=0,
             return_indices=True,
@@ -1281,6 +1286,20 @@ def _paired_max_index_select_store_row(
             propagate_nan=False,
         )
         selected_rank = selected_rank.to(tl.int32)
+
+        # With fewer than K non--inf values, a -inf sentinel cannot distinguish
+        # selected lanes from genuine cleaned -inf inputs.  Recover the exact
+        # leftmost remaining MMQ-priority lane for this semantic tail.  This is
+        # deliberately separate from the common paired-reduction result so no
+        # finite routing value is perturbed by an epsilon or packed key.
+        remaining_rank = tl.argmax(
+            candidate.to(tl.float32), axis=0, tie_break_left=True
+        ).to(tl.int32)
+        selected_rank = tl.where(
+            selected_value == -float("inf"),
+            remaining_rank,
+            selected_rank,
+        )
         selected_rank_vec = selected_rank + tl.arange(0, 1)
         selected_lane = selected_rank >> 4
         selected_local = selected_rank & 15
@@ -1297,14 +1316,7 @@ def _paired_max_index_select_store_row(
             out_lanes == k, selected_weight, selected_weights
         )
 
-        # A -inf sentinel cannot distinguish a selected lane from genuine
-        # cleaned -inf inputs.  A quiet NaN is ignored by propagate_nan=False,
-        # so every lane is still selected at most once, including all-NaN rows.
-        active_scores = tl.where(
-            priority_rank == selected_rank,
-            float("nan"),
-            active_scores,
-        )
+        candidate = candidate & (priority_rank != selected_rank)
 
     output_mask = out_lanes < _JIT_TOPK
     output_offsets = row * _JIT_TOPK + out_lanes
