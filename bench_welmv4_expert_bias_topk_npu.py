@@ -3,7 +3,7 @@
 
 This is deliberately a manual, standalone experiment.  It does not replace or
 register any production SGLang operator.  R0 is a frozen 2026-08-11 copy of the
-old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R24 are
+old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R25 are
 cumulative experimental variants kept here so that every round remains
 measurable after a later optimized kernel is integrated into the model path.
 
@@ -113,7 +113,15 @@ Rounds:
   ``tl.max(..., return_indices=True)`` paired reduction instead of a value max
   followed by a separate equality argmax.  A remaining-candidate fallback is
   used only when the maximum reaches ``-inf`` so all-NaN and fewer-than-K
-  finite rows preserve the exact no-duplicate legacy contract.
+  finite rows preserve the exact no-duplicate legacy contract.  The extra
+  reduction is branchlessly paid on every round and regressed M=16384 beyond
+  R0, so later full runs retain R24 as an explicit R15 fallback.
+* R25: replace R24's sentinel plus unconditional fallback reduction with one
+  public tuple ``tl.reduce`` over ``(candidate_valid, routing_score,
+  MMQ_priority_rank)``.  Its associative lexicographic combine selects valid
+  lanes first, then the larger FP32 score, then the smaller exact FP32 rank.
+  Consequently genuine ``-inf`` values need no sentinel special case and each
+  of the ten rounds has one value/index-preserving reduction.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -204,6 +212,7 @@ VARIANTS = (
     "r22_physical_core_grid",
     "r23_sort_index_capability",
     "r24_paired_max_index",
+    "r25_lexicographic_tuple_reduce",
 )
 
 VARIANT_DESCRIPTIONS = {
@@ -233,7 +242,10 @@ VARIANT_DESCRIPTIONS = {
     "r21_prefill_partition_constexpr": "rejected prefill constexpr; exact R15 fallback",
     "r22_physical_core_grid": "rejected 28-program grid; exact R15 fallback",
     "r23_sort_index_capability": "device al.sort values+indices probe; exact R15 fallback",
-    "r24_paired_max_index": "ten paired value/index max reductions in MMQ priority order",
+    "r24_paired_max_index": "rejected paired max-index; exact R15 fallback",
+    "r25_lexicographic_tuple_reduce": (
+        "exact valid/score/MMQ-rank tuple reduction; no -inf fallback"
+    ),
 }
 
 COMMON_SHAPES = [1, 2, 4, 8, 16, 32, 56, 63, 64, 65, 128, 512, 9616, 16384]
@@ -1325,6 +1337,99 @@ def _paired_max_index_select_store_row(
 
 
 @triton.jit
+def _lexicographic_candidate_combine(
+    a_valid,
+    a_score,
+    a_rank,
+    b_valid,
+    b_score,
+    b_rank,
+):
+    """Associative max over valid, score, then inverse MMQ rank."""
+    take_b = (b_valid > a_valid) | (
+        (b_valid == a_valid)
+        & (
+            (b_score > a_score)
+            | ((b_score == a_score) & (b_rank < a_rank))
+        )
+    )
+    return (
+        tl.where(take_b, b_valid, a_valid),
+        tl.where(take_b, b_score, a_score),
+        tl.where(take_b, b_rank, a_rank),
+    )
+
+
+@triton.jit
+def _lexicographic_tuple_select_store_row(
+    scores_ptr,
+    weights_ptr,
+    ids_ptr,
+    row,
+    offs,
+    bias,
+):
+    """Exact MMQ top-10 via ten public tuple reductions.
+
+    Candidate validity is part of the reduction key, so selected lanes never
+    need a score sentinel.  In particular, genuine cleaned -inf scores retain
+    their distinct MMQ ranks and the all-NaN/fewer-than-K-finite cases remain
+    exact without R24's second argmax reduction.
+    """
+    scores = tl.load(scores_ptr + row * _JIT_NUM_EXPERTS + offs)
+    scores = tl.where(scores == scores, scores, -float("inf"))
+    routing_scores = scores + bias
+
+    priority_rank = offs
+    priority_lane = priority_rank >> 4
+    priority_local = priority_rank & 15
+    priority_ids = (
+        ((priority_local >> 2) << 7)
+        + (priority_lane << 2)
+        + (priority_local & 3)
+    ).to(tl.int32)
+    routing_by_priority = tl.gather(routing_scores, priority_ids, 0)
+    scores_by_priority = tl.gather(scores, priority_ids, 0)
+
+    out_lanes = tl.arange(0, _JIT_OUTPUT_WIDTH)
+    selected_ids = tl.zeros((_JIT_OUTPUT_WIDTH,), dtype=tl.int32)
+    selected_weights = tl.zeros((_JIT_OUTPUT_WIDTH,), dtype=tl.float32)
+    candidate = tl.full((_JIT_SORT_WIDTH,), 1, dtype=tl.int1)
+    rank_fp32 = priority_rank.to(tl.float32)
+
+    for k in tl.static_range(0, _JIT_TOPK):
+        _, _, selected_rank_fp32 = tl.reduce(
+            (
+                candidate.to(tl.float32),
+                routing_by_priority,
+                rank_fp32,
+            ),
+            axis=0,
+            combine_fn=_lexicographic_candidate_combine,
+        )
+        selected_rank = selected_rank_fp32.to(tl.int32)
+        selected_rank_vec = selected_rank + tl.arange(0, 1)
+        selected_lane = selected_rank >> 4
+        selected_local = selected_rank & 15
+        selected_idx = (
+            ((selected_local >> 2) << 7)
+            + (selected_lane << 2)
+            + (selected_local & 3)
+        )
+        selected_weight = tl.gather(scores_by_priority, selected_rank_vec, 0)
+        selected_ids = tl.where(out_lanes == k, selected_idx, selected_ids)
+        selected_weights = tl.where(
+            out_lanes == k, selected_weight, selected_weights
+        )
+        candidate = candidate & (priority_rank != selected_rank)
+
+    output_mask = out_lanes < _JIT_TOPK
+    output_offsets = row * _JIT_TOPK + out_lanes
+    tl.store(weights_ptr + output_offsets, selected_weights, mask=output_mask)
+    tl.store(ids_ptr + output_offsets, selected_ids, mask=output_mask)
+
+
+@triton.jit
 def _vector_tie_select_store_row(
     scores_ptr,
     weights_ptr,
@@ -2302,6 +2407,50 @@ def _r24_paired_max_index_large_kernel(
         )
 
 
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _r25_lexicographic_tuple_medium_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+
+    for row in tl.range(row_start, row_end):
+        bias = tl.load(bias_ptr + offs)
+        _lexicographic_tuple_select_store_row(
+            scores_ptr, weights_ptr, ids_ptr, row, offs, bias
+        )
+
+
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _r25_lexicographic_tuple_large_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    bias = tl.load(bias_ptr + offs)
+
+    for row in tl.range(row_start, row_end):
+        _lexicographic_tuple_select_store_row(
+            scores_ptr, weights_ptr, ids_ptr, row, offs, bias
+        )
+
+
 @triton.jit
 def _r21_prefill_partition_constexpr_kernel(
     scores_ptr,
@@ -2983,14 +3132,39 @@ class ModelNew(torch.nn.Module):
             return launch
 
         if variant == "r24_paired_max_index":
-            # Optimization point 7 (pass elimination), inspired by AscendC's
-            # ORDER_VALUE_INDEX reduction.  Relative to R20, only fuse its
-            # per-round value max and leftmost index recovery into tl.max.
+            # R24's unconditional -inf-tail argmax made M=16384 slower than
+            # R0.  Retain the historical row as the exact accepted R15 path.
+            grid, rows_per_program, extra_rows = self._partition(m)
+            if m <= self.num_vector_cores:
+                kernel = _r7_vector_tie_small_kernel
+            elif m <= R6_DISPATCH_CUTOFF_M:
+                kernel = _r15_unique_top10_medium_kernel
+            else:
+                kernel = _r15_unique_top10_large_kernel
+
+            def launch() -> None:
+                kernel[grid](
+                    scores,
+                    bias,
+                    weights,
+                    ids,
+                    rows_per_program,
+                    extra_rows,
+                    multibuffer=False,
+                    unit_flag=False,
+                )
+
+            return launch
+
+        if variant == "r25_lexicographic_tuple_reduce":
+            # Optimization point 7 (pass elimination), isolated from R24:
+            # one exact public tuple reduction selects candidate validity,
+            # routing value and MMQ rank without any -inf fallback reduction.
             grid, rows_per_program, extra_rows = self._partition(m)
             kernel = (
-                _r24_paired_max_index_medium_kernel
+                _r25_lexicographic_tuple_medium_kernel
                 if m <= R6_DISPATCH_CUTOFF_M
-                else _r24_paired_max_index_large_kernel
+                else _r25_lexicographic_tuple_large_kernel
             )
 
             def launch() -> None:
@@ -3621,8 +3795,10 @@ def parse_shapes(spec: str, *, correctness: bool) -> list[int]:
 
 def parse_variants(spec: str) -> list[str]:
     normalized = spec.strip().lower()
-    if normalized in ("all", "0-24", "r0-r24"):
+    if normalized in ("all", "0-25", "r0-r25"):
         return list(VARIANTS)
+    if normalized in ("0-24", "r0-r24"):
+        return list(VARIANTS[:25])
     if normalized in ("0-23", "r0-r23"):
         return list(VARIANTS[:24])
     if normalized in ("0-22", "r0-r22"):
@@ -3698,7 +3874,7 @@ def write_csv(path_text: str, records: Sequence[dict[str, object]]) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="WeLM-v4 A5 expert-bias TopK R0-R24 accuracy/latency study"
+        description="WeLM-v4 A5 expert-bias TopK R0-R25 accuracy/latency study"
     )
     parser.add_argument(
         "--mode",
@@ -3713,7 +3889,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--variants",
         default="all",
-        help="all, 0-24, or comma list such as r22,r23,r24 (R0 is always added)",
+        help="all, 0-25, or comma list such as r23,r24,r25 (R0 is always added)",
     )
     parser.add_argument("--device", default="npu:0")
     parser.add_argument("--seed", type=int, default=20260811)
