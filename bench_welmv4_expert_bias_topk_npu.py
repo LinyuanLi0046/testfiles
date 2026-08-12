@@ -3,7 +3,7 @@
 
 This is deliberately a manual, standalone experiment.  It does not replace or
 register any production SGLang operator.  R0 is a frozen 2026-08-11 copy of the
-old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R39 are
+old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R40 are
 cumulative experimental variants kept here so that every round remains
 measurable after a later optimized kernel is integrated into the model path.
 
@@ -205,6 +205,12 @@ Rounds:
   adjacent rows before either row enters the long sort/reduction chain.  Each
   row is then processed by the unchanged R27 math.  This isolates load-order
   scheduling while halving dynamic row-loop control.
+  It was exact and consistently improved the two large prefill shapes by
+  0.6--0.7%, but remained below the 1% acceptance threshold.
+* R40: increase R39's load-ahead depth from two adjacent rows to four while
+  retaining the same R27 row math and contiguous partition.  This tests
+  whether more outstanding row loads improve overlap or instead increase UB
+  pressure; R39 remains separately measurable as its exact R27 fallback.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -310,6 +316,7 @@ VARIANTS = (
     "r37_small_unit_flag",
     "r38_large_grid_stride",
     "r39_two_row_load_ahead",
+    "r40_four_row_load_ahead",
 )
 
 VARIANT_DESCRIPTIONS = {
@@ -370,7 +377,8 @@ VARIANT_DESCRIPTIONS = {
     "r36_large_multibuffer": "rejected multibuffer gain; exact R27 fallback",
     "r37_small_unit_flag": "rejected unit_flag gain; exact R27 fallback",
     "r38_large_grid_stride": "rejected grid stride; exact R27 fallback",
-    "r39_two_row_load_ahead": "R27 large path with adjacent two-row load ahead",
+    "r39_two_row_load_ahead": "sub-threshold two-row gain; exact R27 fallback",
+    "r40_four_row_load_ahead": "R27 large path with adjacent four-row load ahead",
 }
 
 COMMON_SHAPES = [1, 2, 4, 8, 16, 32, 56, 63, 64, 65, 128, 512, 9616, 16384]
@@ -3638,6 +3646,51 @@ def _r39_last_axis_rank_two_row_load_ahead_large_kernel(
 
 
 @triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _r40_last_axis_rank_four_row_load_ahead_large_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    quad_end = row_end - ((row_end - row_start) & 3)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
+    bias = tl.load(bias_ptr + offs)
+
+    for row in tl.range(row_start, quad_end, 4):
+        scores0 = tl.load(scores_ptr + row * _JIT_NUM_EXPERTS + offs)
+        scores1 = tl.load(scores_ptr + (row + 1) * _JIT_NUM_EXPERTS + offs)
+        scores2 = tl.load(scores_ptr + (row + 2) * _JIT_NUM_EXPERTS + offs)
+        scores3 = tl.load(scores_ptr + (row + 3) * _JIT_NUM_EXPERTS + offs)
+        _last_axis_rank_select_store_loaded_row(
+            scores0, weights_ptr, ids_ptr, row, tie_rank, bias
+        )
+        _last_axis_rank_select_store_loaded_row(
+            scores1, weights_ptr, ids_ptr, row + 1, tie_rank, bias
+        )
+        _last_axis_rank_select_store_loaded_row(
+            scores2, weights_ptr, ids_ptr, row + 2, tie_rank, bias
+        )
+        _last_axis_rank_select_store_loaded_row(
+            scores3, weights_ptr, ids_ptr, row + 3, tie_rank, bias
+        )
+
+    for tail_row in tl.range(quad_end, row_end):
+        tail_scores = tl.load(
+            scores_ptr + tail_row * _JIT_NUM_EXPERTS + offs
+        )
+        _last_axis_rank_select_store_loaded_row(
+            tail_scores, weights_ptr, ids_ptr, tail_row, tie_rank, bias
+        )
+
+
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
 def _r28_split_last_axis_rank_medium_kernel(
     scores_ptr,
     bias_ptr,
@@ -5063,15 +5116,40 @@ class ModelNew(torch.nn.Module):
             return launch
 
         if variant == "r39_two_row_load_ahead":
-            # Optimization point 11 (load instruction ordering), isolated
-            # from R27. Only the large path issues two row loads up front.
+            # R39's 0.6--0.7% large gain stayed below the acceptance threshold.
+            # Keep this historical row as the exact accepted R27 path.
             grid, rows_per_program, extra_rows = self._partition(m)
             if m <= self.num_vector_cores:
                 kernel = _r7_vector_tie_small_kernel
             elif m <= R6_DISPATCH_CUTOFF_M:
                 kernel = _r27_last_axis_rank_medium_kernel
             else:
-                kernel = _r39_last_axis_rank_two_row_load_ahead_large_kernel
+                kernel = _r27_last_axis_rank_large_kernel
+
+            def launch() -> None:
+                kernel[grid](
+                    scores,
+                    bias,
+                    weights,
+                    ids,
+                    rows_per_program,
+                    extra_rows,
+                    multibuffer=False,
+                    unit_flag=False,
+                )
+
+            return launch
+
+        if variant == "r40_four_row_load_ahead":
+            # Optimization point 11 (load instruction ordering depth),
+            # isolated from R39/R27. Only four large-path row loads move ahead.
+            grid, rows_per_program, extra_rows = self._partition(m)
+            if m <= self.num_vector_cores:
+                kernel = _r7_vector_tie_small_kernel
+            elif m <= R6_DISPATCH_CUTOFF_M:
+                kernel = _r27_last_axis_rank_medium_kernel
+            else:
+                kernel = _r40_last_axis_rank_four_row_load_ahead_large_kernel
 
             def launch() -> None:
                 kernel[grid](
@@ -5701,8 +5779,10 @@ def parse_shapes(spec: str, *, correctness: bool) -> list[int]:
 
 def parse_variants(spec: str) -> list[str]:
     normalized = spec.strip().lower()
-    if normalized in ("all", "0-39", "r0-r39"):
+    if normalized in ("all", "0-40", "r0-r40"):
         return list(VARIANTS)
+    if normalized in ("0-39", "r0-r39"):
+        return list(VARIANTS[:40])
     if normalized in ("0-38", "r0-r38"):
         return list(VARIANTS[:39])
     if normalized in ("0-37", "r0-r37"):
@@ -5808,7 +5888,7 @@ def write_csv(path_text: str, records: Sequence[dict[str, object]]) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="WeLM-v4 A5 expert-bias TopK R0-R39 accuracy/latency study"
+        description="WeLM-v4 A5 expert-bias TopK R0-R40 accuracy/latency study"
     )
     parser.add_argument(
         "--mode",
@@ -5823,7 +5903,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--variants",
         default="all",
-        help="all, 0-39, or comma list such as r37,r38,r39 (R0 is always added)",
+        help="all, 0-40, or comma list such as r38,r39,r40 (R0 is always added)",
     )
     parser.add_argument("--device", default="npu:0")
     parser.add_argument("--seed", type=int, default=20260811)
