@@ -3,7 +3,7 @@
 
 This is deliberately a manual, standalone experiment.  It does not replace or
 register any production SGLang operator.  R0 is a frozen 2026-08-11 copy of the
-old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R10 are
+old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R11 are
 cumulative experimental variants kept here so that every round remains
 measurable after a later optimized kernel is integrated into the model path.
 
@@ -51,6 +51,11 @@ Rounds:
   are contiguous, so the next exact MMQ tie only needs a larger tie-rank than
   the previous selection when the routing value is unchanged.  This removes
   the per-round 512-lane candidate-mask update without any rank-2 tensor.
+* R11: encode the descending FP32 routing order and ascending MMQ tie-rank in
+  one signed INT64 key, then use one native A5 rank-1 vector sort.  This removes
+  R10's remaining ten 512-wide tie reductions; ten scalar extracts recover the
+  already ordered expert IDs.  Routing signed zero is canonicalized so +0/-0
+  remain an exact legacy tie.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -126,6 +131,7 @@ VARIANTS = (
     "r8_safe_vector_dispatch",
     "r9_pair_tie_recovery",
     "r10_group_rank_threshold",
+    "r11_packed_exact_sort",
 )
 
 VARIANT_DESCRIPTIONS = {
@@ -142,6 +148,7 @@ VARIANT_DESCRIPTIONS = {
     "r10_group_rank_threshold": (
         "R8 small path / scalar equal-group rank threshold above it"
     ),
+    "r11_packed_exact_sort": "R8 small path / one exact packed INT64 sort above it",
 }
 
 COMMON_SHAPES = [1, 2, 4, 8, 16, 32, 56, 63, 64, 65, 128, 512, 9616, 16384]
@@ -491,6 +498,57 @@ def _group_rank_select_store_row(
         selected_ids = tl.where(out_lanes == k, selected_idx, selected_ids)
         previous_value = kth_routing_score
         previous_rank = selected_rank.to(tl.float32)
+
+    selected_weights = tl.gather(scores, selected_ids, 0)
+    output_mask = out_lanes < _JIT_TOPK
+    output_offsets = row * _JIT_TOPK + out_lanes
+    tl.store(weights_ptr + output_offsets, selected_weights, mask=output_mask)
+    tl.store(ids_ptr + output_offsets, selected_ids, mask=output_mask)
+
+
+@triton.jit
+def _packed_exact_select_store_row(
+    scores_ptr,
+    weights_ptr,
+    ids_ptr,
+    row,
+    offs,
+    tie_rank,
+    bias,
+):
+    """One native I64 sort for FP32 descending plus MMQ-priority ties."""
+    scores = tl.load(scores_ptr + row * _JIT_NUM_EXPERTS + offs)
+    scores = tl.where(scores == scores, scores, -float("inf"))
+    routing_scores = scores + bias
+    # Legacy FP32 equality treats +0 and -0 as one tie group.  Canonicalize
+    # before bit-key construction so their sign bits cannot affect ordering.
+    routing_scores = tl.where(routing_scores == 0.0, 0.0, routing_scores)
+
+    # Anti-monotone IEEE FP32 key: signed ascending order equals FP32
+    # descending order.  Put it in the high 32 bits and the ascending MMQ
+    # tie-rank in the low bits.  I64 is necessary here to preserve all 32
+    # routing bits plus the 9-bit exact priority; A5 vsort natively supports it.
+    min_i32 = -2147483648
+    routing_bits = routing_scores.to(tl.int32, bitcast=True)
+    sign = routing_bits >> 31
+    value_key = tl.where(
+        sign == 0,
+        routing_bits ^ -1,
+        routing_bits ^ min_i32,
+    )
+    key_u32 = value_key.to(tl.int64) & 0x00000000FFFFFFFF
+    packed = (key_u32 << 32) | tie_rank.to(tl.int64)
+    sorted_packed = al.sort(packed, dim=-1, descending=False)
+
+    out_lanes = tl.arange(0, _JIT_OUTPUT_WIDTH)
+    selected_ids = tl.zeros((_JIT_OUTPUT_WIDTH,), dtype=tl.int32)
+    for k in tl.static_range(0, _JIT_TOPK):
+        kth_packed = al.get_element(sorted_packed, indice=[k])
+        selected_rank = (kth_packed & 511).to(tl.int32)
+        lane = selected_rank >> 4
+        local = selected_rank & 15
+        selected_idx = ((local >> 2) << 7) + (lane << 2) + (local & 3)
+        selected_ids = tl.where(out_lanes == k, selected_idx, selected_ids)
 
     selected_weights = tl.gather(scores, selected_ids, 0)
     output_mask = out_lanes < _JIT_TOPK
@@ -929,6 +987,66 @@ def _r10_group_rank_large_kernel(
         )
 
 
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _r11_packed_exact_medium_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    # Match R10 for physical_AIV < M <= 320: load bias per row.
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
+
+    for row in tl.range(row_start, row_end):
+        bias = tl.load(bias_ptr + offs)
+        _packed_exact_select_store_row(
+            scores_ptr,
+            weights_ptr,
+            ids_ptr,
+            row,
+            offs,
+            tie_rank,
+            bias,
+        )
+
+
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _r11_packed_exact_large_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    # Match R10 above M=320: keep the invariant bias hoisted.
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
+    bias = tl.load(bias_ptr + offs)
+
+    for row in tl.range(row_start, row_end):
+        _packed_exact_select_store_row(
+            scores_ptr,
+            weights_ptr,
+            ids_ptr,
+            row,
+            offs,
+            tie_rank,
+            bias,
+        )
+
+
 # ---------------------------------------------------------------------------
 # Host launchers.  No production call site is modified.
 # ---------------------------------------------------------------------------
@@ -976,7 +1094,7 @@ class ModelNew(torch.nn.Module):
         assert scores.ndim == 2 and scores.shape[1] == NUM_EXPERTS
         assert scores.dtype == torch.float32
         assert scores.is_contiguous(), (
-            "R1-R10 specialize the actual WeLM common path: contiguous [M,512]"
+            "R1-R11 specialize the actual WeLM common path: contiguous [M,512]"
         )
         assert bias.shape == (NUM_EXPERTS,) and bias.dtype == torch.float32
         assert bias.is_contiguous()
@@ -1247,6 +1365,33 @@ class ModelNew(torch.nn.Module):
                 kernel = _r10_group_rank_medium_kernel
             else:
                 kernel = _r10_group_rank_large_kernel
+
+            def launch() -> None:
+                kernel[grid](
+                    scores,
+                    bias,
+                    weights,
+                    ids,
+                    rows_per_program,
+                    extra_rows,
+                    multibuffer=False,
+                    unit_flag=False,
+                )
+
+            return launch
+
+        if variant == "r11_packed_exact_sort":
+            # Optimization point 7 (pass elimination), isolated from R10.
+            # Keep its grid, cutoff, small R7 path and bias placement; above
+            # the physical-AIV boundary only replace FP32 sort + ten tie scans
+            # with one native rank-1 I64 packed-key sort.
+            grid, rows_per_program, extra_rows = self._partition(m)
+            if m <= self.num_vector_cores:
+                kernel = _r7_vector_tie_small_kernel
+            elif m <= R6_DISPATCH_CUTOFF_M:
+                kernel = _r11_packed_exact_medium_kernel
+            else:
+                kernel = _r11_packed_exact_large_kernel
 
             def launch() -> None:
                 kernel[grid](
@@ -1787,8 +1932,10 @@ def parse_shapes(spec: str, *, correctness: bool) -> list[int]:
 
 def parse_variants(spec: str) -> list[str]:
     normalized = spec.strip().lower()
-    if normalized in ("all", "0-10", "r0-r10"):
+    if normalized in ("all", "0-11", "r0-r11"):
         return list(VARIANTS)
+    if normalized in ("0-10", "r0-r10"):
+        return list(VARIANTS[:11])
     if normalized in ("0-9", "r0-r9"):
         return list(VARIANTS[:10])
     if normalized in ("0-8", "r0-r8"):
@@ -1836,7 +1983,7 @@ def write_csv(path_text: str, records: Sequence[dict[str, object]]) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="WeLM-v4 A5 expert-bias TopK R0-R10 accuracy/latency study"
+        description="WeLM-v4 A5 expert-bias TopK R0-R11 accuracy/latency study"
     )
     parser.add_argument(
         "--mode",
@@ -1851,7 +1998,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--variants",
         default="all",
-        help="all, 0-10, or comma list such as r8,r9,r10 (R0 is always added)",
+        help="all, 0-11, or comma list such as r9,r10,r11 (R0 is always added)",
     )
     parser.add_argument("--device", default="npu:0")
     parser.add_argument("--seed", type=int, default=20260811)
