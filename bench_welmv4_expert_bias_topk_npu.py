@@ -3,7 +3,7 @@
 
 This is deliberately a manual, standalone experiment.  It does not replace or
 register any production SGLang operator.  R0 is a frozen 2026-08-11 copy of the
-old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R41 are
+old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R42 are
 cumulative experimental variants kept here so that every round remains
 measurable after a later optimized kernel is integrated into the model path.
 
@@ -219,6 +219,12 @@ Rounds:
   A5 vector reduction lowering.
   It was exact but slowed large prefill by about 1.4--1.6%, so later full runs
   retain R41 as an R27 fallback.
+* R42: keep R27's sort, row partition, bias schedule and exact duplicate
+  fallback.  On the common unique path, strengthen the gate to include the
+  Top-10/Top-11 boundary, then replace ``min(where(match, rank, sentinel))``
+  with a contiguous last-axis INT32 ``sum(match * rank)``.  With the stronger
+  gate each output column is exactly one-hot, so the two reductions are
+  mathematically identical without changing FP32 ordering or MMQ tie rules.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -241,13 +247,9 @@ Useful shorter runs:
 
 The script intentionally uses ``torch_npu.npu.Event``.  Do not replace it with
 ``torch.cuda.Event`` merely because torch-npu exposes ``Tensor.is_cuda=True``.
-Every run also records a non-candidate Torch-NPU composite diagnostic
-(``where + bias + topk + gather``) in the same CSV.  Native TopK's default tie
-order is measured against, but is not assumed to satisfy, the MMQ contract.
-It additionally probes an exact hybrid: native Top-11 supplies sorted values,
-then one Triton kernel copies unique rows or repairs every row with a duplicate
-among positions 0..10 using the original MMQ priority.  Position 10 is kept
-only to make a tie crossing the Top-10 boundary observable.
+The default run benchmarks only the frozen baseline and Triton variants.  Old
+native-composite helpers remain below solely so historical CSV commits stay
+auditable; ``main`` does not execute them.
 """
 
 from __future__ import annotations
@@ -333,6 +335,7 @@ VARIANTS = (
     "r39_two_row_load_ahead",
     "r40_four_row_load_ahead",
     "r41_duplicate_any_max",
+    "r42_last_axis_rank_sum",
 )
 
 VARIANT_DESCRIPTIONS = {
@@ -396,6 +399,7 @@ VARIANT_DESCRIPTIONS = {
     "r39_two_row_load_ahead": "sub-threshold two-row gain; exact R27 fallback",
     "r40_four_row_load_ahead": "rejected four-row load ahead; exact R27 fallback",
     "r41_duplicate_any_max": "rejected max duplicate gate; exact R27 fallback",
+    "r42_last_axis_rank_sum": "R27 one-hot INT32 MMQ-rank sum reduction",
 }
 
 COMMON_SHAPES = [1, 2, 4, 8, 16, 32, 56, 63, 64, 65, 128, 512, 9616, 16384]
@@ -1272,6 +1276,81 @@ def _last_axis_rank_duplicate_any_max_select_store_row(
             )
             fallback_selected_rank = tl.min(
                 tl.where(eligible, tie_rank, invalid_rank), axis=0
+            )
+            fallback_lane = fallback_selected_rank >> 4
+            fallback_local = fallback_selected_rank & 15
+            fallback_selected_idx = (
+                ((fallback_local >> 2) << 7)
+                + (fallback_lane << 2)
+                + (fallback_local & 3)
+            )
+            selected_ids = tl.where(
+                out_lanes == k, fallback_selected_idx, selected_ids
+            )
+            previous_value = kth_routing_score
+            previous_rank = fallback_selected_rank.to(tl.float32)
+
+    selected_weights = tl.gather(scores, selected_ids, 0)
+    output_mask = out_lanes < _JIT_TOPK
+    output_offsets = row * _JIT_TOPK + out_lanes
+    tl.store(weights_ptr + output_offsets, selected_weights, mask=output_mask)
+    tl.store(ids_ptr + output_offsets, selected_ids, mask=output_mask)
+
+
+@triton.jit
+def _last_axis_rank_sum_select_store_row(
+    scores_ptr,
+    weights_ptr,
+    ids_ptr,
+    row,
+    offs,
+    tie_rank,
+    bias,
+):
+    """R27 with one-hot last-axis INT32 rank sum on the unique path."""
+    scores = tl.load(scores_ptr + row * _JIT_NUM_EXPERTS + offs)
+    scores = tl.where(scores == scores, scores, -float("inf"))
+    routing_scores = scores + bias
+    sorted_routing = al.sort(routing_scores, dim=-1, descending=True)
+
+    out_lanes = tl.arange(0, _JIT_OUTPUT_WIDTH)
+    top_values = tl.gather(sorted_routing, out_lanes, 0)
+    next_lanes = tl.minimum(out_lanes + 1, _JIT_OUTPUT_WIDTH - 1)
+    next_values = tl.gather(top_values, next_lanes, 0)
+    # Include pair 9/10.  Then every stored top-10 value is globally unique,
+    # so each match row contains exactly one true lane.
+    adjacent_duplicate = (top_values == next_values) & (
+        out_lanes.to(tl.float32) < 10.0
+    )
+    has_duplicate = tl.sum(adjacent_duplicate.to(tl.float32), axis=0) > 0.0
+
+    selected_ids = tl.zeros((_JIT_OUTPUT_WIDTH,), dtype=tl.int32)
+    if ~has_duplicate:
+        matches = top_values[:, None] == routing_scores[None, :]
+        fast_selected_rank = tl.sum(
+            matches.to(tl.int32) * tie_rank[None, :],
+            axis=1,
+        )
+        fast_lane = fast_selected_rank >> 4
+        fast_local = fast_selected_rank & 15
+        selected_ids = (
+            ((fast_local >> 2) << 7)
+            + (fast_lane << 2)
+            + (fast_local & 3)
+        ).to(tl.int32)
+    else:
+        invalid_rank = _JIT_NUM_EXPERTS + 1
+        previous_value = float("inf")
+        previous_rank = -1.0
+        for k in tl.static_range(0, _JIT_TOPK):
+            kth_routing_score = al.get_element(sorted_routing, indice=[k])
+            same_group = kth_routing_score == previous_value
+            eligible = (routing_scores == kth_routing_score) & (
+                ~same_group | (tie_rank.to(tl.float32) > previous_rank)
+            )
+            fallback_selected_rank = tl.min(
+                tl.where(eligible, tie_rank, invalid_rank),
+                axis=0,
             )
             fallback_lane = fallback_selected_rank >> 4
             fallback_local = fallback_selected_rank & 15
@@ -3831,6 +3910,50 @@ def _r41_duplicate_any_max_large_kernel(
 
 
 @triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _r42_last_axis_rank_sum_medium_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
+    for row in tl.range(row_start, row_end):
+        bias = tl.load(bias_ptr + offs)
+        _last_axis_rank_sum_select_store_row(
+            scores_ptr, weights_ptr, ids_ptr, row, offs, tie_rank, bias
+        )
+
+
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _r42_last_axis_rank_sum_large_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
+    bias = tl.load(bias_ptr + offs)
+    for row in tl.range(row_start, row_end):
+        _last_axis_rank_sum_select_store_row(
+            scores_ptr, weights_ptr, ids_ptr, row, offs, tie_rank, bias
+        )
+
+
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
 def _r28_split_last_axis_rank_medium_kernel(
     scores_ptr,
     bias_ptr,
@@ -5330,6 +5453,32 @@ class ModelNew(torch.nn.Module):
 
             return launch
 
+        if variant == "r42_last_axis_rank_sum":
+            # Optimization point 7 (pass/reduction simplification), isolated
+            # from R27.  The 9/10 boundary gate proves a one-hot match before
+            # replacing only last-axis rank min by exact INT32 rank sum.
+            grid, rows_per_program, extra_rows = self._partition(m)
+            if m <= self.num_vector_cores:
+                kernel = _r7_vector_tie_small_kernel
+            elif m <= R6_DISPATCH_CUTOFF_M:
+                kernel = _r42_last_axis_rank_sum_medium_kernel
+            else:
+                kernel = _r42_last_axis_rank_sum_large_kernel
+
+            def launch() -> None:
+                kernel[grid](
+                    scores,
+                    bias,
+                    weights,
+                    ids,
+                    rows_per_program,
+                    extra_rows,
+                    multibuffer=False,
+                    unit_flag=False,
+                )
+
+            return launch
+
         raise ValueError(f"Unknown variant: {variant}")
 
     def launch_into(
@@ -6466,8 +6615,10 @@ def parse_shapes(spec: str, *, correctness: bool) -> list[int]:
 
 def parse_variants(spec: str) -> list[str]:
     normalized = spec.strip().lower()
-    if normalized in ("all", "0-41", "r0-r41"):
+    if normalized in ("all", "0-42", "r0-r42"):
         return list(VARIANTS)
+    if normalized in ("0-41", "r0-r41"):
+        return list(VARIANTS[:42])
     if normalized in ("0-40", "r0-r40"):
         return list(VARIANTS[:41])
     if normalized in ("0-39", "r0-r39"):
@@ -6577,7 +6728,7 @@ def write_csv(path_text: str, records: Sequence[dict[str, object]]) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="WeLM-v4 A5 expert-bias TopK R0-R41 accuracy/latency study"
+        description="WeLM-v4 A5 expert-bias TopK R0-R42 accuracy/latency study"
     )
     parser.add_argument(
         "--mode",
@@ -6592,7 +6743,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--variants",
         default="all",
-        help="all, 0-41, or comma list such as r39,r40,r41 (R0 is always added)",
+        help="all, 0-42, or comma list such as r27,r42 (R0 is always added)",
     )
     parser.add_argument("--device", default="npu:0")
     parser.add_argument("--seed", type=int, default=20260811)
@@ -6665,14 +6816,6 @@ def main() -> int:
             seed=args.seed,
         )
         records.extend(correctness_records)
-        records.extend(
-            run_native_correctness_diagnostic(
-                model,
-                device=device,
-                shapes=correctness_shapes,
-                seed=args.seed,
-            )
-        )
         print(
             f"\nCorrectness summary: "
             f"{'PASS' if failures == 0 else 'FAIL'}, failures={failures}"
@@ -6690,17 +6833,6 @@ def main() -> int:
                 variants=variants,
                 seed=args.seed,
                 scope=args.scope,
-                warmup=args.warmup,
-                rounds=args.rounds,
-                inner_repeat_override=args.inner_repeat,
-            )
-        )
-        records.extend(
-            run_native_performance_diagnostic(
-                model,
-                device=device,
-                shapes=performance_shapes,
-                seed=args.seed,
                 warmup=args.warmup,
                 rounds=args.rounds,
                 inner_repeat_override=args.inner_repeat,
