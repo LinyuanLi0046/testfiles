@@ -3,7 +3,7 @@
 
 This is deliberately a manual, standalone experiment.  It does not replace or
 register any production SGLang operator.  R0 is a frozen 2026-08-11 copy of the
-old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R47 are
+old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R48 are
 cumulative experimental variants kept here so that every round remains
 measurable after a later optimized kernel is integrated into the model path.
 
@@ -258,6 +258,12 @@ Rounds:
   bit 9 (rank 0..511 becomes 512..1023) instead of selecting scalar sentinel
   513 with ``tl.where``.  The same last-axis INT32 min therefore returns the
   identical matching rank while testing shift/or candidate construction.
+  It was exact but slowed M=9616/16384 by about 2.8%, so later full runs retain
+  R47 as an explicit R27 fallback.
+* R48: keep R27's exact ``tl.where`` rank-candidate selection, but replace its
+  scalar false value 513 with an explicit [16,512] INT32 ``tl.full`` constant.
+  This isolates scalar-to-vector constant broadcasting; sort, reduction,
+  duplicate fallback, row partition and launch settings remain unchanged.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -374,6 +380,7 @@ VARIANTS = (
     "r45_priority_order_rank_min",
     "r46_large_loop_flatten",
     "r47_rank_invalid_bit",
+    "r48_vector_rank_sentinel",
 )
 
 VARIANT_DESCRIPTIONS = {
@@ -443,6 +450,7 @@ VARIANT_DESCRIPTIONS = {
     "r45_priority_order_rank_min": "R27 priority-order contiguous rank min",
     "r46_large_loop_flatten": "R27 large row-loop flatten hint",
     "r47_rank_invalid_bit": "R27 rank min with unmatched bit-9 encoding",
+    "r48_vector_rank_sentinel": "R27 rank min with explicit vector sentinel",
 }
 
 COMMON_SHAPES = [1, 2, 4, 8, 16, 32, 56, 63, 64, 65, 128, 512, 9616, 16384]
@@ -1221,6 +1229,84 @@ def _last_axis_rank_invalid_bit_select_store_row(
         invalid_bit = (~matches).to(tl.int32) << 9
         fast_selected_rank = tl.min(
             tie_rank[None, :] | invalid_bit,
+            axis=1,
+        )
+        fast_lane = fast_selected_rank >> 4
+        fast_local = fast_selected_rank & 15
+        selected_ids = (
+            ((fast_local >> 2) << 7)
+            + (fast_lane << 2)
+            + (fast_local & 3)
+        ).to(tl.int32)
+    else:
+        invalid_rank = _JIT_NUM_EXPERTS + 1
+        previous_value = float("inf")
+        previous_rank = -1.0
+        for k in tl.static_range(0, _JIT_TOPK):
+            kth_routing_score = al.get_element(sorted_routing, indice=[k])
+            same_group = kth_routing_score == previous_value
+            eligible = (routing_scores == kth_routing_score) & (
+                ~same_group | (tie_rank.to(tl.float32) > previous_rank)
+            )
+            fallback_selected_rank = tl.min(
+                tl.where(eligible, tie_rank, invalid_rank),
+                axis=0,
+            )
+            fallback_lane = fallback_selected_rank >> 4
+            fallback_local = fallback_selected_rank & 15
+            fallback_selected_idx = (
+                ((fallback_local >> 2) << 7)
+                + (fallback_lane << 2)
+                + (fallback_local & 3)
+            )
+            selected_ids = tl.where(
+                out_lanes == k, fallback_selected_idx, selected_ids
+            )
+            previous_value = kth_routing_score
+            previous_rank = fallback_selected_rank.to(tl.float32)
+
+    selected_weights = tl.gather(scores, selected_ids, 0)
+    output_mask = out_lanes < _JIT_TOPK
+    output_offsets = row * _JIT_TOPK + out_lanes
+    tl.store(weights_ptr + output_offsets, selected_weights, mask=output_mask)
+    tl.store(ids_ptr + output_offsets, selected_ids, mask=output_mask)
+
+
+@triton.jit
+def _last_axis_rank_vector_sentinel_select_store_row(
+    scores_ptr,
+    weights_ptr,
+    ids_ptr,
+    row,
+    offs,
+    tie_rank,
+    bias,
+):
+    """Exact R27 with an explicit INT32 vector rank sentinel."""
+    scores = tl.load(scores_ptr + row * _JIT_NUM_EXPERTS + offs)
+    scores = tl.where(scores == scores, scores, -float("inf"))
+    routing_scores = scores + bias
+    sorted_routing = al.sort(routing_scores, dim=-1, descending=True)
+
+    out_lanes = tl.arange(0, _JIT_OUTPUT_WIDTH)
+    top_values = tl.gather(sorted_routing, out_lanes, 0)
+    next_lanes = tl.minimum(out_lanes + 1, _JIT_OUTPUT_WIDTH - 1)
+    next_values = tl.gather(top_values, next_lanes, 0)
+    adjacent_duplicate = (top_values == next_values) & (
+        out_lanes.to(tl.float32) < 9.0
+    )
+    has_duplicate = tl.sum(adjacent_duplicate.to(tl.float32), axis=0) > 0.0
+
+    selected_ids = tl.zeros((_JIT_OUTPUT_WIDTH,), dtype=tl.int32)
+    if ~has_duplicate:
+        matches = top_values[:, None] == routing_scores[None, :]
+        rank_sentinel = tl.full(
+            (_JIT_OUTPUT_WIDTH, _JIT_NUM_EXPERTS),
+            _JIT_NUM_EXPERTS + 1,
+            tl.int32,
+        )
+        fast_selected_rank = tl.min(
+            tl.where(matches, tie_rank[None, :], rank_sentinel),
             axis=1,
         )
         fast_lane = fast_selected_rank >> 4
