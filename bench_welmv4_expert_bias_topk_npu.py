@@ -1188,7 +1188,16 @@ def _iterative_rank1_maxarg_select_store_row(
             first_match.to(tl.float32), axis=0, tie_break_left=True
         ).to(tl.int32)
         selected_rank_vec = selected_rank + tl.arange(0, 1)
-        selected_idx = tl.gather(priority_ids, selected_rank_vec, 0)
+        # Ascend tl.gather does not accept an int32 source.  selected_rank is
+        # already the MMQ priority rank, so invert the exact rank bijection
+        # directly instead of gathering priority_ids.
+        selected_lane = selected_rank >> 4
+        selected_local = selected_rank & 15
+        selected_idx = (
+            ((selected_local >> 2) << 7)
+            + (selected_lane << 2)
+            + (selected_local & 3)
+        )
         selected_weight = tl.gather(
             scores_by_priority, selected_rank_vec, 0
         )
