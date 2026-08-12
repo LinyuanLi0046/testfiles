@@ -3,7 +3,7 @@
 
 This is deliberately a manual, standalone experiment.  It does not replace or
 register any production SGLang operator.  R0 is a frozen 2026-08-11 copy of the
-old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R36 are
+old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R37 are
 cumulative experimental variants kept here so that every round remains
 measurable after a later optimized kernel is integrated into the model path.
 
@@ -187,6 +187,12 @@ Rounds:
   ``multibuffer`` option only on the M>320 large row-loop path.  This isolates
   whether next-row score loads can overlap the current row's vector sort and
   reduction; decode and medium paths remain single-buffered.
+  It was exact but improved large prefill by only about 0.3% and regressed the
+  first large boundary, so later full runs retain R36 as an R27 fallback.
+* R37: keep the exact accepted dispatch and enable ``unit_flag`` only for the
+  M<=physical-AIV direct small path.  This capability/performance experiment
+  targets the roughly 30 us decode floor; all row-loop paths retain the normal
+  synchronization setting and ``multibuffer=False``.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -289,6 +295,7 @@ VARIANTS = (
     "r34_last_axis_int16_rank",
     "r35_last_axis_direct_int32_id",
     "r36_large_multibuffer",
+    "r37_small_unit_flag",
 )
 
 VARIANT_DESCRIPTIONS = {
@@ -346,7 +353,8 @@ VARIANT_DESCRIPTIONS = {
     "r35_last_axis_direct_int32_id": (
         "rejected direct INT32 ID min; exact R27 fallback"
     ),
-    "r36_large_multibuffer": "R27 large path with compiler multibuffer enabled",
+    "r36_large_multibuffer": "rejected multibuffer gain; exact R27 fallback",
+    "r37_small_unit_flag": "unit_flag capability test on direct small grid",
 }
 
 COMMON_SHAPES = [1, 2, 4, 8, 16, 32, 56, 63, 64, 65, 128, 512, 9616, 16384]
@@ -4832,8 +4840,8 @@ class ModelNew(torch.nn.Module):
             return launch
 
         if variant == "r36_large_multibuffer":
-            # Optimization point 3 (A5 compiler load/compute overlap),
-            # isolated from R27. Only the multi-row large launch flag changes.
+            # R36 gained only ~0.3% on large prefill and regressed the first
+            # large boundary. Keep this historical row as exact R27.
             grid, rows_per_program, extra_rows = self._partition(m)
             if m <= self.num_vector_cores:
                 kernel = _r7_vector_tie_small_kernel
@@ -4841,7 +4849,6 @@ class ModelNew(torch.nn.Module):
                 kernel = _r27_last_axis_rank_medium_kernel
             else:
                 kernel = _r27_last_axis_rank_large_kernel
-            enable_multibuffer = m > R6_DISPATCH_CUTOFF_M
 
             def launch() -> None:
                 kernel[grid](
@@ -4851,8 +4858,34 @@ class ModelNew(torch.nn.Module):
                     ids,
                     rows_per_program,
                     extra_rows,
-                    multibuffer=enable_multibuffer,
+                    multibuffer=False,
                     unit_flag=False,
+                )
+
+            return launch
+
+        if variant == "r37_small_unit_flag":
+            # Optimization point 3 (small-grid synchronization option),
+            # isolated from R27. Only the direct decode launch flag changes.
+            grid, rows_per_program, extra_rows = self._partition(m)
+            if m <= self.num_vector_cores:
+                kernel = _r7_vector_tie_small_kernel
+            elif m <= R6_DISPATCH_CUTOFF_M:
+                kernel = _r27_last_axis_rank_medium_kernel
+            else:
+                kernel = _r27_last_axis_rank_large_kernel
+            enable_unit_flag = m <= self.num_vector_cores
+
+            def launch() -> None:
+                kernel[grid](
+                    scores,
+                    bias,
+                    weights,
+                    ids,
+                    rows_per_program,
+                    extra_rows,
+                    multibuffer=False,
+                    unit_flag=enable_unit_flag,
                 )
 
             return launch
@@ -5471,8 +5504,10 @@ def parse_shapes(spec: str, *, correctness: bool) -> list[int]:
 
 def parse_variants(spec: str) -> list[str]:
     normalized = spec.strip().lower()
-    if normalized in ("all", "0-36", "r0-r36"):
+    if normalized in ("all", "0-37", "r0-r37"):
         return list(VARIANTS)
+    if normalized in ("0-36", "r0-r36"):
+        return list(VARIANTS[:37])
     if normalized in ("0-35", "r0-r35"):
         return list(VARIANTS[:36])
     if normalized in ("0-34", "r0-r34"):
@@ -5572,7 +5607,7 @@ def write_csv(path_text: str, records: Sequence[dict[str, object]]) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="WeLM-v4 A5 expert-bias TopK R0-R36 accuracy/latency study"
+        description="WeLM-v4 A5 expert-bias TopK R0-R37 accuracy/latency study"
     )
     parser.add_argument(
         "--mode",
@@ -5587,7 +5622,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--variants",
         default="all",
-        help="all, 0-36, or comma list such as r34,r35,r36 (R0 is always added)",
+        help="all, 0-37, or comma list such as r35,r36,r37 (R0 is always added)",
     )
     parser.add_argument("--device", default="npu:0")
     parser.add_argument("--seed", type=int, default=20260811)
