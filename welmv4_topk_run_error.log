@@ -1,4 +1,4 @@
-time: 2026-08-12T12:13:52+08:00
+time: 2026-08-12T12:19:03+08:00
 command: /usr/local/python3.11.10/bin/python bench_welmv4_expert_bias_topk_npu.py --mode both --cases all --scope kernel --device npu:5 --output-csv welmv4_topk_r0_r5_all.csv
 return_code: 1
 reason: benchmark exited with status 1
@@ -18,7 +18,7 @@ NPU custom kernel packages unavailable: No module named 'custom_ops'
   warnings.warn(msg, ImportWarning)
 /usr/local/python3.11.10/lib/python3.11/site-packages/torch_npu/contrib/transfer_to_npu.py:311: RuntimeWarning: torch.jit.script and torch.jit.script_method will be disabled by transfer_to_npu, which currently does not support them, if you need to enable them, please do not use transfer_to_npu.
   warnings.warn(msg, RuntimeWarning)
-[W812 12:12:39.224952487 OptionRegister.cpp:95] Warning: Current device only support allow_internal_format=False, the requested value True is invalid and has been reverted to False. (function operator())
+[W812 12:18:17.227037607 OptionRegister.cpp:95] Warning: Current device only support allow_internal_format=False, the requested value True is invalid and has been reverted to False. (function operator())
 WeLM-v4 expert-bias TopK manual A5 study
 device=npu:5 (Ascend950PR_957b), physical_AIV=56
 torch=2.10.0+cpu, torch_npu=2.10.0.post4.dev20260715, triton=3.2.0, CANN=9.1.0
@@ -38,7 +38,7 @@ torch=2.10.0+cpu, torch_npu=2.10.0.post4.dev20260715, triton=3.2.0, CANN=9.1.0
   r13_fp32_rank_reduce: R10 with exact FP32 tie-rank min reductions
   r14_priority_argmax: R10 with priority gather + FP32 leftmost argmax
   r15_unique_top10_fastpath: one-pass unique top-10 recovery / exact R10 fallback
-  r16_split_unique_recovery: split [512,8]+[512,2] unique recovery / exact R10 fallback
+  r16_split_unique_recovery: split [512,8]+2x[512] unique recovery / exact R10 fallback
 
 Correctness: 117 input cases x 17 variants
   [PASS   1/117] M=1     pattern=random_bias
@@ -98,16 +98,16 @@ Correctness: 117 input cases x 17 variants
   [PASS  55/117] M=55    pattern=random_bias
   [PASS  56/117] M=56    pattern=random_bias
 Traceback (most recent call last):
-  File "/data2/hw_lly/testfiles/bench_welmv4_expert_bias_topk_npu.py", line 2811, in <module>
+  File "/data2/hw_lly/testfiles/bench_welmv4_expert_bias_topk_npu.py", line 2819, in <module>
     raise SystemExit(main())
                      ^^^^^^
-  File "/data2/hw_lly/testfiles/bench_welmv4_expert_bias_topk_npu.py", line 2775, in main
+  File "/data2/hw_lly/testfiles/bench_welmv4_expert_bias_topk_npu.py", line 2783, in main
     correctness_records, failures = run_correctness(
                                     ^^^^^^^^^^^^^^^^
-  File "/data2/hw_lly/testfiles/bench_welmv4_expert_bias_topk_npu.py", line 2375, in run_correctness
+  File "/data2/hw_lly/testfiles/bench_welmv4_expert_bias_topk_npu.py", line 2383, in run_correctness
     torch_npu.npu.synchronize()
   File "/usr/local/python3.11.10/lib/python3.11/site-packages/torch_npu/npu/utils.py", line 72, in synchronize
     return torch_npu._C._npu_synchronize()
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 RuntimeError: npuSynchronizeDevice:../torch_npu/csrc/core/npu/NPUStream.cpp:703 NPU function error: device error type 3, error code is 507035
-[ERROR] 2026-08-12-12:13:48 (PID:2776402, Device:5, RankID:-1) ERR00100 PTA call acl api failed
+[ERROR] 2026-08-12-12:19:01 (PID:2778570, Device:5, RankID:-1) ERR00100 PTA call acl api failed
