@@ -74,8 +74,8 @@ Rounds:
   duplicate value falls back to exact R10.  Unlike R7/R9, the fast path has no
   cumsum and performs only one rank-2 scan.
 * R16: keep R15's exact unique/fallback dispatch, but recover the ten unique
-  IDs with [512,8] and [512,2] equality/min tiles.  This reduces comparison
-  lanes from 8192 to 5120 while testing the cost of one additional reduction.
+  IDs with one [512,8] tile plus two rank-1 tail reductions.  This reduces
+  comparison lanes from 8192 to 5120 without a second rank-2 temporary.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -178,7 +178,7 @@ VARIANT_DESCRIPTIONS = {
     "r13_fp32_rank_reduce": "R10 with exact FP32 tie-rank min reductions",
     "r14_priority_argmax": "R10 with priority gather + FP32 leftmost argmax",
     "r15_unique_top10_fastpath": "one-pass unique top-10 recovery / exact R10 fallback",
-    "r16_split_unique_recovery": "split [512,8]+[512,2] unique recovery / exact R10 fallback",
+    "r16_split_unique_recovery": "split [512,8]+2x[512] unique recovery / exact R10 fallback",
 }
 
 COMMON_SHAPES = [1, 2, 4, 8, 16, 32, 56, 63, 64, 65, 128, 512, 9616, 16384]
@@ -778,7 +778,7 @@ def _split_unique_top10_select_store_row(
     tie_rank,
     bias,
 ):
-    """R15 semantics with [512,8] + [512,2] unique-value recovery."""
+    """R15 semantics with [512,8] + two rank-1 unique-value reductions."""
     scores = tl.load(scores_ptr + row * _JIT_NUM_EXPERTS + offs)
     scores = tl.where(scores == scores, scores, -float("inf"))
     routing_scores = scores + bias
@@ -813,23 +813,31 @@ def _split_unique_top10_select_store_row(
         tl.store(weights_ptr + first_offsets, first_weights)
         tl.store(ids_ptr + first_offsets, first_ids)
 
+        # A second rank-2 [512,2] temporary triggered device error 507035 on
+        # A5 at the first multi-row shape (M=57).  Keep the same 5120 total
+        # comparison lanes, but recover positions 8 and 9 as rank-1 vectors.
         tail_lanes = tl.arange(0, 2)
-        tail_positions = tail_lanes + 8
-        tail_values = tl.gather(top_values, tail_positions, 0)
-        tail_matches = routing_scores[:, None] == tail_values[None, :]
-        tail_ranks = tl.min(
-            tl.where(tail_matches, tie_rank[:, None], _JIT_NUM_EXPERTS + 1),
-            axis=0,
-        )
-        tail_lane = tail_ranks >> 4
-        tail_local = tail_ranks & 15
-        tail_ids = (
-            ((tail_local >> 2) << 7)
-            + (tail_lane << 2)
-            + (tail_local & 3)
-        ).to(tl.int32)
+        tail_ids = tl.zeros((2,), dtype=tl.int32)
+        for tail_k in tl.static_range(8, _JIT_TOPK):
+            tail_value = al.get_element(sorted_routing, indice=[tail_k])
+            tail_rank = tl.min(
+                tl.where(
+                    routing_scores == tail_value,
+                    tie_rank,
+                    _JIT_NUM_EXPERTS + 1,
+                ),
+                axis=0,
+            )
+            tail_lane = tail_rank >> 4
+            tail_local = tail_rank & 15
+            tail_idx = (
+                ((tail_local >> 2) << 7)
+                + (tail_lane << 2)
+                + (tail_local & 3)
+            )
+            tail_ids = tl.where(tail_lanes == tail_k - 8, tail_idx, tail_ids)
         tail_weights = tl.gather(scores, tail_ids, 0)
-        tail_offsets = row * _JIT_TOPK + tail_positions
+        tail_offsets = row * _JIT_TOPK + tail_lanes + 8
         tl.store(weights_ptr + tail_offsets, tail_weights)
         tl.store(ids_ptr + tail_offsets, tail_ids)
     else:
@@ -2092,7 +2100,7 @@ class ModelNew(torch.nn.Module):
         if variant == "r16_split_unique_recovery":
             # Optimization point 12 (data-dependent multipath), based on R15.
             # Only the unique-value recovery tile changes: [512,16] becomes
-            # [512,8] + [512,2].  The exact R10 duplicate fallback is retained.
+            # [512,8] + two rank-1 tails.  Exact R10 fallback is retained.
             grid, rows_per_program, extra_rows = self._partition(m)
             if m <= self.num_vector_cores:
                 kernel = _r7_vector_tie_small_kernel
