@@ -3,7 +3,7 @@
 
 This is deliberately a manual, standalone experiment.  It does not replace or
 register any production SGLang operator.  R0 is a frozen 2026-08-11 copy of the
-old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R37 are
+old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R38 are
 cumulative experimental variants kept here so that every round remains
 measurable after a later optimized kernel is integrated into the model path.
 
@@ -193,6 +193,12 @@ Rounds:
   M<=physical-AIV direct small path.  This capability/performance experiment
   targets the roughly 30 us decode floor; all row-loop paths retain the normal
   synchronization setting and ``multibuffer=False``.
+  It was exact but changed M=1..56 geometric-mean latency by less than 0.001%,
+  so later full runs retain R37 as an R27 fallback.
+* R38: keep R27's 56-AIV large kernel, but replace contiguous per-program row
+  ranges with the grid-stride task loop used by the optimized sink-attention
+  kernels: ``row = pid, pid+n_programs, ...``.  This keeps one bias load per
+  AIV while making concurrently issued row loads adjacent across AIVs.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -296,6 +302,7 @@ VARIANTS = (
     "r35_last_axis_direct_int32_id",
     "r36_large_multibuffer",
     "r37_small_unit_flag",
+    "r38_large_grid_stride",
 )
 
 VARIANT_DESCRIPTIONS = {
@@ -354,7 +361,8 @@ VARIANT_DESCRIPTIONS = {
         "rejected direct INT32 ID min; exact R27 fallback"
     ),
     "r36_large_multibuffer": "rejected multibuffer gain; exact R27 fallback",
-    "r37_small_unit_flag": "unit_flag capability test on direct small grid",
+    "r37_small_unit_flag": "rejected unit_flag gain; exact R27 fallback",
+    "r38_large_grid_stride": "R27 large path with attention-style grid stride",
 }
 
 COMMON_SHAPES = [1, 2, 4, 8, 16, 32, 56, 63, 64, 65, 128, 512, 9616, 16384]
@@ -3489,6 +3497,26 @@ def _r27_last_axis_rank_large_kernel(
         )
 
 
+@triton.jit(do_not_specialize=["num_rows"])
+def _r38_last_axis_rank_grid_stride_large_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    num_rows,
+):
+    pid = tl.program_id(0)
+    n_programs = tl.num_programs(0)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
+    bias = tl.load(bias_ptr + offs)
+
+    for row in range(pid, num_rows, n_programs):
+        _last_axis_rank_select_store_row(
+            scores_ptr, weights_ptr, ids_ptr, row, offs, tie_rank, bias
+        )
+
+
 @triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
 def _r28_split_last_axis_rank_medium_kernel(
     scores_ptr,
@@ -4865,8 +4893,8 @@ class ModelNew(torch.nn.Module):
             return launch
 
         if variant == "r37_small_unit_flag":
-            # Optimization point 3 (small-grid synchronization option),
-            # isolated from R27. Only the direct decode launch flag changes.
+            # R37 changed decode geometric-mean latency by <0.001%. Keep this
+            # historical row as the exact accepted R27 path.
             grid, rows_per_program, extra_rows = self._partition(m)
             if m <= self.num_vector_cores:
                 kernel = _r7_vector_tie_small_kernel
@@ -4874,7 +4902,6 @@ class ModelNew(torch.nn.Module):
                 kernel = _r27_last_axis_rank_medium_kernel
             else:
                 kernel = _r27_last_axis_rank_large_kernel
-            enable_unit_flag = m <= self.num_vector_cores
 
             def launch() -> None:
                 kernel[grid](
@@ -4885,8 +4912,48 @@ class ModelNew(torch.nn.Module):
                     rows_per_program,
                     extra_rows,
                     multibuffer=False,
-                    unit_flag=enable_unit_flag,
+                    unit_flag=False,
                 )
+
+            return launch
+
+        if variant == "r38_large_grid_stride":
+            # Optimization point 3 (attention-style grid-stride partition),
+            # isolated from R27. Small/medium paths are unchanged.
+            grid, rows_per_program, extra_rows = self._partition(m)
+            if m <= self.num_vector_cores:
+                kernel = _r7_vector_tie_small_kernel
+            elif m <= R6_DISPATCH_CUTOFF_M:
+                kernel = _r27_last_axis_rank_medium_kernel
+            else:
+                kernel = _r38_last_axis_rank_grid_stride_large_kernel
+
+            if m <= R6_DISPATCH_CUTOFF_M:
+
+                def launch() -> None:
+                    kernel[grid](
+                        scores,
+                        bias,
+                        weights,
+                        ids,
+                        rows_per_program,
+                        extra_rows,
+                        multibuffer=False,
+                        unit_flag=False,
+                    )
+
+            else:
+
+                def launch() -> None:
+                    kernel[grid](
+                        scores,
+                        bias,
+                        weights,
+                        ids,
+                        m,
+                        multibuffer=False,
+                        unit_flag=False,
+                    )
 
             return launch
 
@@ -5504,8 +5571,10 @@ def parse_shapes(spec: str, *, correctness: bool) -> list[int]:
 
 def parse_variants(spec: str) -> list[str]:
     normalized = spec.strip().lower()
-    if normalized in ("all", "0-37", "r0-r37"):
+    if normalized in ("all", "0-38", "r0-r38"):
         return list(VARIANTS)
+    if normalized in ("0-37", "r0-r37"):
+        return list(VARIANTS[:38])
     if normalized in ("0-36", "r0-r36"):
         return list(VARIANTS[:37])
     if normalized in ("0-35", "r0-r35"):
@@ -5607,7 +5676,7 @@ def write_csv(path_text: str, records: Sequence[dict[str, object]]) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="WeLM-v4 A5 expert-bias TopK R0-R37 accuracy/latency study"
+        description="WeLM-v4 A5 expert-bias TopK R0-R38 accuracy/latency study"
     )
     parser.add_argument(
         "--mode",
@@ -5622,7 +5691,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--variants",
         default="all",
-        help="all, 0-37, or comma list such as r35,r36,r37 (R0 is always added)",
+        help="all, 0-38, or comma list such as r36,r37,r38 (R0 is always added)",
     )
     parser.add_argument("--device", default="npu:0")
     parser.add_argument("--seed", type=int, default=20260811)
