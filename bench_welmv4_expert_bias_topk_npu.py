@@ -239,9 +239,11 @@ Rounds:
   It was exact but slowed large prefill by about 19%, so later full runs retain
   R44 as an R27 fallback.
 * R45: keep R27's full sort and exact duplicate fallback.  On the unique path,
-  gather routing values once into MMQ-priority order, use the contiguous column
-  number itself as tie-rank for the last-axis min, and gather the expert ID
-  directly.  This removes the broadcast MMQ-rank tensor and inverse mapping.
+  gather routing values once into MMQ-priority order and use the contiguous
+  column number itself as tie-rank for the last-axis min.  The A5 Triton 3.2
+  backend cannot gather from an INT32 source, so expert IDs are recovered with
+  the exact cheap inverse permutation after the rank reduction.  This still
+  removes R27's broadcast MMQ-rank tensor.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -2486,7 +2488,17 @@ def _priority_order_rank_min_select_store_row(
             tl.where(matches, priority_rank[None, :], _JIT_NUM_EXPERTS + 1),
             axis=1,
         )
-        selected_ids = tl.gather(priority_ids, selected_rank, 0)
+        # Triton Ascend 3.2 accepts FP32 gather sources here, but rejects an
+        # INT32 source.  Recover the expert ID from the selected priority rank
+        # with the exact inverse MMQ permutation instead of gathering
+        # ``priority_ids``.  This is algebraically identical for ranks 0..511.
+        selected_lane = selected_rank >> 4
+        selected_local = selected_rank & 15
+        selected_ids = (
+            ((selected_local >> 2) << 7)
+            + (selected_lane << 2)
+            + (selected_local & 3)
+        ).to(tl.int32)
     else:
         invalid_rank = _JIT_NUM_EXPERTS + 1
         previous_value = float("inf")
