@@ -117,11 +117,12 @@ Rounds:
   reduction is branchlessly paid on every round and regressed M=16384 beyond
   R0, so later full runs retain R24 as an explicit R15 fallback.
 * R25: replace R24's sentinel plus unconditional fallback reduction with one
-  public tuple ``tl.reduce`` over ``(candidate_valid, routing_score,
-  MMQ_priority_rank)``.  Its associative lexicographic combine selects valid
-  lanes first, then the larger FP32 score, then the smaller exact FP32 rank.
-  Consequently genuine ``-inf`` values need no sentinel special case and each
-  of the ten rounds has one value/index-preserving reduction.
+  public tuple ``tl.reduce`` over ``(routing_score, MMQ_priority_rank)``.
+  Candidate validity is encoded exactly as rank 0..511 versus invalid rank
+  513, fitting A5's two-source reduction limit.  Its associative lexicographic
+  combine selects valid lanes first, then the larger FP32 score, then the
+  smaller exact FP32 rank.  Consequently genuine ``-inf`` values need no
+  sentinel special case and each round has one value/index-preserving reduce.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -244,7 +245,7 @@ VARIANT_DESCRIPTIONS = {
     "r23_sort_index_capability": "device al.sort values+indices probe; exact R15 fallback",
     "r24_paired_max_index": "rejected paired max-index; exact R15 fallback",
     "r25_lexicographic_tuple_reduce": (
-        "exact valid/score/MMQ-rank tuple reduction; no -inf fallback"
+        "exact score/MMQ-rank tuple reduction; no -inf fallback"
     ),
 }
 
@@ -1338,15 +1339,15 @@ def _paired_max_index_select_store_row(
 
 @triton.jit
 def _lexicographic_candidate_combine(
-    a_valid,
     a_score,
     a_rank,
-    b_valid,
     b_score,
     b_rank,
 ):
     """Associative max over valid, score, then inverse MMQ rank."""
-    take_b = (b_valid > a_valid) | (
+    a_valid = a_rank < _JIT_NUM_EXPERTS
+    b_valid = b_rank < _JIT_NUM_EXPERTS
+    take_b = (b_valid & ~a_valid) | (
         (b_valid == a_valid)
         & (
             (b_score > a_score)
@@ -1354,7 +1355,6 @@ def _lexicographic_candidate_combine(
         )
     )
     return (
-        tl.where(take_b, b_valid, a_valid),
         tl.where(take_b, b_score, a_score),
         tl.where(take_b, b_rank, a_rank),
     )
@@ -1371,8 +1371,9 @@ def _lexicographic_tuple_select_store_row(
 ):
     """Exact MMQ top-10 via ten public tuple reductions.
 
-    Candidate validity is part of the reduction key, so selected lanes never
-    need a score sentinel.  In particular, genuine cleaned -inf scores retain
+    Candidate validity is encoded by an out-of-range FP32 rank, so selected
+    lanes never need a score sentinel.  This stays within the A5 backend's
+    maximum of two reduction sources.  Genuine cleaned -inf scores retain
     their distinct MMQ ranks and the all-NaN/fewer-than-K-finite cases remain
     exact without R24's second argmax reduction.
     """
@@ -1398,11 +1399,13 @@ def _lexicographic_tuple_select_store_row(
     rank_fp32 = priority_rank.to(tl.float32)
 
     for k in tl.static_range(0, _JIT_TOPK):
-        _, _, selected_rank_fp32 = tl.reduce(
+        candidate_rank = tl.where(
+            candidate, rank_fp32, _JIT_NUM_EXPERTS + 1.0
+        )
+        _, selected_rank_fp32 = tl.reduce(
             (
-                candidate.to(tl.float32),
                 routing_by_priority,
-                rank_fp32,
+                candidate_rank,
             ),
             axis=0,
             combine_fn=_lexicographic_candidate_combine,
@@ -3158,8 +3161,8 @@ class ModelNew(torch.nn.Module):
 
         if variant == "r25_lexicographic_tuple_reduce":
             # Optimization point 7 (pass elimination), isolated from R24:
-            # one exact public tuple reduction selects candidate validity,
-            # routing value and MMQ rank without any -inf fallback reduction.
+            # one exact public two-source tuple reduction selects routing
+            # value and validity-encoded MMQ rank without an -inf fallback.
             grid, rows_per_program, extra_rows = self._partition(m)
             kernel = (
                 _r25_lexicographic_tuple_medium_kernel
