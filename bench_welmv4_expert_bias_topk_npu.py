@@ -1108,6 +1108,11 @@ def _unique_id_sum_select_store_row(
             matches.to(tl.float32) * offs[:, None].to(tl.float32),
             axis=0,
         ).to(tl.int32)
+        # Only lanes 0..9 are outputs.  Cleaned NaNs can make local lanes
+        # 10..15 equal -inf, so their one-hot assumption does not hold and the
+        # sum may exceed 511.  Sanitize those non-output lanes before the
+        # unmasked local gather below; the actual top-10 IDs are unchanged.
+        selected_ids = tl.where(out_lanes < _JIT_TOPK, selected_ids, 0)
     else:
         invalid_rank = _JIT_NUM_EXPERTS + 1
         previous_value = float("inf")
