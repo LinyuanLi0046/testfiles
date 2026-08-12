@@ -3,7 +3,7 @@
 
 This is deliberately a manual, standalone experiment.  It does not replace or
 register any production SGLang operator.  R0 is a frozen 2026-08-11 copy of the
-old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R38 are
+old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R39 are
 cumulative experimental variants kept here so that every round remains
 measurable after a later optimized kernel is integrated into the model path.
 
@@ -199,6 +199,12 @@ Rounds:
   ranges with the grid-stride task loop used by the optimized sink-attention
   kernels: ``row = pid, pid+n_programs, ...``.  This keeps one bias load per
   AIV while making concurrently issued row loads adjacent across AIVs.
+  It was exact but slowed M=9616 by about 0.6%, so later full runs retain R38
+  as an R27 fallback.
+* R39: retain R27's contiguous large partition, but issue GM loads for two
+  adjacent rows before either row enters the long sort/reduction chain.  Each
+  row is then processed by the unchanged R27 math.  This isolates load-order
+  scheduling while halving dynamic row-loop control.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -303,6 +309,7 @@ VARIANTS = (
     "r36_large_multibuffer",
     "r37_small_unit_flag",
     "r38_large_grid_stride",
+    "r39_two_row_load_ahead",
 )
 
 VARIANT_DESCRIPTIONS = {
@@ -362,7 +369,8 @@ VARIANT_DESCRIPTIONS = {
     ),
     "r36_large_multibuffer": "rejected multibuffer gain; exact R27 fallback",
     "r37_small_unit_flag": "rejected unit_flag gain; exact R27 fallback",
-    "r38_large_grid_stride": "R27 large path with attention-style grid stride",
+    "r38_large_grid_stride": "rejected grid stride; exact R27 fallback",
+    "r39_two_row_load_ahead": "R27 large path with adjacent two-row load ahead",
 }
 
 COMMON_SHAPES = [1, 2, 4, 8, 16, 32, 56, 63, 64, 65, 128, 512, 9616, 16384]
@@ -1041,6 +1049,81 @@ def _last_axis_rank_select_store_row(
 ):
     """R15 with the unique match reduction on contiguous axis 1."""
     scores = tl.load(scores_ptr + row * _JIT_NUM_EXPERTS + offs)
+    scores = tl.where(scores == scores, scores, -float("inf"))
+    routing_scores = scores + bias
+    sorted_routing = al.sort(routing_scores, dim=-1, descending=True)
+
+    out_lanes = tl.arange(0, _JIT_OUTPUT_WIDTH)
+    top_values = tl.gather(sorted_routing, out_lanes, 0)
+    next_lanes = tl.minimum(out_lanes + 1, _JIT_OUTPUT_WIDTH - 1)
+    next_values = tl.gather(top_values, next_lanes, 0)
+    adjacent_duplicate = (top_values == next_values) & (
+        out_lanes.to(tl.float32) < 9.0
+    )
+    has_duplicate = tl.sum(adjacent_duplicate.to(tl.float32), axis=0) > 0.0
+
+    selected_ids = tl.zeros((_JIT_OUTPUT_WIDTH,), dtype=tl.int32)
+    if ~has_duplicate:
+        matches = top_values[:, None] == routing_scores[None, :]
+        fast_selected_rank = tl.min(
+            tl.where(
+                matches,
+                tie_rank[None, :],
+                _JIT_NUM_EXPERTS + 1,
+            ),
+            axis=1,
+        )
+        fast_lane = fast_selected_rank >> 4
+        fast_local = fast_selected_rank & 15
+        selected_ids = (
+            ((fast_local >> 2) << 7)
+            + (fast_lane << 2)
+            + (fast_local & 3)
+        ).to(tl.int32)
+    else:
+        invalid_rank = _JIT_NUM_EXPERTS + 1
+        previous_value = float("inf")
+        previous_rank = -1.0
+        for k in tl.static_range(0, _JIT_TOPK):
+            kth_routing_score = al.get_element(sorted_routing, indice=[k])
+            same_group = kth_routing_score == previous_value
+            eligible = (routing_scores == kth_routing_score) & (
+                ~same_group | (tie_rank.to(tl.float32) > previous_rank)
+            )
+            fallback_selected_rank = tl.min(
+                tl.where(eligible, tie_rank, invalid_rank),
+                axis=0,
+            )
+            fallback_lane = fallback_selected_rank >> 4
+            fallback_local = fallback_selected_rank & 15
+            fallback_selected_idx = (
+                ((fallback_local >> 2) << 7)
+                + (fallback_lane << 2)
+                + (fallback_local & 3)
+            )
+            selected_ids = tl.where(
+                out_lanes == k, fallback_selected_idx, selected_ids
+            )
+            previous_value = kth_routing_score
+            previous_rank = fallback_selected_rank.to(tl.float32)
+
+    selected_weights = tl.gather(scores, selected_ids, 0)
+    output_mask = out_lanes < _JIT_TOPK
+    output_offsets = row * _JIT_TOPK + out_lanes
+    tl.store(weights_ptr + output_offsets, selected_weights, mask=output_mask)
+    tl.store(ids_ptr + output_offsets, selected_ids, mask=output_mask)
+
+
+@triton.jit
+def _last_axis_rank_select_store_loaded_row(
+    scores,
+    weights_ptr,
+    ids_ptr,
+    row,
+    tie_rank,
+    bias,
+):
+    """R27 math on a score row whose GM load was issued by the caller."""
     scores = tl.where(scores == scores, scores, -float("inf"))
     routing_scores = scores + bias
     sorted_routing = al.sort(routing_scores, dim=-1, descending=True)
@@ -3518,6 +3601,43 @@ def _r38_last_axis_rank_grid_stride_large_kernel(
 
 
 @triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _r39_last_axis_rank_two_row_load_ahead_large_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    pair_end = row_end - ((row_end - row_start) & 1)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
+    bias = tl.load(bias_ptr + offs)
+
+    for row in tl.range(row_start, pair_end, 2):
+        scores0 = tl.load(scores_ptr + row * _JIT_NUM_EXPERTS + offs)
+        scores1 = tl.load(scores_ptr + (row + 1) * _JIT_NUM_EXPERTS + offs)
+        _last_axis_rank_select_store_loaded_row(
+            scores0, weights_ptr, ids_ptr, row, tie_rank, bias
+        )
+        _last_axis_rank_select_store_loaded_row(
+            scores1, weights_ptr, ids_ptr, row + 1, tie_rank, bias
+        )
+
+    for tail_row in tl.range(pair_end, row_end):
+        tail_scores = tl.load(
+            scores_ptr + tail_row * _JIT_NUM_EXPERTS + offs
+        )
+        _last_axis_rank_select_store_loaded_row(
+            tail_scores, weights_ptr, ids_ptr, tail_row, tie_rank, bias
+        )
+
+
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
 def _r28_split_last_axis_rank_medium_kernel(
     scores_ptr,
     bias_ptr,
@@ -4918,42 +5038,52 @@ class ModelNew(torch.nn.Module):
             return launch
 
         if variant == "r38_large_grid_stride":
-            # Optimization point 3 (attention-style grid-stride partition),
-            # isolated from R27. Small/medium paths are unchanged.
+            # R38 slowed M=9616 by ~0.6%. Keep this historical row as the
+            # exact accepted R27 path.
             grid, rows_per_program, extra_rows = self._partition(m)
             if m <= self.num_vector_cores:
                 kernel = _r7_vector_tie_small_kernel
             elif m <= R6_DISPATCH_CUTOFF_M:
                 kernel = _r27_last_axis_rank_medium_kernel
             else:
-                kernel = _r38_last_axis_rank_grid_stride_large_kernel
+                kernel = _r27_last_axis_rank_large_kernel
 
-            if m <= R6_DISPATCH_CUTOFF_M:
+            def launch() -> None:
+                kernel[grid](
+                    scores,
+                    bias,
+                    weights,
+                    ids,
+                    rows_per_program,
+                    extra_rows,
+                    multibuffer=False,
+                    unit_flag=False,
+                )
 
-                def launch() -> None:
-                    kernel[grid](
-                        scores,
-                        bias,
-                        weights,
-                        ids,
-                        rows_per_program,
-                        extra_rows,
-                        multibuffer=False,
-                        unit_flag=False,
-                    )
+            return launch
 
+        if variant == "r39_two_row_load_ahead":
+            # Optimization point 11 (load instruction ordering), isolated
+            # from R27. Only the large path issues two row loads up front.
+            grid, rows_per_program, extra_rows = self._partition(m)
+            if m <= self.num_vector_cores:
+                kernel = _r7_vector_tie_small_kernel
+            elif m <= R6_DISPATCH_CUTOFF_M:
+                kernel = _r27_last_axis_rank_medium_kernel
             else:
+                kernel = _r39_last_axis_rank_two_row_load_ahead_large_kernel
 
-                def launch() -> None:
-                    kernel[grid](
-                        scores,
-                        bias,
-                        weights,
-                        ids,
-                        m,
-                        multibuffer=False,
-                        unit_flag=False,
-                    )
+            def launch() -> None:
+                kernel[grid](
+                    scores,
+                    bias,
+                    weights,
+                    ids,
+                    rows_per_program,
+                    extra_rows,
+                    multibuffer=False,
+                    unit_flag=False,
+                )
 
             return launch
 
@@ -5571,8 +5701,10 @@ def parse_shapes(spec: str, *, correctness: bool) -> list[int]:
 
 def parse_variants(spec: str) -> list[str]:
     normalized = spec.strip().lower()
-    if normalized in ("all", "0-38", "r0-r38"):
+    if normalized in ("all", "0-39", "r0-r39"):
         return list(VARIANTS)
+    if normalized in ("0-38", "r0-r38"):
+        return list(VARIANTS[:39])
     if normalized in ("0-37", "r0-r37"):
         return list(VARIANTS[:38])
     if normalized in ("0-36", "r0-r36"):
@@ -5676,7 +5808,7 @@ def write_csv(path_text: str, records: Sequence[dict[str, object]]) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="WeLM-v4 A5 expert-bias TopK R0-R38 accuracy/latency study"
+        description="WeLM-v4 A5 expert-bias TopK R0-R39 accuracy/latency study"
     )
     parser.add_argument(
         "--mode",
@@ -5691,7 +5823,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--variants",
         default="all",
-        help="all, 0-38, or comma list such as r36,r37,r38 (R0 is always added)",
+        help="all, 0-39, or comma list such as r37,r38,r39 (R0 is always added)",
     )
     parser.add_argument("--device", default="npu:0")
     parser.add_argument("--seed", type=int, default=20260811)
