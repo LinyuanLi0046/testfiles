@@ -3,7 +3,7 @@
 
 This is deliberately a manual, standalone experiment.  It does not replace or
 register any production SGLang operator.  R0 is a frozen 2026-08-11 copy of the
-old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R12 are
+old production kernel from ``sglang.srt.layers.welmv4_op``; R1--R13 are
 cumulative experimental variants kept here so that every round remains
 measurable after a later optimized kernel is integrated into the model path.
 
@@ -62,6 +62,9 @@ Rounds:
   rows per loop iteration once each AIV owns at least two rows.  This halves
   dynamic row-loop control and exposes two row bodies for scheduling while
   respecting the A5 ``vsort`` rank-1 limit and avoiding R7/R9's [512,K] matrix.
+* R13: return to R10's row schedule and represent the exact 0..511 tie-rank as
+  FP32 during each min reduction.  This tests A5's native FP32 Vector reduction
+  path while retaining exact integer IDs after a scalar cast.
 
 Run from the NEWSGLANG ``sglang`` directory on an A5 machine, for example:
 
@@ -139,6 +142,7 @@ VARIANTS = (
     "r10_group_rank_threshold",
     "r11_packed_exact_sort",
     "r12_two_row_tile",
+    "r13_fp32_rank_reduce",
 )
 
 VARIANT_DESCRIPTIONS = {
@@ -157,6 +161,7 @@ VARIANT_DESCRIPTIONS = {
     ),
     "r11_packed_exact_sort": "rejected I64 sort experiment; exact R10 fallback",
     "r12_two_row_tile": "R10 with two adjacent rank-1 rows per loop iteration",
+    "r13_fp32_rank_reduce": "R10 with exact FP32 tie-rank min reductions",
 }
 
 COMMON_SHAPES = [1, 2, 4, 8, 16, 32, 56, 63, 64, 65, 128, 512, 9616, 16384]
@@ -557,6 +562,55 @@ def _packed_exact_select_store_row(
         local = selected_rank & 15
         selected_idx = ((local >> 2) << 7) + (lane << 2) + (local & 3)
         selected_ids = tl.where(out_lanes == k, selected_idx, selected_ids)
+
+    selected_weights = tl.gather(scores, selected_ids, 0)
+    output_mask = out_lanes < _JIT_TOPK
+    output_offsets = row * _JIT_TOPK + out_lanes
+    tl.store(weights_ptr + output_offsets, selected_weights, mask=output_mask)
+    tl.store(ids_ptr + output_offsets, selected_ids, mask=output_mask)
+
+
+@triton.jit
+def _fp32_rank_select_store_row(
+    scores_ptr,
+    weights_ptr,
+    ids_ptr,
+    row,
+    offs,
+    tie_rank,
+    bias,
+):
+    """R10 selection with exact FP32 tie-rank reduction on A5 Vector."""
+    scores = tl.load(scores_ptr + row * _JIT_NUM_EXPERTS + offs)
+    scores = tl.where(scores == scores, scores, -float("inf"))
+    routing_scores = scores + bias
+    sorted_routing = al.sort(routing_scores, dim=-1, descending=True)
+
+    tie_rank_fp32 = tie_rank.to(tl.float32)
+    invalid_rank_fp32 = 513.0
+    out_lanes = tl.arange(0, _JIT_OUTPUT_WIDTH)
+    selected_ids = tl.zeros((_JIT_OUTPUT_WIDTH,), dtype=tl.int32)
+    previous_value = float("inf")
+    previous_rank = -1.0
+
+    for k in tl.static_range(0, _JIT_TOPK):
+        kth_routing_score = al.get_element(sorted_routing, indice=[k])
+        same_group = kth_routing_score == previous_value
+        eligible = (routing_scores == kth_routing_score) & (
+            ~same_group | (tie_rank_fp32 > previous_rank)
+        )
+        selected_rank_fp32 = tl.min(
+            tl.where(eligible, tie_rank_fp32, invalid_rank_fp32),
+            axis=0,
+        )
+        selected_rank = selected_rank_fp32.to(tl.int32)
+
+        lane = selected_rank >> 4
+        local = selected_rank & 15
+        selected_idx = ((local >> 2) << 7) + (lane << 2) + (local & 3)
+        selected_ids = tl.where(out_lanes == k, selected_idx, selected_ids)
+        previous_value = kth_routing_score
+        previous_rank = selected_rank_fp32
 
     selected_weights = tl.gather(scores, selected_ids, 0)
     output_mask = out_lanes < _JIT_TOPK
@@ -1135,6 +1189,52 @@ def _r12_two_row_large_kernel(
         )
 
 
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _r13_fp32_rank_medium_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
+
+    for row in tl.range(row_start, row_end):
+        bias = tl.load(bias_ptr + offs)
+        _fp32_rank_select_store_row(
+            scores_ptr, weights_ptr, ids_ptr, row, offs, tie_rank, bias
+        )
+
+
+@triton.jit(do_not_specialize=["rows_per_program", "extra_rows"])
+def _r13_fp32_rank_large_kernel(
+    scores_ptr,
+    bias_ptr,
+    weights_ptr,
+    ids_ptr,
+    rows_per_program,
+    extra_rows,
+):
+    pid = tl.program_id(0)
+    extra_before = tl.minimum(pid, extra_rows)
+    row_start = pid * rows_per_program + extra_before
+    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
+    offs = tl.arange(0, _JIT_SORT_WIDTH)
+    tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
+    bias = tl.load(bias_ptr + offs)
+
+    for row in tl.range(row_start, row_end):
+        _fp32_rank_select_store_row(
+            scores_ptr, weights_ptr, ids_ptr, row, offs, tie_rank, bias
+        )
+
+
 # ---------------------------------------------------------------------------
 # Host launchers.  No production call site is modified.
 # ---------------------------------------------------------------------------
@@ -1182,7 +1282,7 @@ class ModelNew(torch.nn.Module):
         assert scores.ndim == 2 and scores.shape[1] == NUM_EXPERTS
         assert scores.dtype == torch.float32
         assert scores.is_contiguous(), (
-            "R1-R12 specialize the actual WeLM common path: contiguous [M,512]"
+            "R1-R13 specialize the actual WeLM common path: contiguous [M,512]"
         )
         assert bias.shape == (NUM_EXPERTS,) and bias.dtype == torch.float32
         assert bias.is_contiguous()
@@ -1507,6 +1607,32 @@ class ModelNew(torch.nn.Module):
                 kernel = _r12_two_row_medium_kernel
             else:
                 kernel = _r12_two_row_large_kernel
+
+            def launch() -> None:
+                kernel[grid](
+                    scores,
+                    bias,
+                    weights,
+                    ids,
+                    rows_per_program,
+                    extra_rows,
+                    multibuffer=False,
+                    unit_flag=False,
+                )
+
+            return launch
+
+        if variant == "r13_fp32_rank_reduce":
+            # Optimization point 6 (avoid scalar/weak integer lowering), based
+            # on R10.  Keep its grid, schedule, cutoff, small R7 path and bias
+            # placement; only the exact 0..511 tie-rank min uses FP32 Vector.
+            grid, rows_per_program, extra_rows = self._partition(m)
+            if m <= self.num_vector_cores:
+                kernel = _r7_vector_tie_small_kernel
+            elif m <= R6_DISPATCH_CUTOFF_M:
+                kernel = _r13_fp32_rank_medium_kernel
+            else:
+                kernel = _r13_fp32_rank_large_kernel
 
             def launch() -> None:
                 kernel[grid](
@@ -2047,8 +2173,10 @@ def parse_shapes(spec: str, *, correctness: bool) -> list[int]:
 
 def parse_variants(spec: str) -> list[str]:
     normalized = spec.strip().lower()
-    if normalized in ("all", "0-12", "r0-r12"):
+    if normalized in ("all", "0-13", "r0-r13"):
         return list(VARIANTS)
+    if normalized in ("0-12", "r0-r12"):
+        return list(VARIANTS[:13])
     if normalized in ("0-11", "r0-r11"):
         return list(VARIANTS[:12])
     if normalized in ("0-10", "r0-r10"):
@@ -2100,7 +2228,7 @@ def write_csv(path_text: str, records: Sequence[dict[str, object]]) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="WeLM-v4 A5 expert-bias TopK R0-R12 accuracy/latency study"
+        description="WeLM-v4 A5 expert-bias TopK R0-R13 accuracy/latency study"
     )
     parser.add_argument(
         "--mode",
@@ -2115,7 +2243,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--variants",
         default="all",
-        help="all, 0-12, or comma list such as r10,r11,r12 (R0 is always added)",
+        help="all, 0-13, or comma list such as r11,r12,r13 (R0 is always added)",
     )
     parser.add_argument("--device", default="npu:0")
     parser.add_argument("--seed", type=int, default=20260811)
