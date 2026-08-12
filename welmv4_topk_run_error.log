@@ -1,4 +1,4 @@
-time: 2026-08-12T11:44:58+08:00
+time: 2026-08-12T12:13:52+08:00
 command: /usr/local/python3.11.10/bin/python bench_welmv4_expert_bias_topk_npu.py --mode both --cases all --scope kernel --device npu:5 --output-csv welmv4_topk_r0_r5_all.csv
 return_code: 1
 reason: benchmark exited with status 1
@@ -18,7 +18,7 @@ NPU custom kernel packages unavailable: No module named 'custom_ops'
   warnings.warn(msg, ImportWarning)
 /usr/local/python3.11.10/lib/python3.11/site-packages/torch_npu/contrib/transfer_to_npu.py:311: RuntimeWarning: torch.jit.script and torch.jit.script_method will be disabled by transfer_to_npu, which currently does not support them, if you need to enable them, please do not use transfer_to_npu.
   warnings.warn(msg, RuntimeWarning)
-[W812 11:43:54.658771387 OptionRegister.cpp:95] Warning: Current device only support allow_internal_format=False, the requested value True is invalid and has been reverted to False. (function operator())
+[W812 12:12:39.224952487 OptionRegister.cpp:95] Warning: Current device only support allow_internal_format=False, the requested value True is invalid and has been reverted to False. (function operator())
 WeLM-v4 expert-bias TopK manual A5 study
 device=npu:5 (Ascend950PR_957b), physical_AIV=56
 torch=2.10.0+cpu, torch_npu=2.10.0.post4.dev20260715, triton=3.2.0, CANN=9.1.0
@@ -38,8 +38,9 @@ torch=2.10.0+cpu, torch_npu=2.10.0.post4.dev20260715, triton=3.2.0, CANN=9.1.0
   r13_fp32_rank_reduce: R10 with exact FP32 tie-rank min reductions
   r14_priority_argmax: R10 with priority gather + FP32 leftmost argmax
   r15_unique_top10_fastpath: one-pass unique top-10 recovery / exact R10 fallback
+  r16_split_unique_recovery: split [512,8]+[512,2] unique recovery / exact R10 fallback
 
-Correctness: 117 input cases x 16 variants
+Correctness: 117 input cases x 17 variants
   [PASS   1/117] M=1     pattern=random_bias
   [PASS   2/117] M=2     pattern=random_bias
   [PASS   3/117] M=3     pattern=random_bias
@@ -96,77 +97,17 @@ Correctness: 117 input cases x 16 variants
   [PASS  54/117] M=54    pattern=random_bias
   [PASS  55/117] M=55    pattern=random_bias
   [PASS  56/117] M=56    pattern=random_bias
-triton.compiler.errors.CompilationError: at 26:4:
-
-    out_lanes = tl.arange(0, _JIT_OUTPUT_WIDTH)
-    top_values = tl.gather(sorted_routing, out_lanes, 0)
-    next_lanes = tl.minimum(out_lanes + 1, _JIT_OUTPUT_WIDTH - 1)
-    next_values = tl.gather(top_values, next_lanes, 0)
-    adjacent_duplicate = (top_values == next_values) & (
-        out_lanes.to(tl.float32) < 9.0
-    )
-    has_duplicate = tl.sum(adjacent_duplicate.to(tl.float32), axis=0) > 0.0
-
-    selected_ids = tl.zeros((_JIT_OUTPUT_WIDTH,), dtype=tl.int32)
-    if ~has_duplicate:
-    ^
-AssertionError('Mismatched type for lane between then block (<[16], int32>) and else block (int32)')
-
-The above exception was the direct cause of the following exception:
-
 Traceback (most recent call last):
-  File "/data2/hw_lly/testfiles/bench_welmv4_expert_bias_topk_npu.py", line 2621, in <module>
+  File "/data2/hw_lly/testfiles/bench_welmv4_expert_bias_topk_npu.py", line 2811, in <module>
     raise SystemExit(main())
                      ^^^^^^
-  File "/data2/hw_lly/testfiles/bench_welmv4_expert_bias_topk_npu.py", line 2585, in main
+  File "/data2/hw_lly/testfiles/bench_welmv4_expert_bias_topk_npu.py", line 2775, in main
     correctness_records, failures = run_correctness(
                                     ^^^^^^^^^^^^^^^^
-  File "/data2/hw_lly/testfiles/bench_welmv4_expert_bias_topk_npu.py", line 2186, in run_correctness
-    weights, ids = model(scores, bias, variant)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/local/python3.11.10/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
-    return self._call_impl(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/local/python3.11.10/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
-    return forward_call(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/data2/hw_lly/testfiles/bench_welmv4_expert_bias_topk_npu.py", line 1949, in forward
-    self.launch_into(variant, scores, bias, weights, ids)
-  File "/data2/hw_lly/testfiles/bench_welmv4_expert_bias_topk_npu.py", line 1940, in launch_into
-    self.bind_kernel(variant, scores, bias, weights, ids)()
-  File "/data2/hw_lly/testfiles/bench_welmv4_expert_bias_topk_npu.py", line 1917, in launch
-    kernel[grid](
-  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/runtime/jit.py", line 333, in <lambda>
-    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)
-                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/runtime/jit.py", line 622, in run
-    kernel = self._do_compile(key, signature, device, backend, target, constants, options, configs[0], warmup)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/runtime/jit.py", line 787, in _do_compile
-    kernel = self.compile(src, target=target, options=options.__dict__)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/compiler/compiler.py", line 282, in compile
-    module = src.make_ir(options, codegen_fns, module_map, context)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/__init__.py", line 38, in _patched_make_ir
-    module = _original_make_ir(self, options, codegen_fns, module_map, context)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/compiler/compiler.py", line 102, in make_ir
-    return ast_to_ttir(self.fn, self, context=context, options=options, codegen_fns=codegen_fns,
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-triton.compiler.errors.CompilationError: at 18:8:
-    extra_rows,
-):
-    pid = tl.program_id(0)
-    extra_before = tl.minimum(pid, extra_rows)
-    row_start = pid * rows_per_program + extra_before
-    row_end = row_start + rows_per_program + tl.where(pid < extra_rows, 1, 0)
-    offs = tl.arange(0, _JIT_SORT_WIDTH)
-    tie_rank = ((offs & 127) >> 2) * 16 + ((offs >> 7) << 2) + (offs & 3)
-
-    for row in tl.range(row_start, row_end):
-        bias = tl.load(bias_ptr + offs)
-        _unique_top10_select_store_row(
-        ^
-CompilationError('def _unique_top10_select_store_row(\n    scores_ptr,\n    weights_ptr,\n    ids_ptr,\n    row,\n    offs,\n    tie_rank,\n    bias,\n):\n    """One-pass exact ID recovery when top-10 values are unique, else R10."""\n    scores = tl.load(scores_ptr + row * _JIT_NUM_EXPERTS + offs)\n    scores = tl.where(scores == scores, scores, -float("inf"))\n    routing_scores = scores + bias\n    sorted_routing = al.sort(routing_scores, dim=-1, descending=True)\n\n    out_lanes = tl.arange(0, _JIT_OUTPUT_WIDTH)\n    top_values = tl.gather(sorted_routing, out_lanes, 0)\n    next_lanes = tl.minimum(out_lanes + 1, _JIT_OUTPUT_WIDTH - 1)\n    next_values = tl.gather(top_values, next_lanes, 0)\n    adjacent_duplicate = (top_values == next_values) & (\n        out_lanes.to(tl.float32) < 9.0\n    )\n    has_duplicate = tl.sum(adjacent_duplicate.to(tl.float32), axis=0) > 0.0\n\n    selected_ids = tl.zeros((_JIT_OUTPUT_WIDTH,), dtype=tl.int32)\n    if ~has_duplicate:\n        matches = routing_scores[:, None] == top_values[None, :]\n        selected_rank = tl.min(\n            tl.where(\n                matches,\n                tie_rank[:, None],\n                _JIT_NUM_EXPERTS + 1,\n            ),\n            axis=0,\n        )\n        lane = selected_rank >> 4\n        local = selected_rank & 15\n        selected_ids = (\n            ((local >> 2) << 7) + (lane << 2) + (local & 3)\n        ).to(tl.int32)\n    else:\n        invalid_rank = _JIT_NUM_EXPERTS + 1\n        previous_value = float("inf")\n        previous_rank = -1.0\n        for k in tl.static_range(0, _JIT_TOPK):\n            kth_routing_score = al.get_element(sorted_routing, indice=[k])\n            same_group = kth_routing_score == previous_value\n            eligible = (routing_scores == kth_routing_score) & (\n                ~same_group | (tie_rank.to(tl.float32) > previous_rank)\n            )\n            selected_rank = tl.min(\n                tl.where(eligible, tie_rank, invalid_rank),\n                axis=0,\n            )\n            lane = selected_rank >> 4\n            local = selected_rank & 15\n            selected_idx = ((local >> 2) << 7) + (lane << 2) + (local & 3)\n            selected_ids = tl.where(out_lanes == k, selected_idx, selected_ids)\n            previous_value = kth_routing_score\n            previous_rank = selected_rank.to(tl.float32)\n\n    selected_weights = tl.gather(scores, selected_ids, 0)\n    output_mask = out_lanes < _JIT_TOPK\n    output_offsets = row * _JIT_TOPK + out_lanes\n    tl.store(weights_ptr + output_offsets, selected_weights, mask=output_mask)\n    tl.store(ids_ptr + output_offsets, selected_ids, mask=output_mask)\n', <ast.If object at 0x7ff127bbcf40>, "AssertionError('Mismatched type for lane between then block (<[16], int32>) and else block (int32)')")
-[ERROR] 2026-08-12-11:44:56 (PID:2772101, Device:5, RankID:-1) ERR99999 UNKNOWN applicaiton exception
+  File "/data2/hw_lly/testfiles/bench_welmv4_expert_bias_topk_npu.py", line 2375, in run_correctness
+    torch_npu.npu.synchronize()
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/torch_npu/npu/utils.py", line 72, in synchronize
+    return torch_npu._C._npu_synchronize()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: npuSynchronizeDevice:../torch_npu/csrc/core/npu/NPUStream.cpp:703 NPU function error: device error type 3, error code is 507035
+[ERROR] 2026-08-12-12:13:48 (PID:2776402, Device:5, RankID:-1) ERR00100 PTA call acl api failed
