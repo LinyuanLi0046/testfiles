@@ -30,7 +30,7 @@ Rounds:
 * R5: host dispatch: one-row/no-loop kernel for a small grid, partitioned
   kernel for a grid larger than the physical AIV count.  The large-grid body is
   intentionally the R4 body, so R5's incremental gain is expected on decode.
-* R6: empirical two-path dispatch from the R0--R5 A5 measurements.  M <= 256
+* R6: empirical two-path dispatch from the R0--R5 A5 measurements.  M <= 320
   reuses R3 (the winner at every measured small/medium shape); larger M reuses
   the R5 large partition path.  This round changes only host dispatch.
 
@@ -86,7 +86,7 @@ NUM_EXPERTS = 512
 TOPK = 10
 SORT_WIDTH = 512
 OUTPUT_WIDTH = 16  # power-of-two local buffer; only the first TOPK lanes store
-R6_DISPATCH_CUTOFF_M = 256
+R6_DISPATCH_CUTOFF_M = 320
 
 # Triton 3.2 rejects ordinary module globals referenced from a @triton.jit
 # function.  Keep plain ints for the host-side harness and expose separate,
@@ -113,7 +113,7 @@ VARIANT_DESCRIPTIONS = {
     "r3_sort_tie": "FP32 sort + exact tie recovery",
     "r4_bias_hoist": "bias load hoisted outside row loop",
     "r5_dispatch": "small direct / large partition dispatch",
-    "r6_empirical_dispatch": "R3 through M=256 / R5-large above M=256",
+    "r6_empirical_dispatch": "R3 through M=320 / R5-large above M=320",
 }
 
 COMMON_SHAPES = [1, 2, 4, 8, 16, 32, 56, 63, 64, 65, 128, 512, 9616, 16384]
