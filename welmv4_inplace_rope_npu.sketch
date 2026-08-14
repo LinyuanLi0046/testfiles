@@ -1,4 +1,4 @@
-# architecture_decision("int32-position-addressing", reason="Retain only the measured-safe narrowing of loaded positions/last_index to int32 before address arithmetic. The IR-driven contiguous-store experiment reduced MTE3 calls but materialized transpose/reshape into five vector functions and UB copies, causing a 2.5x-3.2x prefill regression, so it is fully removed.")
+# architecture_decision("int32-addressing-and-hoisted-mirror-q", reason="Retain measured-safe int32 position addressing. Mirror last-pass IR places token_id*q_stride outside token_id<BS and executes that branch for every K token even though only program_id<BS performs Q once. Keep the K grid-stride loop pure, then let the first BS programs rotate their one Q row after the loop; normal/decode specialization is unchanged.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -42,18 +42,20 @@ sketch welmv4_inplace_rope_npu {
       load q_front = q[token_id, 0:Q_HEADS, 0:HALF_ROPE]
       load q_back = q[token_id, 0:Q_HEADS, HALF_ROPE:ROPE_DIM]
       compute and store q rotation using cos and sin
-    } else if token_id < BS {
-      load q_token_i64 = last_index[token_id]
-      cast q_token = int32(q_token_i64)
-      load q_pos_i64 = positions[q_token]
+    }
+  }
+
+  if last_index is present and program_id < BS {
+      q_row = program_id
+      load selected_k_token_i64 = last_index[q_row]
+      cast selected_k_token = int32(selected_k_token_i64)
+      load q_pos_i64 = positions[selected_k_token]
       cast q_pos = int32(q_pos_i64)
       load q_cos_sin = cos_sin_cache[q_pos, 0:ROPE_DIM]
-      load q_front = q[token_id, 0:Q_HEADS, 0:HALF_ROPE]
-      load q_back = q[token_id, 0:Q_HEADS, HALF_ROPE:ROPE_DIM]
-      load q[token_id, 0:Q_HEADS, 0:ROPE_DIM]
+      load q_front = q[q_row, 0:Q_HEADS, 0:HALF_ROPE]
+      load q_back = q[q_row, 0:Q_HEADS, HALF_ROPE:ROPE_DIM]
       compute and store q rotation using q_cos_sin
-    }
   }
 }
 
-# Layer1 self-check: the failed contiguous-store experiment is fully removed. The only executable candidate delta from the frozen baseline is narrowing three loaded int64 indices to int32 before pointer arithmetic; decode 1..64, prefill, mirror, math, grid, loop, masks, and in-place regions otherwise remain identical.
+# Layer1 self-check: normal/decode specializes last_index as absent and is byte-for-byte the accepted int32 loop. Mirror still rotates every K token and exactly Q rows 0:BS using the same last_index-selected positions; only the per-token Q branch/address arithmetic is hoisted after the K loop, relying on tested mirror cases where grid >= BS.

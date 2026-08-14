@@ -272,7 +272,6 @@ def _candidate_welmv4_inplace_rope_kernel(
             cos_sin_cache_ptr + position_id * rope_dim + sin_offsets,
             care_padding=False,
         )
-        q_data = q_ptr + token_id * q_token_stride + head_dim - rope_dim
         k_data = k_ptr + token_id * k_token_stride + head_dim - rope_dim
         _candidate_apply_tail_rope(
             k_data,
@@ -283,40 +282,40 @@ def _candidate_welmv4_inplace_rope_kernel(
             head_dim,
             rope_dim,
         )
-        if last_index_ptr is not None:
-            if token_id < BS:
-                q_position_id = tl.load(last_index_ptr + token_id).to(
-                    tl.int32
-                )
-                q_position_id = tl.load(
-                    position_ptr + q_position_id
-                ).to(tl.int32)
-                q_cos = tl.load(
-                    cos_sin_cache_ptr
-                    + q_position_id * rope_dim
-                    + cos_offsets,
-                    care_padding=False,
-                )
-                q_sin = tl.load(
-                    cos_sin_cache_ptr
-                    + q_position_id * rope_dim
-                    + sin_offsets,
-                    care_padding=False,
-                )
-                _candidate_apply_tail_rope(
-                    q_data,
-                    q_cos,
-                    q_sin,
-                    num_q_heads,
-                    num_q_heads_blocked,
-                    head_dim,
-                    rope_dim,
-                )
-        else:
+        if last_index_ptr is None:
+            q_data = q_ptr + token_id * q_token_stride + head_dim - rope_dim
             _candidate_apply_tail_rope(
                 q_data,
                 cos,
                 sin,
+                num_q_heads,
+                num_q_heads_blocked,
+                head_dim,
+                rope_dim,
+            )
+
+    if last_index_ptr is not None:
+        q_token_id = tl.program_id(0)
+        if q_token_id < BS:
+            q_position_id = tl.load(last_index_ptr + q_token_id).to(tl.int32)
+            q_position_id = tl.load(position_ptr + q_position_id).to(tl.int32)
+            q_cos = tl.load(
+                cos_sin_cache_ptr
+                + q_position_id * rope_dim
+                + cos_offsets,
+                care_padding=False,
+            )
+            q_sin = tl.load(
+                cos_sin_cache_ptr
+                + q_position_id * rope_dim
+                + sin_offsets,
+                care_padding=False,
+            )
+            q_data = q_ptr + q_token_id * q_token_stride + head_dim - rope_dim
+            _candidate_apply_tail_rope(
+                q_data,
+                q_cos,
+                q_sin,
                 num_q_heads,
                 num_q_heads_blocked,
                 head_dim,
