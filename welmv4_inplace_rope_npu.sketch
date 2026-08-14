@@ -1,4 +1,4 @@
-# architecture_decision("restore-auto-blockify-after-explicit-sub-block-regression", reason="Reject explicit al.parallel(bind_sub_block=True) despite 150/150 correctness and hivm.parallel_loop appearing in TTIR/TTAdapter. Final IR exposed no additional sub-block mapping and M16384 regressed from about 52.6 to 57.0 us, while smaller changes were below 3%. Restore tl.range and let the A5 auto-blockify/auto-bind pipeline choose scheduling. N and num_token_blocks remain runtime do_not_specialize; decode and mirror remain shared and unchanged.")
+# architecture_decision("overlap-q2-front-load-with-kq4-stores", reason="Keep accepted K+Q4 adjacent loads and arithmetic, but delay their stores until after loading only the Q2 front half. Q2 does not stay live across K+Q4 vector compute, so dead K/Q4 input buffers can be reused; the independent Q2 MTE2 load can overlap K/Q4 MTE3 stores. Then load Q2 back and compute/store normally. This changes only load/store scheduling, not bytes, tile shapes, math, or writers. Reject if UB overflows, K+Q4 arithmetic no longer merges, or latency gain is below 3%. N and num_token_blocks remain runtime do_not_specialize; decode and mirror remain shared and unchanged.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -52,10 +52,10 @@ sketch welmv4_inplace_rope_npu {
     }
 
     when unmasked {
-      load and rotate K head 0 as [TOKEN_BLOCK,32] 2D tiles
-      load and rotate Q heads 0:4 as [TOKEN_BLOCK,4,32] 3D tiles
-      load and rotate Q heads 4:6 as [TOKEN_BLOCK,2,32] 3D tiles
-      store both exact head groups without padding or masks
+      load and compute K head 0 and Q heads 0:4 using accepted half-tail tiles
+      load Q heads 4:6 front half after K+Q4 arithmetic
+      store K and Q0:4 front/back outputs
+      load Q heads 4:6 back half, then compute and store Q2 outputs
     }
   }
 
@@ -88,4 +88,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode and mirror remain shared and unchanged. N and num_token_blocks stay runtime do_not_specialize. Ordinary prefill restores the accepted tl.range, auto blockify scheduling, addresses, masks, tile sizes, stages, K+Q4 then Q2 ordering, math, and writers.
+# Layer1 self-check: decode and mirror remain shared and unchanged. N and num_token_blocks stay runtime do_not_specialize. Masked prefill is unchanged. Unmasked tiles retain identical addresses, masks, arithmetic, bytes, and unique writers; only Q2 front load moves between K+Q4 arithmetic and stores to expose legal MTE2/MTE3 overlap.
