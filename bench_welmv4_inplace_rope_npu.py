@@ -48,8 +48,6 @@ MAX_POSITION = 32768
 ROPE_BASE = 100000.0
 NUM_STAGES = 4
 PROGRAMS_PER_VECTOR_CORE = 8
-PREFILL_PROGRAMS_PER_VECTOR_CORE = 4
-LARGE_PREFILL_MIN_TOKENS = 16384
 DTYPE = torch.bfloat16
 ATOL = 2.0e-2
 RTOL = 2.0e-2
@@ -397,15 +395,8 @@ class Harness:
         kernel = PROVIDERS[provider]
         n_tokens = int(positions.shape[0])
         batch_size = int(last_index.numel()) if last_index is not None else 0
-        programs_per_vector_core = PROGRAMS_PER_VECTOR_CORE
-        if (
-            provider == "candidate"
-            and last_index is None
-            and n_tokens >= LARGE_PREFILL_MIN_TOKENS
-        ):
-            programs_per_vector_core = PREFILL_PROGRAMS_PER_VECTOR_CORE
         num_programs = min(
-            n_tokens, self.num_vector_cores * programs_per_vector_core
+            n_tokens, self.num_vector_cores * PROGRAMS_PER_VECTOR_CORE
         )
         q_stride = int(query.stride(0))
         k_stride = int(key.stride(0))

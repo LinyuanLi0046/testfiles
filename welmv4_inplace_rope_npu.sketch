@@ -1,4 +1,4 @@
-# architecture_decision("int32-addressing-and-large-prefill-grid224", reason="Keep decode, normal prefill, and mirror on the shared candidate kernel. Retain int32 casts after int64 index loads. The all-prefill 224-program round improved M=16384 by 2.13% but regressed M=9616 by 1.72%, while its last-pass IR was byte-identical to the 448-program build. Apply four programs per vector core only for ordinary prefill M>=16384 and restore eight per core elsewhere. Explicit fp32 tl.fma remains rejected because it did not fuse and regressed latency.")
+# architecture_decision("int32-addressing", reason="Keep decode, normal prefill, and mirror on the shared candidate kernel. Retain only int32 casts after loading int64 position and last-index values. Reject grid-only tuning: 224 programs was shape-sensitive and an identical M=16384 configuration varied from +2.13% to -6.59%; grid and formula changes below 3% are no longer candidates. Continue only with structural ordinary-prefill changes that reduce DMA, synchronization, or padded vector work in compiler IR.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -21,8 +21,7 @@ sketch welmv4_inplace_rope_npu {
   }
 
   partition {
-    grid = min(N, AIV * 4) when ordinary_prefill and N >= 16384
-    grid = min(N, AIV * 8) otherwise
+    grid = min(N, AIV * 8)
     program token_start = program_id(0)
     program token_step = num_programs(0)
   }
@@ -56,4 +55,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode, normal prefill, and mirror share one candidate kernel; there is no dedicated mirror kernel. This round narrows the 224-program dispatch to ordinary prefill M>=16384; M<=9616, decode<=64, and mirror use the original 448-cap rule. Kernel values, pointers, masks, stores, precision, and control flow are unchanged; explicit FMA is absent.
+# Layer1 self-check: decode, normal prefill, and mirror share one candidate kernel; there is no dedicated mirror kernel. The unstable 224-program dispatch and explicit FMA are absent. The accepted candidate differs from the frozen baseline only by int32 casts after int64 index loads.
