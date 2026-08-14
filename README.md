@@ -49,6 +49,14 @@ An explicit `--capture-profile on` run profiles the candidate at
 summaries as gzip+base64 `record_type=profile_artifact` rows. Profiling
 failures remain diagnostic rows and do not discard valid benchmark results.
 
+The standard remote run also invokes native `msprof op` for a small probe set
+with `--warm-up=10 --launch-count=5`.  Parsed `OpBasicInfo.csv`
+`Task Duration(us)` values are stored as `record_type=msprof_op`, and the raw
+files are stored as gzip+base64 `record_type=msprof_op_artifact` rows.  These
+device task durations, rather than the approximately 30-us event submission
+floor, are authoritative for the small-M dispatch threshold.  Use
+`--capture-msprof-op off` only for manual runs that intentionally skip them.
+
 Use `BENCH_PYTHON=/path/to/python` to select a different interpreter.  Use
 `--device npu:N` to select the NPU (`npu:5` by default) and `--interval
 SECONDS` to change the poll interval.  `--once --run-now` runs and publishes

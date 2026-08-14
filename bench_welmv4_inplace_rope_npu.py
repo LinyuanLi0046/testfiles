@@ -59,6 +59,9 @@ IR_CAPTURE_SCRIPT = "capture_welmv4_rope_ir.sh"
 AUTO_OUTPUT_CSV = "welmv4_inplace_rope_npu_all.csv"
 IR_CAPTURE_CASE = "prefill_m8192"
 PROFILE_CAPTURE_CASE = "prefill_m16384"
+MSPROF_OP_CASES = ("prefill_m128", "prefill_m2560")
+MSPROF_OP_WARMUP = 10
+MSPROF_OP_LAUNCH_COUNT = 5
 
 
 @dataclass(frozen=True)
@@ -1259,6 +1262,162 @@ def capture_profile_records(harness: Harness) -> list[dict[str, object]]:
         return records
 
 
+def capture_msprof_op_records(
+    harness: Harness, device: str
+) -> list[dict[str, object]]:
+    """Measure target Task Duration(us) with native ``msprof op``."""
+    script = Path(__file__).resolve()
+    cases_by_name = {case.name: case for case in ALL_CASES}
+    records: list[dict[str, object]] = []
+    summary_records: list[dict[str, object]] = []
+
+    for case_name in MSPROF_OP_CASES:
+        case = cases_by_name[case_name]
+        for provider in PROVIDERS:
+            common = {
+                **harness.metadata(),
+                **case_fields(case),
+                "record_type": "msprof_op",
+                "variant": provider,
+                "scope": "msprof_op_task_duration",
+            }
+            with tempfile.TemporaryDirectory(
+                prefix=f"welmv4_rope_msprof_{case_name}_{provider}_"
+            ) as output_dir:
+                command = [
+                    "msprof",
+                    "op",
+                    f"--warm-up={MSPROF_OP_WARMUP}",
+                    f"--launch-count={MSPROF_OP_LAUNCH_COUNT}",
+                    f"--output={output_dir}",
+                    sys.executable,
+                    str(script),
+                    "--compile-only-provider",
+                    provider,
+                    "--cases",
+                    case_name,
+                    "--device",
+                    device,
+                    "--capture-ir",
+                    "off",
+                ]
+                print(
+                    "\nCapturing msprof op latency: "
+                    f"{case_name}, {provider}"
+                )
+                try:
+                    result = subprocess.run(
+                        command,
+                        cwd=script.parent,
+                        text=True,
+                        encoding="utf-8",
+                        errors="replace",
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        check=False,
+                        timeout=900,
+                    )
+                except (OSError, subprocess.TimeoutExpired) as exc:
+                    records.append(
+                        {**common, "status": "ERROR", "capture_log": repr(exc)}
+                    )
+                    continue
+
+                output = result.stdout or ""
+                basic_files = sorted(Path(output_dir).rglob("OpBasicInfo.csv"))
+                if result.returncode != 0 or not basic_files:
+                    records.append(
+                        {
+                            **common,
+                            "status": "ERROR",
+                            "capture_returncode": result.returncode,
+                            "capture_log": output[-60000:],
+                        }
+                    )
+                    continue
+
+                durations: list[float] = []
+                discovered_names: list[str] = []
+                for path in basic_files:
+                    content = path.read_bytes()
+                    records.append(
+                        {
+                            **common,
+                            "record_type": "msprof_op_artifact",
+                            "status": "CAPTURED",
+                            "artifact_name": str(
+                                path.relative_to(output_dir)
+                            ).replace(os.sep, "/"),
+                            "artifact_encoding": "gzip+base64",
+                            "artifact_size_bytes": len(content),
+                            "artifact_sha256": hashlib.sha256(content).hexdigest(),
+                            "artifact_content": base64.b64encode(
+                                gzip.compress(content, compresslevel=9)
+                            ).decode("ascii"),
+                        }
+                    )
+                    with path.open(
+                        newline="", encoding="utf-8-sig", errors="replace"
+                    ) as handle:
+                        rows = list(csv.DictReader(handle))
+                    for row in rows:
+                        op_name = str(row.get("Op Name", ""))
+                        discovered_names.append(op_name)
+                        if "welmv4_inplace_rope" not in op_name.lower():
+                            continue
+                        raw_duration = row.get("Task Duration(us)", "")
+                        try:
+                            durations.append(float(raw_duration))
+                        except (TypeError, ValueError):
+                            pass
+
+                if not durations:
+                    records.append(
+                        {
+                            **common,
+                            "status": "ERROR",
+                            "capture_log": (
+                                "target op missing from OpBasicInfo.csv; names="
+                                + repr(sorted(set(discovered_names))[:100])
+                            ),
+                        }
+                    )
+                    continue
+
+                summary = {
+                    **common,
+                    "status": "MEASURED",
+                    "msprof_sample_count": len(durations),
+                    "msprof_task_min_us": min(durations),
+                    "msprof_task_p50_us": statistics.median(durations),
+                    "msprof_task_mean_us": statistics.fmean(durations),
+                    "msprof_task_max_us": max(durations),
+                    "msprof_op_names": "|".join(
+                        sorted(set(name for name in discovered_names if name))
+                    ),
+                }
+                summary_records.append(summary)
+                print(
+                    f"msprof op {case_name} {provider}: "
+                    f"p50={summary['msprof_task_p50_us']:.3f} us, "
+                    f"samples={len(durations)}"
+                )
+
+    medians = {
+        (str(record["case"]), str(record["variant"])): float(
+            record["msprof_task_p50_us"]
+        )
+        for record in summary_records
+    }
+    for record in summary_records:
+        case_name = str(record["case"])
+        baseline = medians.get((case_name, "baseline"))
+        candidate = medians.get((case_name, "candidate"))
+        if baseline and candidate:
+            record["msprof_speedup_vs_baseline"] = baseline / candidate
+    return summary_records + records
+
+
 def write_csv(path_text: str, records: Sequence[dict[str, object]]) -> None:
     if not path_text:
         return
@@ -1329,6 +1488,15 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "capture candidate A5 memory/L2 profiler summaries; use on for "
             "an explicit diagnostic run"
+        ),
+    )
+    parser.add_argument(
+        "--capture-msprof-op",
+        choices=("auto", "on", "off"),
+        default="auto",
+        help=(
+            "capture native msprof-op Task Duration(us); auto enables the "
+            f"probe for the standard {AUTO_OUTPUT_CSV} run"
         ),
     )
     parser.add_argument("--output-csv", default="")
@@ -1403,6 +1571,15 @@ def main() -> int:
     )
     if failures == 0 and capture_profile:
         records.extend(capture_profile_records(harness))
+
+    capture_msprof_op = args.capture_msprof_op == "on" or (
+        args.capture_msprof_op == "auto"
+        and Path(args.output_csv).name == AUTO_OUTPUT_CSV
+        and args.mode == "both"
+        and args.cases.strip().lower() in ("all", "common")
+    )
+    if failures == 0 and capture_msprof_op:
+        records.extend(capture_msprof_op_records(harness, str(device)))
 
     write_csv(args.output_csv, records)
     return 1 if failures else 0
