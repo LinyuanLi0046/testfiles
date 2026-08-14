@@ -1,4 +1,4 @@
-# architecture_decision("runtime-shape-blocked-prefill", reason="Retain the accepted tl.range-based 64-token, masked-tail, half-tail DMA, stages=4, and exact Q 4+2 implementation. N, num_token_blocks, and values derived from token/sequence length must remain runtime and do_not_specialize because production shapes change frequently and constexpr specialization would trigger costly recompilation. The scalar bottleneck must be reduced without adding shape-dependent cache keys. Decode and mirror remain shared and unchanged.")
+# architecture_decision("balanced-prefill-q4-then-k-plus-q2", reason="Retain runtime do_not_specialize shapes, the accepted tl.range/stages=4 pipeline, 64-token tiles, masked tail, half-tail DMA, and exact Q 4+2 grouping. In the unmasked path only, move K rotation between Q4 and Q2. The accepted IR fused K+Q4 then processed Q2, creating an imbalanced 5-head-equivalent first group and 2-head second group. The new source adjacency targets Q4 then K+Q2, balancing UB/MTE work as 4+3 without changing any address, byte count, DMA count, math, or writer. The masked M9616 path keeps its accepted order. Reject unless critical latency improves by more than 3%.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -53,6 +53,7 @@ sketch welmv4_inplace_rope_npu {
 
     when unmasked {
       load and rotate Q heads 0:4 as [TOKEN_BLOCK,4,32] 3D tiles
+      load and rotate K head 0 as [TOKEN_BLOCK,32] 2D tiles
       load and rotate Q heads 4:6 as [TOKEN_BLOCK,2,32] 3D tiles
       store both exact head groups without padding or masks
     }
@@ -87,4 +88,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode and mirror remain shared and unchanged. Ordinary prefill restores runtime do_not_specialize N and num_token_blocks, while retaining the accepted grid-stride loop, stages=4, 64-token blocking, masked tail, cache loads, K 2D DMA, and Q 4+2 3D DMA. No frequently changing shape or derived value enters the compilation cache key.
+# Layer1 self-check: decode and mirror remain shared and unchanged. N and num_token_blocks stay runtime do_not_specialize. Masked ordinary prefill keeps K then six Q heads. Unmasked ordinary prefill writes Q0:4, then K, then Q4:6; these regions are disjoint and each has one writer. Grid, stages, token blocks, cache loads, DMA counts, addresses, math, and output values are unchanged; only source scheduling adjacency changes.
