@@ -132,7 +132,7 @@ def pull_if_updated(branch: str) -> str | None:
     )
 
 
-def benchmark_command() -> list[str]:
+def benchmark_command(device: str) -> list[str]:
     python_executable = os.environ.get("BENCH_PYTHON", sys.executable)
     return [
         python_executable,
@@ -144,7 +144,7 @@ def benchmark_command() -> list[str]:
         "--scope",
         "kernel",
         "--device",
-        "npu:5",
+        device,
         "--output-csv",
         OUTPUT_CSV,
     ]
@@ -167,9 +167,9 @@ def write_error_log(command: Sequence[str], returncode: int, output: str, reason
     os.replace(temporary_path, ERROR_PATH)
 
 
-def run_benchmark() -> bool:
+def run_benchmark(device: str) -> bool:
     """Run the benchmark and leave exactly one of CSV/error-log as the result."""
-    command = benchmark_command()
+    command = benchmark_command(device)
 
     # A pre-existing CSV must not be mistaken for fresh output from this run.
     CSV_PATH.unlink(missing_ok=True)
@@ -361,6 +361,11 @@ def parse_args() -> argparse.Namespace:
             "continue monitoring"
         ),
     )
+    parser.add_argument(
+        "--device",
+        default="npu:5",
+        help="NPU device passed to the benchmark (default: npu:5)",
+    )
     args = parser.parse_args()
     if args.interval <= 0:
         parser.error("--interval must be greater than zero")
@@ -373,7 +378,8 @@ def main() -> int:
     branch = current_branch()
     log(
         f"monitoring {REMOTE}/{branch} every {args.interval:g} seconds; "
-        f"benchmark={BENCHMARK_SCRIPT}, artifact={OUTPUT_CSV}"
+        f"benchmark={BENCHMARK_SCRIPT}, device={args.device}, "
+        f"artifact={OUTPUT_CSV}"
     )
 
     pending: PendingPush | None = detect_interrupted_pending_push(branch)
@@ -399,7 +405,7 @@ def main() -> int:
                     log(f"--run-now selected current HEAD {base_sha[:12]}")
                 force_run = False
                 if base_sha is not None:
-                    succeeded = run_benchmark()
+                    succeeded = run_benchmark(args.device)
 
                     # Do not publish a result produced from a commit that is no longer current.
                     fetch(branch)

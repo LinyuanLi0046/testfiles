@@ -11,7 +11,7 @@ root.  `--run-now` benchmarks the current synchronized HEAD immediately and
 then leaves the normal one-minute monitor running:
 
 ```bash
-python auto_bench_on_git_update.py --run-now
+python auto_bench_on_git_update.py --run-now --device npu:5
 ```
 
 An already-running copy of the old TopK monitor must be stopped and restarted;
@@ -37,9 +37,10 @@ error log, commits it, and pushes.  Automatic result commits contain
 or push failure.
 
 Use `BENCH_PYTHON=/path/to/python` to select a different interpreter.  Use
-`--interval SECONDS` to change the poll interval.  `--once --run-now` runs and
-publishes exactly one current-HEAD benchmark, while plain `--once` performs one
-poll only.
+`--device npu:N` to select the NPU (`npu:5` by default) and `--interval
+SECONDS` to change the poll interval.  `--once --run-now` runs and publishes
+exactly one current-HEAD benchmark, while plain `--once` performs one poll
+only.
 
 ## Benchmark coverage
 
