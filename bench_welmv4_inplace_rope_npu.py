@@ -48,6 +48,7 @@ MAX_POSITION = 32768
 ROPE_BASE = 100000.0
 NUM_STAGES = 4
 PROGRAMS_PER_VECTOR_CORE = 8
+PREFILL_TOKEN_BLOCK = 16
 DTYPE = torch.bfloat16
 ATOL = 2.0e-2
 RTOL = 2.0e-2
@@ -323,6 +324,109 @@ def _candidate_welmv4_inplace_rope_kernel(
                 rope_dim,
             )
 
+
+@triton.jit
+def _candidate_apply_token_block_rope(
+    data_ptr: tl.tensor,
+    token_offsets: tl.tensor,
+    token_stride: tl.constexpr,
+    cos: tl.tensor,
+    sin: tl.tensor,
+    head_dim: tl.constexpr,
+    rope_dim: tl.constexpr,
+):
+    half_rope_dim: tl.constexpr = rope_dim // 2
+    rope_offsets = tl.arange(0, half_rope_dim)
+    base = data_ptr + token_offsets[:, None] * token_stride
+    x1 = tl.load(
+        base + rope_offsets[None, :], care_padding=False
+    )
+    x2 = tl.load(
+        base + half_rope_dim + rope_offsets[None, :],
+        care_padding=False,
+    )
+    out1 = x1 * cos - x2 * sin
+    out2 = x1 * sin + x2 * cos
+    tl.store(base + rope_offsets[None, :], out1)
+    tl.store(base + half_rope_dim + rope_offsets[None, :], out2)
+
+
+@triton.jit(do_not_specialize=["num_token_blocks"])
+def _candidate_welmv4_inplace_rope_prefill_kernel(
+    q_ptr: tl.tensor,
+    k_ptr: tl.tensor,
+    position_ptr: tl.tensor,
+    cos_sin_cache_ptr: tl.tensor,
+    num_token_blocks: int,
+    q_token_stride: tl.constexpr,
+    k_token_stride: tl.constexpr,
+    head_dim: tl.constexpr,
+    rope_dim: tl.constexpr,
+    token_block: tl.constexpr,
+    num_stages: tl.constexpr,
+    num_q_heads: tl.constexpr,
+):
+    half_rope_dim: tl.constexpr = rope_dim // 2
+    token_offsets = tl.arange(0, token_block)
+    cos_offsets = tl.arange(0, half_rope_dim)
+    sin_offsets = tl.arange(half_rope_dim, rope_dim)
+    for block_id in tl.range(
+        tl.program_id(0),
+        num_token_blocks,
+        tl.num_programs(0),
+        num_stages=num_stages,
+    ):
+        token_base = block_id * token_block
+        position_ids = tl.load(
+            position_ptr + token_base + token_offsets
+        ).to(tl.int32)
+        cos = tl.load(
+            cos_sin_cache_ptr
+            + position_ids[:, None] * rope_dim
+            + cos_offsets[None, :],
+            care_padding=False,
+        )
+        sin = tl.load(
+            cos_sin_cache_ptr
+            + position_ids[:, None] * rope_dim
+            + sin_offsets[None, :],
+            care_padding=False,
+        )
+
+        k_data = (
+            k_ptr
+            + token_base * k_token_stride
+            + head_dim
+            - rope_dim
+        )
+        _candidate_apply_token_block_rope(
+            k_data,
+            token_offsets,
+            k_token_stride,
+            cos,
+            sin,
+            head_dim,
+            rope_dim,
+        )
+
+        for head_id in tl.static_range(0, num_q_heads):
+            q_data = (
+                q_ptr
+                + token_base * q_token_stride
+                + head_id * head_dim
+                + head_dim
+                - rope_dim
+            )
+            _candidate_apply_token_block_rope(
+                q_data,
+                token_offsets,
+                q_token_stride,
+                cos,
+                sin,
+                head_dim,
+                rope_dim,
+            )
+
 PROVIDERS = {
     "baseline": _baseline_welmv4_inplace_rope_kernel,
     "candidate": _candidate_welmv4_inplace_rope_kernel,
@@ -392,11 +496,26 @@ class Harness:
         positions: torch.Tensor,
         last_index: torch.Tensor | None,
     ) -> Callable[[], object]:
-        kernel = PROVIDERS[provider]
         n_tokens = int(positions.shape[0])
         batch_size = int(last_index.numel()) if last_index is not None else 0
+        use_blocked_prefill = (
+            provider == "candidate"
+            and last_index is None
+            and n_tokens >= PREFILL_TOKEN_BLOCK
+            and n_tokens % PREFILL_TOKEN_BLOCK == 0
+        )
+        kernel = (
+            _candidate_welmv4_inplace_rope_prefill_kernel
+            if use_blocked_prefill
+            else PROVIDERS[provider]
+        )
+        work_items = (
+            n_tokens // PREFILL_TOKEN_BLOCK
+            if use_blocked_prefill
+            else n_tokens
+        )
         num_programs = min(
-            n_tokens, self.num_vector_cores * PROGRAMS_PER_VECTOR_CORE
+            work_items, self.num_vector_cores * PROGRAMS_PER_VECTOR_CORE
         )
         q_stride = int(query.stride(0))
         k_stride = int(key.stride(0))
@@ -404,6 +523,21 @@ class Harness:
         k_heads_blocked = triton.next_power_of_2(NUM_K_HEADS)
 
         def launch() -> object:
+            if use_blocked_prefill:
+                return kernel[(num_programs,)](
+                    query,
+                    key,
+                    positions,
+                    self.cache,
+                    work_items,
+                    q_stride,
+                    k_stride,
+                    HEAD_DIM,
+                    ROPE_DIM,
+                    PREFILL_TOKEN_BLOCK,
+                    NUM_STAGES,
+                    NUM_Q_HEADS,
+                )
             return kernel[(num_programs,)](
                 query,
                 key,
