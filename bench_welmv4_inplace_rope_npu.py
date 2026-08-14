@@ -48,8 +48,10 @@ MAX_POSITION = 32768
 ROPE_BASE = 100000.0
 NUM_STAGES = 4
 PROGRAMS_PER_VECTOR_CORE = 8
-PREFILL_TOKEN_BLOCK = 64
-PREFILL_TOKEN_BLOCK_FALLBACK = 32
+PREFILL_TOKEN_BLOCK = 128
+PREFILL_TOKEN_BLOCK_MIN_TOKENS = 8192
+PREFILL_TOKEN_BLOCK_FALLBACK = 64
+PREFILL_TOKEN_BLOCK_FALLBACK_2 = 32
 PREFILL_TOKEN_BLOCK_MIN = 16
 DTYPE = torch.bfloat16
 ATOL = 2.0e-2
@@ -503,7 +505,7 @@ class Harness:
         prefill_token_block = 0
         if provider == "candidate" and last_index is None:
             if (
-                n_tokens >= PREFILL_TOKEN_BLOCK
+                n_tokens >= PREFILL_TOKEN_BLOCK_MIN_TOKENS
                 and n_tokens % PREFILL_TOKEN_BLOCK == 0
             ):
                 prefill_token_block = PREFILL_TOKEN_BLOCK
@@ -512,6 +514,11 @@ class Harness:
                 and n_tokens % PREFILL_TOKEN_BLOCK_FALLBACK == 0
             ):
                 prefill_token_block = PREFILL_TOKEN_BLOCK_FALLBACK
+            elif (
+                n_tokens >= PREFILL_TOKEN_BLOCK_FALLBACK_2
+                and n_tokens % PREFILL_TOKEN_BLOCK_FALLBACK_2 == 0
+            ):
+                prefill_token_block = PREFILL_TOKEN_BLOCK_FALLBACK_2
             elif (
                 n_tokens >= PREFILL_TOKEN_BLOCK_MIN
                 and n_tokens % PREFILL_TOKEN_BLOCK_MIN == 0

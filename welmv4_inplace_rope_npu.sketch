@@ -1,4 +1,4 @@
-# architecture_decision("blocked-2d-ordinary-prefill-scale64", reason="Keep decode and mirror on the shared int32-addressing kernel; do not create a mirror-only kernel. The accepted 32-token scaling reached 2.46x at M=8192 and 2.57x at M=16384 with exact correctness, while M=9616 retained the 16-token 1.84x path. Scale the same parameterized 2D kernel to 64 tokens for divisible shapes; retain 32 and 16 as divisibility fallbacks. M=8192 and M=16384 still launch 128 and 256 programs respectively, above the 56 AIV count, while per-token DMA/synchronization issue overhead can halve again.")
+# architecture_decision("blocked-2d-ordinary-prefill-scale128", reason="Keep decode and mirror on the shared int32-addressing kernel; do not create a mirror-only kernel. The accepted 64-token scaling reached 2.52x at M=8192 and 3.53x at M=16384 with exact correctness. Scale the same parameterized 2D kernel to 128 tokens only for M>=8192 divisible shapes; retain 64, 32, and 16 as fallbacks. M=8192 and M=16384 still launch 64 and 128 programs, at or above the 56 AIV count, while M=4096 remains on 64 tokens to avoid under-partitioning.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -10,7 +10,7 @@ sketch welmv4_inplace_rope_npu {
     HEAD_DIM: constexpr = 256
     ROPE_DIM: constexpr = 64
     HALF_ROPE: constexpr = 32
-    PREFILL_TOKEN_BLOCK: constexpr = 64
+    PREFILL_TOKEN_BLOCK: constexpr = 128
   }
 
   tensors {
@@ -28,7 +28,7 @@ sketch welmv4_inplace_rope_npu {
   }
 
   partition ordinary_prefill_blocked {
-    choose PREFILL_TOKEN_BLOCK = 64 when N % 64 == 0 else 32 when N % 32 == 0 else 16 when N % 16 == 0
+    choose PREFILL_TOKEN_BLOCK = 128 when N >= 8192 and N % 128 == 0 else 64 when N % 64 == 0 else 32 when N % 32 == 0 else 16 when N % 16 == 0
     grid = min(N / PREFILL_TOKEN_BLOCK, AIV * 8)
     program block_start = program_id(0)
     program block_step = num_programs(0)
@@ -36,18 +36,18 @@ sketch welmv4_inplace_rope_npu {
 
   pipeline each block_id in range(block_start, N / PREFILL_TOKEN_BLOCK, block_step) stages 4 {
     vector token_ids = block_id * PREFILL_TOKEN_BLOCK + arange(0, PREFILL_TOKEN_BLOCK)
-    load pos_i64[64] = positions[token_ids]
-    cast pos[64] = int32(pos_i64)
-    load cos[64,32] = cos_sin_cache[pos, 0:HALF_ROPE]
-    load sin[64,32] = cos_sin_cache[pos, HALF_ROPE:ROPE_DIM]
+    load pos_i64[128] = positions[token_ids]
+    cast pos[128] = int32(pos_i64)
+    load cos[128,32] = cos_sin_cache[pos, 0:HALF_ROPE]
+    load sin[128,32] = cos_sin_cache[pos, HALF_ROPE:ROPE_DIM]
 
     for each real head in [K head 0, Q heads 0..5] statically {
-      load front[64,32] using 2D token-strided DMA
-      load back[64,32] using 2D token-strided DMA
+      load front[128,32] using 2D token-strided DMA
+      load back[128,32] using 2D token-strided DMA
       compute rotated_front = front * cos - back * sin
       compute rotated_back = front * sin + back * cos
-      store rotated_front[64,32] using 2D token-strided DMA
-      store rotated_back[64,32] using 2D token-strided DMA
+      store rotated_front[128,32] using 2D token-strided DMA
+      store rotated_back[128,32] using 2D token-strided DMA
     }
   }
 
@@ -80,4 +80,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode and mirror share the original candidate kernel and dispatch; there is no dedicated mirror kernel. Ordinary prefill chooses 64, 32, then 16 by divisibility and otherwise falls back to the shared kernel. Relative to the accepted 32-token version, kernel logic is unchanged; only the maximum block assignment and host fallback chain change. It expands exactly six Q heads plus one K head and preserves BF16 loads/stores and FP32 arithmetic promotion.
+# Layer1 self-check: decode and mirror share the original candidate kernel and dispatch; there is no dedicated mirror kernel. Ordinary prefill chooses 128 only at M>=8192, then 64, 32, and 16 by divisibility, otherwise falling back to the shared kernel. Relative to the accepted 64-token version, kernel logic is unchanged; only the maximum block assignment, its workload guard, and fallback chain change. It expands exactly six Q heads plus one K head and preserves BF16 loads/stores and FP32 arithmetic promotion.
