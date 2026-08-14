@@ -430,18 +430,15 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
     num_q_heads: tl.constexpr,
 ):
     half_rope_dim: tl.constexpr = rope_dim // 2
-    q_heads_per_program: tl.constexpr = num_q_heads // 2
     token_offsets = tl.arange(0, token_block)
     cos_offsets = tl.arange(0, half_rope_dim)
     sin_offsets = tl.arange(half_rope_dim, rope_dim)
-    for work_id in tl.range(
+    for block_id in tl.range(
         tl.program_id(0),
-        num_token_blocks * 2,
+        num_token_blocks,
         tl.num_programs(0),
         num_stages=num_stages,
     ):
-        block_id = work_id // 2
-        q_group_id = work_id % 2
         token_base = block_id * token_block
         token_mask = token_base + token_offsets < N
         if masked:
@@ -483,28 +480,26 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
                 care_padding=False,
             )
 
-        if q_group_id == 0:
-            k_data = (
-                k_ptr
-                + token_base * k_token_stride
-                + head_dim
-                - rope_dim
-            )
-            _candidate_apply_token_block_rope(
-                k_data,
-                token_offsets,
-                k_token_stride,
-                cos,
-                sin,
-                token_mask,
-                masked,
-                head_dim,
-                rope_dim,
-            )
+        k_data = (
+            k_ptr
+            + token_base * k_token_stride
+            + head_dim
+            - rope_dim
+        )
+        _candidate_apply_token_block_rope(
+            k_data,
+            token_offsets,
+            k_token_stride,
+            cos,
+            sin,
+            token_mask,
+            masked,
+            head_dim,
+            rope_dim,
+        )
 
         if masked:
-            for local_head_id in tl.static_range(0, q_heads_per_program):
-                head_id = q_group_id * q_heads_per_program + local_head_id
+            for head_id in tl.static_range(0, num_q_heads):
                 q_data = (
                     q_ptr
                     + token_base * q_token_stride
@@ -527,7 +522,6 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
             q_data = (
                 q_ptr
                 + token_base * q_token_stride
-                + q_group_id * q_heads_per_program * head_dim
                 + head_dim
                 - rope_dim
             )
@@ -537,7 +531,17 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
                 q_token_stride,
                 cos,
                 sin,
-                q_heads_per_program,
+                4,
+                head_dim,
+                rope_dim,
+            )
+            _candidate_apply_token_head_block_rope(
+                q_data + 4 * head_dim,
+                token_offsets,
+                q_token_stride,
+                cos,
+                sin,
+                2,
                 head_dim,
                 rope_dim,
             )
@@ -648,10 +652,8 @@ class Harness:
             )
         else:
             work_items = n_tokens
-        program_work_items = work_items * 2 if use_blocked_prefill else work_items
         num_programs = min(
-            program_work_items,
-            self.num_vector_cores * PROGRAMS_PER_VECTOR_CORE,
+            work_items, self.num_vector_cores * PROGRAMS_PER_VECTOR_CORE
         )
         q_stride = int(query.stride(0))
         k_stride = int(key.stride(0))

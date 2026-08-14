@@ -1,4 +1,4 @@
-# architecture_decision("blocked-prefill-two-program-q-heads-3-plus-3", reason="Retain the accepted 64-token blocking and masked tail, but flatten each token block into two independent program work items. Each program rotates one exact three-head Q group; group zero also rotates K. This changes M=16384 from 256 heavy programs to min(512, AIV*8)=448 lighter programs and removes sequential Q 4+2 work inside a program. Position/cos/sin are read twice per block, trading about 8 KiB extra cache traffic for higher MTE parallelism and lower per-program UB pressure. Reject unless critical latency improves by more than 3%. Decode and mirror remain shared and unchanged.")
+# architecture_decision("blocked-prefill-q-heads-4-plus-2", reason="Restore the accepted one-program-per-64-token-block and exact Q-head 4+2 organization. Reject two-program Q 3+3 partitioning: its IR was shorter, but duplicate position/cos/sin traffic and program scheduling raised M8192 from about 32.7 to 42.2 us and M16384 from about 52.9 to 84.8 us. Decode and mirror remain shared and unchanged.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -29,15 +29,12 @@ sketch welmv4_inplace_rope_npu {
 
   partition ordinary_prefill_blocked {
     choose PREFILL_TOKEN_BLOCK = 64 masked when N >= 8192 and N % 64 != 0 else 64 when N % 64 == 0 else 32 when N % 32 == 0 else 16 when N % 16 == 0
-    logical_work_items = 2 * ceil_div(N, PREFILL_TOKEN_BLOCK)
-    grid = min(logical_work_items, AIV * 8)
-    program work_start = program_id(0)
-    program work_step = num_programs(0)
+    grid = min(ceil_div(N, PREFILL_TOKEN_BLOCK), AIV * 8)
+    program block_start = program_id(0)
+    program block_step = num_programs(0)
   }
 
-  pipeline each work_id in range(work_start, logical_work_items, work_step) stages 4 {
-    scalar block_id = work_id / 2
-    scalar q_group_id = work_id % 2
+  pipeline each block_id in range(block_start, N / PREFILL_TOKEN_BLOCK, block_step) stages 4 {
     vector token_ids = block_id * PREFILL_TOKEN_BLOCK + arange(0, PREFILL_TOKEN_BLOCK)
     vector token_mask = token_ids < N when masked
     load pos_i64[64] = positions[token_ids]
@@ -45,9 +42,7 @@ sketch welmv4_inplace_rope_npu {
     load cos[64,32] = cos_sin_cache[pos, 0:HALF_ROPE]
     load sin[64,32] = cos_sin_cache[pos, HALF_ROPE:ROPE_DIM]
 
-    when q_group_id == 0 rotate K head 0
-
-    for the three Q heads owned by q_group_id separately when masked {
+    for K head 0 and each Q head separately when masked {
       load front[64,32] using 2D token-strided DMA and token_mask when masked
       load back[64,32] using 2D token-strided DMA and token_mask when masked
       compute rotated_front = front * cos - back * sin
@@ -57,8 +52,9 @@ sketch welmv4_inplace_rope_npu {
     }
 
     when unmasked {
-      load and rotate Q heads 3*q_group_id : 3*q_group_id+3 as one [TOKEN_BLOCK,3,32] 3D tile
-      store the exact three-head group without padding or masks
+      load and rotate Q heads 0:4 as [TOKEN_BLOCK,4,32] 3D tiles
+      load and rotate Q heads 4:6 as [TOKEN_BLOCK,2,32] 3D tiles
+      store both exact head groups without padding or masks
     }
   }
 
@@ -91,4 +87,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode and mirror remain shared and unchanged. Ordinary prefill maps every pair (block_id, q_group_id in {0,1}) exactly once. Q groups [0,1,2] and [3,4,5] are disjoint and exhaustive; only group zero writes K, so all Q/K outputs have a single writer. The accepted 64-token blocking, masked tail, stages=4, separate cos/sin loads, rotation math, and BF16/FP32 behavior are unchanged.
+# Layer1 self-check: decode and mirror remain shared and unchanged. Ordinary prefill exactly restores the accepted one-program-per-block grid, 64-token blocking, masked tail, stages=4, separate cos/sin loads, K 2D DMA, and exact Q 4+2 groups. Rotation math, BF16/FP32 behavior, and output stores are unchanged.
