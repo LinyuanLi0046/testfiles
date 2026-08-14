@@ -1,4 +1,4 @@
-# architecture_decision("blocked8-with-single-stage-prefill", reason="Keep decode and mirror on the shared stages=4 kernel and retain the accepted 64-token/tail design. The first blocked-8/valid-6 attempt exceeded A5 UB (3,735,552 bits required vs 2,031,616 available), but every benchmark prefill program processes one token block while tl.range still requested four stages and the actual compiler enabled auto multi-buffer. Set stages=1 only for the dedicated prefill kernel and retry blocked-8. This removes unnecessary staged buffers and may fit the single Q 3D tile while halving Q DMA versus exact 4+2. The experiment is rejected unless it compiles, preserves exact correctness, and improves critical prefill by more than 3%.")
+# architecture_decision("blocked-prefill-q-heads-4-plus-2", reason="Keep decode, mirror, the accepted masked 64-token tail, and exact unmasked Q-head 4+2 merge. Blocked-8/valid-6 requires 3,735,552 bits UB versus 2,031,616 available even when prefill stages is reduced from 4 to 1, proving the overflow is the tile itself rather than multibuffering. Restore stages=4 and exact 4+2. The next experiment changes only the ordinary-prefill program cap to create multiple loop iterations for pipeline overlap.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -34,7 +34,7 @@ sketch welmv4_inplace_rope_npu {
     program block_step = num_programs(0)
   }
 
-  pipeline each block_id in range(block_start, N / PREFILL_TOKEN_BLOCK, block_step) stages 1 {
+  pipeline each block_id in range(block_start, N / PREFILL_TOKEN_BLOCK, block_step) stages 4 {
     vector token_ids = block_id * PREFILL_TOKEN_BLOCK + arange(0, PREFILL_TOKEN_BLOCK)
     vector token_mask = token_ids < N when masked
     load pos_i64[64] = positions[token_ids]
@@ -52,9 +52,9 @@ sketch welmv4_inplace_rope_npu {
     }
 
     when unmasked {
-      vector head_mask = arange(0,8) < 6
-      load and rotate Q heads as [TOKEN_BLOCK,8,32] 3D tiles with static head_mask
-      store the valid six heads with static head_mask
+      load and rotate Q heads 0:4 as [TOKEN_BLOCK,4,32] 3D tiles
+      load and rotate Q heads 4:6 as [TOKEN_BLOCK,2,32] 3D tiles
+      store both exact head groups without padding or masks
     }
   }
 
@@ -87,4 +87,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode and mirror remain shared, have no dedicated mirror kernel, and retain stages=4. Only the dedicated prefill launch changes to stages=1. The token-masked variant remains per-head 2D; the unmasked variant retries blocked-8/valid-6 with a static head mask. All six Q heads and one K head are processed once with unchanged addresses and BF16/FP32 behavior.
+# Layer1 self-check: decode and mirror remain shared and have no dedicated mirror kernel. Prefill stages=4 and exact 4+2 Q groups are restored; both UB-overflowing blocked-8 attempts are absent. The masked-tail variant remains per-head 2D. All six Q heads and one K head are processed once with unchanged addresses and BF16/FP32 behavior.

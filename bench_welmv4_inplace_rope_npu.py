@@ -47,7 +47,6 @@ NUM_K_HEADS = 1
 MAX_POSITION = 32768
 ROPE_BASE = 100000.0
 NUM_STAGES = 4
-PREFILL_NUM_STAGES = 1
 PROGRAMS_PER_VECTOR_CORE = 8
 PREFILL_TOKEN_BLOCK = 64
 PREFILL_TOKEN_BLOCK_FALLBACK = 32
@@ -102,7 +101,6 @@ def _baseline_apply_tail_rope(
     cos: tl.tensor,
     sin: tl.tensor,
     num_heads: tl.constexpr,
-    num_heads_blocked: tl.constexpr,
     head_dim: tl.constexpr,
     rope_dim: tl.constexpr,
 ):
@@ -390,35 +388,27 @@ def _candidate_apply_token_head_block_rope(
     rope_dim: tl.constexpr,
 ):
     half_rope_dim: tl.constexpr = rope_dim // 2
-    head_offsets = tl.arange(0, num_heads_blocked)
+    head_offsets = tl.arange(0, num_heads)
     rope_offsets = tl.arange(0, half_rope_dim)
-    mask = head_offsets[None, :, None] < num_heads
     base = (
         data_ptr
         + token_offsets[:, None, None] * token_stride
         + head_offsets[None, :, None] * head_dim
     )
     x1 = tl.load(
-        base + rope_offsets[None, None, :],
-        mask=mask,
-        other=0.0,
-        care_padding=False,
+        base + rope_offsets[None, None, :], care_padding=False
     )
     x2 = tl.load(
         base + half_rope_dim + rope_offsets[None, None, :],
-        mask=mask,
-        other=0.0,
         care_padding=False,
     )
     cos = cos[:, None, :]
     sin = sin[:, None, :]
     out1 = x1 * cos - x2 * sin
     out2 = x1 * sin + x2 * cos
-    tl.store(base + rope_offsets[None, None, :], out1, mask=mask)
+    tl.store(base + rope_offsets[None, None, :], out1)
     tl.store(
-        base + half_rope_dim + rope_offsets[None, None, :],
-        out2,
-        mask=mask,
+        base + half_rope_dim + rope_offsets[None, None, :], out2
     )
 
 
@@ -541,8 +531,17 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
                 q_token_stride,
                 cos,
                 sin,
-                6,
-                8,
+                4,
+                head_dim,
+                rope_dim,
+            )
+            _candidate_apply_token_head_block_rope(
+                q_data + 4 * head_dim,
+                token_offsets,
+                q_token_stride,
+                cos,
+                sin,
+                2,
                 head_dim,
                 rope_dim,
             )
@@ -676,7 +675,7 @@ class Harness:
                     ROPE_DIM,
                     prefill_token_block,
                     prefill_masked,
-                    PREFILL_NUM_STAGES,
+                    NUM_STAGES,
                     NUM_Q_HEADS,
                 )
             return kernel[(num_programs,)](
