@@ -51,6 +51,7 @@ PROGRAMS_PER_VECTOR_CORE = 8
 PREFILL_TOKEN_BLOCK = 64
 PREFILL_TOKEN_BLOCK_FALLBACK = 32
 PREFILL_TOKEN_BLOCK_MIN = 16
+PREFILL_ALL_M_THRESHOLD = 2560
 DTYPE = torch.bfloat16
 ATOL = 2.0e-2
 RTOL = 2.0e-2
@@ -651,7 +652,10 @@ class Harness:
         prefill_token_block = 0
         prefill_masked = False
         if provider == "candidate" and case.phase == "prefill":
-            if n_tokens >= 8192 and n_tokens % PREFILL_TOKEN_BLOCK != 0:
+            if (
+                n_tokens >= PREFILL_ALL_M_THRESHOLD
+                and n_tokens % PREFILL_TOKEN_BLOCK != 0
+            ):
                 prefill_token_block = PREFILL_TOKEN_BLOCK
                 prefill_masked = True
             elif (
@@ -669,9 +673,6 @@ class Harness:
                 and n_tokens % PREFILL_TOKEN_BLOCK_MIN == 0
             ):
                 prefill_token_block = PREFILL_TOKEN_BLOCK_MIN
-            else:
-                prefill_token_block = PREFILL_TOKEN_BLOCK
-                prefill_masked = True
         use_blocked_prefill = prefill_token_block > 0
         kernel = (
             _candidate_welmv4_inplace_rope_prefill_kernel

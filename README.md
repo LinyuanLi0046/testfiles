@@ -66,11 +66,13 @@ The fixed production-local shape is BF16, 6 query heads, 1 KV head,
   rows while K and positions have `N` rows.
 
 The dedicated blocked kernel is selected only for the candidate's ordinary
-`prefill` phase.  Exact block64, block32, and block16 paths cover aligned M;
-the masked block64 path safely covers every other M with runtime bounds.  The
-benchmark includes aligned/non-aligned pairs from M=2048 through M=4097 plus
-larger irregular lengths to determine the lowest profitable all-M dispatch
-threshold empirically.  Decode and KV mirror never select this kernel.
+`prefill` phase.  The empirically selected all-M threshold is `M=2560`: from
+that point, 64-aligned M uses exact block64 and every other M uses masked
+block64.  Below 2560, aligned M retains the existing exact block64/block32/
+block16 fast paths, while non-16-aligned M falls back to the shared kernel.
+The threshold is based on the >=3% acceptance rule: M=2304 was only 1.0229x,
+whereas M=2560 was 1.0328x and M=2561 was 1.0489x.  Decode and KV mirror never
+select the dedicated prefill kernel.
 
 The `baseline` kernel is frozen.  Later optimization rounds should edit only
 the clearly marked `candidate` section in
