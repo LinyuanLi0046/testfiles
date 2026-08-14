@@ -102,6 +102,7 @@ def _baseline_apply_tail_rope(
     cos: tl.tensor,
     sin: tl.tensor,
     num_heads: tl.constexpr,
+    num_heads_blocked: tl.constexpr,
     head_dim: tl.constexpr,
     rope_dim: tl.constexpr,
 ):
