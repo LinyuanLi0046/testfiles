@@ -1,4 +1,4 @@
-# architecture_decision("blocked-prefill-q-heads-4-plus-2", reason="Restore the accepted stages=4 prefill specialization. Reject stages=1: it produced identical 664-line last-pass IR and identical DMA call counts, left M16384 unchanged near 52.9 us, and regressed M4096-M9616 by about 4-7%. Decode and mirror remain shared and unchanged.")
+# architecture_decision("blocked-prefill-full-tail-vector", reason="Retain the accepted 64-token block, masked tail, stages=4, and exact Q 4+2 grouping. For each K/Q group, load the full contiguous 64-element rotary tail once, generate [-x_back,x_front] using reshape(2,32)+flip on the half axis, broadcast cos/sin across both halves, and store the full tail once. Unlike the rejected join/trans store merge, this has no join or transpose and begins/ends in the physical contiguous layout. It should halve Q/K GM load/store calls and increase each burst from 64 B to 128 B. Reject unless critical latency improves by more than 3%, correctness is exact, and IR avoids UB copies/scalar lowering. Decode and mirror remain shared and unchanged.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -43,18 +43,16 @@ sketch welmv4_inplace_rope_npu {
     load sin[64,32] = cos_sin_cache[pos, HALF_ROPE:ROPE_DIM]
 
     for K head 0 and each Q head separately when masked {
-      load front[64,32] using 2D token-strided DMA and token_mask when masked
-      load back[64,32] using 2D token-strided DMA and token_mask when masked
-      compute rotated_front = front * cos - back * sin
-      compute rotated_back = front * sin + back * cos
-      store rotated_front[64,32] using 2D token-strided DMA and token_mask when masked
-      store rotated_back[64,32] using 2D token-strided DMA and token_mask when masked
+      load x[64,64] using one 2D token-strided DMA and token_mask
+      view signed_x as [64,2,32] and flip half axis to form [-back,front]
+      compute out = x * broadcast(cos) + rotated_x * broadcast(sin)
+      store out[64,64] using one 2D token-strided DMA and token_mask
     }
 
     when unmasked {
-      load and rotate Q heads 0:4 as [TOKEN_BLOCK,4,32] 3D tiles
-      load and rotate Q heads 4:6 as [TOKEN_BLOCK,2,32] 3D tiles
-      store both exact head groups without padding or masks
+      load and rotate Q heads 0:4 as one [TOKEN_BLOCK,4,64] 3D tile
+      load and rotate Q heads 4:6 as one [TOKEN_BLOCK,2,64] 3D tile
+      store each full-tail exact head group without padding or masks
     }
   }
 
@@ -87,4 +85,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode and mirror remain shared and unchanged. Ordinary prefill exactly restores the accepted one-program-per-block grid, 64-token blocking, masked tail, stages=4, separate cos/sin loads, K 2D DMA, and exact Q 4+2 groups. Rotation math, pointers, BF16/FP32 behavior, and output stores are unchanged.
+# Layer1 self-check: decode and mirror remain shared and unchanged. Ordinary prefill retains one program per block, separate cos/sin cache loads, and exact Q 4+2 groups. For x=[front,back], sign gives [front,-back], reshape+flip on the size-2 half axis gives [-back,front], hence x*cos_full + rotated_x*sin_full equals [front*cos-back*sin, back*cos+front*sin]. Every rotary-tail element has one load and one store; head prefixes remain untouched.
