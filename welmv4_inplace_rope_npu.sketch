@@ -1,4 +1,4 @@
-# architecture_decision("blocked-prefill-q-heads-4-plus-2", reason="Keep decode and mirror on the shared kernel and retain the accepted masked 64-token tail path, which improved M=9616 from 1.85x to 2.70x. Normal unmasked IR still expands six Q heads into twelve 2D loads and twelve 2D stores per token block. Merge the independent contiguous head dimension into exact power-of-two groups 4+2, using two unmasked 3D tiles per RoPE half instead of six 2D tiles, with no padded head. Keep the masked-tail variant on proven per-head 2D DMA to avoid the rejected masked 3D lowering. This targets a 3x reduction in Q DMA call count; K, cache, math, grid, and precision are unchanged.")
+# architecture_decision("blocked-prefill-q-heads-blocked8-valid6", reason="Keep decode, mirror, and the accepted masked 64-token tail path unchanged. The accepted unmasked Q-head 4+2 merge reduced last-pass IR from 745 to 664 lines, Q DMA to four 3D loads plus four 3D stores, barriers from 8 to 4, and M=16384 to 52.9 us. IR still contains two independent Q head-group transfers per RoPE half. Test one [TOKEN_BLOCK,8,32] tile with a compile-time head<6 mask: this can halve Q 3D DMA and synchronization again at the cost of two padded vector lanes. Token dimension remains unmasked. Reject immediately if static head masking prevents regular 3D lowering or fails the >3% threshold.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -52,9 +52,9 @@ sketch welmv4_inplace_rope_npu {
     }
 
     when unmasked {
-      load and rotate Q heads 0:4 as [TOKEN_BLOCK,4,32] 3D tiles
-      load and rotate Q heads 4:6 as [TOKEN_BLOCK,2,32] 3D tiles
-      store both exact head groups without padding or masks
+      vector head_mask = arange(0,8) < 6
+      load and rotate Q heads as [TOKEN_BLOCK,8,32] 3D tiles with static head_mask
+      store the valid six heads with static head_mask
     }
   }
 
@@ -87,4 +87,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode and mirror remain shared and have no dedicated mirror kernel. The compile-time masked prefill variant is unchanged and uses per-head 2D DMA. Only the unmasked variant replaces six independent Q-head calls with exact 4+2 head groups; all six Q heads and one K head are processed once, with identical addresses, BF16 loads/stores, and FP32 arithmetic promotion. No head padding and no 3D mask are introduced.
+# Layer1 self-check: decode and mirror remain shared and have no dedicated mirror kernel. The token-masked prefill variant is unchanged and uses per-head 2D DMA. Only the unmasked variant replaces exact 4+2 Q groups with one blocked-8/valid-6 group. The static head mask guards every Q load and store; all six real Q heads and one K head are processed once, addresses and BF16/FP32 behavior are unchanged, and token lanes remain unmasked.
