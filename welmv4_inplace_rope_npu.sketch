@@ -1,4 +1,4 @@
-# architecture_decision("physical-aiv-token-partition", reason="The operator is independent across tokens and has no reduction. On Ascend A5, cap the 1D grid at the runtime physical AIV count and let each program consume a contiguous-stride token stream. This preserves the existing in-place math while removing the eight scheduling waves caused by a GPU-style oversubscribed grid.")
+# architecture_decision("indirect-cache-load-hint", reason="Remote A5 measurement rejected a physical-AIV-only grid by 3.2%-6.6% on the critical prefill shapes, so retain the established token schedule. The remaining position-to-cache address is runtime indirect; mark only those cache loads as potentially discrete so the Ascend compiler can select the appropriate GM-to-UB path without changing math or layout.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -21,16 +21,17 @@ sketch welmv4_inplace_rope_npu {
   }
 
   partition {
-    grid = min(N, AIV)
-    program tokens_per_program = ceil_div(N, num_programs(0))
-    program token_start = program_id(0) * tokens_per_program
-    program token_end = min(token_start + tokens_per_program, N)
+    grid = min(N, AIV * 8)
+    program token_start = program_id(0)
+    program token_step = num_programs(0)
   }
 
-  pipeline each token_id in range(token_start, token_end) {
+  pipeline each token_id in range(token_start, N, token_step) {
     load pos = positions[token_id]
     load cos = cos_sin_cache[pos, 0:HALF_ROPE]
+    hint cos mayDiscretememaccess
     load sin = cos_sin_cache[pos, HALF_ROPE:ROPE_DIM]
+    hint sin mayDiscretememaccess
 
     load k_front = k[token_id, 0:K_HEADS, 0:HALF_ROPE]
     load k_back = k[token_id, 0:K_HEADS, HALF_ROPE:ROPE_DIM]
@@ -46,10 +47,11 @@ sketch welmv4_inplace_rope_npu {
       load q_token = last_index[token_id]
       load q_pos = positions[q_token]
       load q_cos_sin = cos_sin_cache[q_pos, 0:ROPE_DIM]
+      hint q_cos_sin mayDiscretememaccess
       load q[token_id, 0:Q_HEADS, 0:ROPE_DIM]
       compute and store q rotation using q_cos_sin
     }
   }
 }
 
-# Layer1 self-check: the grid is exactly min(real token work, runtime physical AIV count); decode M<=56 launches M programs, decode 57..64 and all prefill use 56 programs. Q/K writes are disjoint by token/head, no reduction or cross-program synchronization exists, and all dimensions/strides that are invariant for the deployed head_dim=256, rope_dim=64 shape remain compile-time constants.
+# Layer1 self-check: the rejected physical-AIV partition is fully restored. The only candidate delta is a compiler hint on loads whose base address contains a runtime value loaded from positions/last_index; deterministic Q/K loads and every store remain unhinted. Q/K writes are disjoint by token/head, no reduction or synchronization exists, and head_dim=256/rope_dim=64/head counts/strides remain compile-time constants.
