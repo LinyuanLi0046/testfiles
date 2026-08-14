@@ -1,4 +1,4 @@
-# architecture_decision("runtime-shape-blocked-prefill", reason="Restore the accepted K then Q4 then Q2 source order. Reject the Q4 then K+Q2 rebalance: it changed merged vector functions and regressed M8192/M9616/M16384 to about 34.7/34.8/58.6 us. Keep N and num_token_blocks runtime do_not_specialize and preserve the compiler's efficient K+Q4 fusion. Decode and mirror remain shared and unchanged.")
+# architecture_decision("prefetch-q2-across-k-plus-q4", reason="Retain runtime do_not_specialize shapes, the accepted tl.range/stages=4 pipeline, 64-token tile, masked path, and K+Q4 source adjacency. In unmasked prefill, issue the two Q2 3D half-tail loads before K+Q4, keep those BF16 tiles live across the accepted merged K+Q4 vector function, then compute/store Q2. A5 profiling reports MTE2 about 61.2%/27.2 us versus vector 36.9%/16.4 us and MTE3 13.9%/6.2 us, so this explicitly trades UB lifetime for load overlap without changing bytes, DMA count, addresses, math, shape cache keys, or writers. Reject unless critical latency improves by more than 3% and IR preserves K+Q4 fusion.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -52,9 +52,10 @@ sketch welmv4_inplace_rope_npu {
     }
 
     when unmasked {
+      prefetch Q heads 4:6 front/back as [TOKEN_BLOCK,2,32] 3D tiles
       load and rotate K head 0 as [TOKEN_BLOCK,32] 2D tiles
       load and rotate Q heads 0:4 as [TOKEN_BLOCK,4,32] 3D tiles
-      load and rotate Q heads 4:6 as [TOKEN_BLOCK,2,32] 3D tiles
+      rotate and store the prefetched Q heads 4:6 tiles
       store both exact head groups without padding or masks
     }
   }
@@ -88,4 +89,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode and mirror remain shared and unchanged. N and num_token_blocks stay runtime do_not_specialize. Ordinary prefill restores the accepted K then Q order, grid, stages, 64-token blocks, masked tail, cache loads, DMA shapes, addresses, math, and output values.
+# Layer1 self-check: decode and mirror remain shared and unchanged. N and num_token_blocks stay runtime do_not_specialize. Masked prefill exactly keeps the accepted path. Unmasked Q2 loads move earlier but use the same q_data+4*head_dim addresses; their computations and stores remain after K+Q4 and are algebraically identical. Every Q/K tail still has one reader/writer, with unchanged grid, stages, masks, byte counts, and output values.

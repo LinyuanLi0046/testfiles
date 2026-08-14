@@ -487,19 +487,19 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
             + head_dim
             - rope_dim
         )
-        _candidate_apply_token_block_rope(
-            k_data,
-            token_offsets,
-            k_token_stride,
-            cos,
-            sin,
-            token_mask,
-            masked,
-            head_dim,
-            rope_dim,
-        )
 
         if masked:
+            _candidate_apply_token_block_rope(
+                k_data,
+                token_offsets,
+                k_token_stride,
+                cos,
+                sin,
+                token_mask,
+                masked,
+                head_dim,
+                rope_dim,
+            )
             for head_id in tl.static_range(0, num_q_heads):
                 q_data = (
                     q_ptr
@@ -526,6 +526,35 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
                 + head_dim
                 - rope_dim
             )
+            q2_head_offsets = tl.arange(0, 2)
+            q2_rope_offsets = tl.arange(0, half_rope_dim)
+            q2_base = (
+                q_data
+                + 4 * head_dim
+                + token_offsets[:, None, None] * q_token_stride
+                + q2_head_offsets[None, :, None] * head_dim
+            )
+            q2_x1 = tl.load(
+                q2_base + q2_rope_offsets[None, None, :],
+                care_padding=False,
+            )
+            q2_x2 = tl.load(
+                q2_base
+                + half_rope_dim
+                + q2_rope_offsets[None, None, :],
+                care_padding=False,
+            )
+            _candidate_apply_token_block_rope(
+                k_data,
+                token_offsets,
+                k_token_stride,
+                cos,
+                sin,
+                token_mask,
+                masked,
+                head_dim,
+                rope_dim,
+            )
             _candidate_apply_token_head_block_rope(
                 q_data,
                 token_offsets,
@@ -536,15 +565,18 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
                 head_dim,
                 rope_dim,
             )
-            _candidate_apply_token_head_block_rope(
-                q_data + 4 * head_dim,
-                token_offsets,
-                q_token_stride,
-                cos,
-                sin,
-                2,
-                head_dim,
-                rope_dim,
+            q2_cos = cos[:, None, :]
+            q2_sin = sin[:, None, :]
+            q2_out1 = q2_x1 * q2_cos - q2_x2 * q2_sin
+            q2_out2 = q2_x1 * q2_sin + q2_x2 * q2_cos
+            tl.store(
+                q2_base + q2_rope_offsets[None, None, :], q2_out1
+            )
+            tl.store(
+                q2_base
+                + half_rope_dim
+                + q2_rope_offsets[None, None, :],
+                q2_out2,
             )
 
 PROVIDERS = {
