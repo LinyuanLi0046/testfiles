@@ -1,4 +1,4 @@
-# architecture_decision("blocked-2d-ordinary-prefill-scale64", reason="Keep decode and mirror on the shared int32-addressing kernel; do not create a mirror-only kernel. Retain the accepted 64-token scaling, which reached 2.52x at M=8192 and 3.53x at M=16384 with exact correctness. Reject 128 tokens: M=8192 regressed from 2.52x to 2.42x and M=16384 improved by less than 3%. Retain 32 and 16 as divisibility fallbacks pending a structural tail path for M=9616.")
+# architecture_decision("blocked-2d-prefill-masked64-tail", reason="Keep decode and mirror on the shared int32-addressing kernel; do not create a mirror-only kernel. Retain the accepted unmasked 64-token path (2.52x at M=8192, 3.53x at M=16384) and rejected 128-token result. M=9616 equals 150*64+16 but currently processes every token with 16-token tiles. For ordinary prefill M>=8192 not divisible by 64, launch ceil_div(N,64) two-dimensional blocks and apply a token mask only in the compile-time masked variant, so 150 full blocks plus one tail share one kernel launch. Exact divisible shapes keep the unmasked path; 32 and 16 remain smaller-shape fallbacks.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -28,26 +28,27 @@ sketch welmv4_inplace_rope_npu {
   }
 
   partition ordinary_prefill_blocked {
-    choose PREFILL_TOKEN_BLOCK = 64 when N % 64 == 0 else 32 when N % 32 == 0 else 16 when N % 16 == 0
-    grid = min(N / PREFILL_TOKEN_BLOCK, AIV * 8)
+    choose PREFILL_TOKEN_BLOCK = 64 masked when N >= 8192 and N % 64 != 0 else 64 when N % 64 == 0 else 32 when N % 32 == 0 else 16 when N % 16 == 0
+    grid = min(ceil_div(N, PREFILL_TOKEN_BLOCK), AIV * 8)
     program block_start = program_id(0)
     program block_step = num_programs(0)
   }
 
   pipeline each block_id in range(block_start, N / PREFILL_TOKEN_BLOCK, block_step) stages 4 {
     vector token_ids = block_id * PREFILL_TOKEN_BLOCK + arange(0, PREFILL_TOKEN_BLOCK)
+    vector token_mask = token_ids < N when masked
     load pos_i64[64] = positions[token_ids]
     cast pos[64] = int32(pos_i64)
     load cos[64,32] = cos_sin_cache[pos, 0:HALF_ROPE]
     load sin[64,32] = cos_sin_cache[pos, HALF_ROPE:ROPE_DIM]
 
     for each real head in [K head 0, Q heads 0..5] statically {
-      load front[64,32] using 2D token-strided DMA
-      load back[64,32] using 2D token-strided DMA
+      load front[64,32] using 2D token-strided DMA and token_mask when masked
+      load back[64,32] using 2D token-strided DMA and token_mask when masked
       compute rotated_front = front * cos - back * sin
       compute rotated_back = front * sin + back * cos
-      store rotated_front[64,32] using 2D token-strided DMA
-      store rotated_back[64,32] using 2D token-strided DMA
+      store rotated_front[64,32] using 2D token-strided DMA and token_mask when masked
+      store rotated_back[64,32] using 2D token-strided DMA and token_mask when masked
     }
   }
 
@@ -80,4 +81,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode and mirror share the original candidate kernel and dispatch; there is no dedicated mirror kernel. Ordinary prefill chooses 64, 32, and 16 by divisibility, otherwise falling back to the shared kernel. The rejected 128-token assignment is absent. It expands exactly six Q heads plus one K head and preserves BF16 loads/stores and FP32 arithmetic promotion.
+# Layer1 self-check: decode and mirror share the original candidate kernel and dispatch; there is no dedicated mirror kernel. Ordinary prefill M>=8192 uses 64-token blocks even with a tail; exact shapes compile without masks and tail shapes compile with masks. Smaller exact shapes retain 64/32/16 and other shapes fall back. Every valid token is processed exactly once; invalid tail lanes are masked on positions, cache, Q, K, and stores. Six Q heads plus one K head and BF16/FP32 behavior are unchanged.

@@ -334,37 +334,62 @@ def _candidate_apply_token_block_rope(
     token_stride: tl.constexpr,
     cos: tl.tensor,
     sin: tl.tensor,
+    token_mask: tl.tensor,
+    masked: tl.constexpr,
     head_dim: tl.constexpr,
     rope_dim: tl.constexpr,
 ):
     half_rope_dim: tl.constexpr = rope_dim // 2
     rope_offsets = tl.arange(0, half_rope_dim)
     base = data_ptr + token_offsets[:, None] * token_stride
-    x1 = tl.load(
-        base + rope_offsets[None, :], care_padding=False
-    )
-    x2 = tl.load(
-        base + half_rope_dim + rope_offsets[None, :],
-        care_padding=False,
-    )
+    mask = token_mask[:, None]
+    if masked:
+        x1 = tl.load(
+            base + rope_offsets[None, :],
+            mask=mask,
+            other=0.0,
+            care_padding=False,
+        )
+        x2 = tl.load(
+            base + half_rope_dim + rope_offsets[None, :],
+            mask=mask,
+            other=0.0,
+            care_padding=False,
+        )
+    else:
+        x1 = tl.load(
+            base + rope_offsets[None, :], care_padding=False
+        )
+        x2 = tl.load(
+            base + half_rope_dim + rope_offsets[None, :],
+            care_padding=False,
+        )
     out1 = x1 * cos - x2 * sin
     out2 = x1 * sin + x2 * cos
-    tl.store(base + rope_offsets[None, :], out1)
-    tl.store(base + half_rope_dim + rope_offsets[None, :], out2)
+    if masked:
+        tl.store(base + rope_offsets[None, :], out1, mask=mask)
+        tl.store(
+            base + half_rope_dim + rope_offsets[None, :], out2, mask=mask
+        )
+    else:
+        tl.store(base + rope_offsets[None, :], out1)
+        tl.store(base + half_rope_dim + rope_offsets[None, :], out2)
 
 
-@triton.jit(do_not_specialize=["num_token_blocks"])
+@triton.jit(do_not_specialize=["num_token_blocks", "N"])
 def _candidate_welmv4_inplace_rope_prefill_kernel(
     q_ptr: tl.tensor,
     k_ptr: tl.tensor,
     position_ptr: tl.tensor,
     cos_sin_cache_ptr: tl.tensor,
     num_token_blocks: int,
+    N: int,
     q_token_stride: tl.constexpr,
     k_token_stride: tl.constexpr,
     head_dim: tl.constexpr,
     rope_dim: tl.constexpr,
     token_block: tl.constexpr,
+    masked: tl.constexpr,
     num_stages: tl.constexpr,
     num_q_heads: tl.constexpr,
 ):
@@ -379,21 +404,45 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
         num_stages=num_stages,
     ):
         token_base = block_id * token_block
-        position_ids = tl.load(
-            position_ptr + token_base + token_offsets
-        ).to(tl.int32)
-        cos = tl.load(
-            cos_sin_cache_ptr
-            + position_ids[:, None] * rope_dim
-            + cos_offsets[None, :],
-            care_padding=False,
-        )
-        sin = tl.load(
-            cos_sin_cache_ptr
-            + position_ids[:, None] * rope_dim
-            + sin_offsets[None, :],
-            care_padding=False,
-        )
+        token_mask = token_base + token_offsets < N
+        if masked:
+            position_ids = tl.load(
+                position_ptr + token_base + token_offsets,
+                mask=token_mask,
+                other=0,
+            ).to(tl.int32)
+            cos = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + cos_offsets[None, :],
+                mask=token_mask[:, None],
+                other=0.0,
+                care_padding=False,
+            )
+            sin = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + sin_offsets[None, :],
+                mask=token_mask[:, None],
+                other=0.0,
+                care_padding=False,
+            )
+        else:
+            position_ids = tl.load(
+                position_ptr + token_base + token_offsets
+            ).to(tl.int32)
+            cos = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + cos_offsets[None, :],
+                care_padding=False,
+            )
+            sin = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + sin_offsets[None, :],
+                care_padding=False,
+            )
 
         k_data = (
             k_ptr
@@ -407,6 +456,8 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
             k_token_stride,
             cos,
             sin,
+            token_mask,
+            masked,
             head_dim,
             rope_dim,
         )
@@ -425,6 +476,8 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
                 q_token_stride,
                 cos,
                 sin,
+                token_mask,
+                masked,
                 head_dim,
                 rope_dim,
             )
@@ -501,8 +554,12 @@ class Harness:
         n_tokens = int(positions.shape[0])
         batch_size = int(last_index.numel()) if last_index is not None else 0
         prefill_token_block = 0
+        prefill_masked = False
         if provider == "candidate" and last_index is None:
-            if (
+            if n_tokens >= 8192 and n_tokens % PREFILL_TOKEN_BLOCK != 0:
+                prefill_token_block = PREFILL_TOKEN_BLOCK
+                prefill_masked = True
+            elif (
                 n_tokens >= PREFILL_TOKEN_BLOCK
                 and n_tokens % PREFILL_TOKEN_BLOCK == 0
             ):
@@ -523,11 +580,14 @@ class Harness:
             if use_blocked_prefill
             else PROVIDERS[provider]
         )
-        work_items = (
-            n_tokens // prefill_token_block
-            if use_blocked_prefill
-            else n_tokens
-        )
+        if use_blocked_prefill:
+            work_items = (
+                triton.cdiv(n_tokens, prefill_token_block)
+                if prefill_masked
+                else n_tokens // prefill_token_block
+            )
+        else:
+            work_items = n_tokens
         num_programs = min(
             work_items, self.num_vector_cores * PROGRAMS_PER_VECTOR_CORE
         )
@@ -544,11 +604,13 @@ class Harness:
                     positions,
                     self.cache,
                     work_items,
+                    n_tokens,
                     q_stride,
                     k_stride,
                     HEAD_DIM,
                     ROPE_DIM,
                     prefill_token_block,
+                    prefill_masked,
                     NUM_STAGES,
                     NUM_Q_HEADS,
                 )
