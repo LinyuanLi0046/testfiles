@@ -431,8 +431,8 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
 ):
     half_rope_dim: tl.constexpr = rope_dim // 2
     token_offsets = tl.arange(0, token_block)
-    rope_offsets = tl.arange(0, half_rope_dim)
-    cache_pair_offsets = tl.arange(0, 2)
+    cos_offsets = tl.arange(0, half_rope_dim)
+    sin_offsets = tl.arange(half_rope_dim, rope_dim)
     for block_id in tl.range(
         tl.program_id(0),
         num_token_blocks,
@@ -447,28 +447,38 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
                 mask=token_mask,
                 other=0,
             ).to(tl.int32)
-            cos_sin = tl.load(
+            cos = tl.load(
                 cos_sin_cache_ptr
-                + position_ids[:, None, None] * rope_dim
-                + rope_offsets[None, :, None]
-                + cache_pair_offsets[None, None, :] * half_rope_dim,
-                mask=token_mask[:, None, None],
+                + position_ids[:, None] * rope_dim
+                + cos_offsets[None, :],
+                mask=token_mask[:, None],
                 other=0.0,
                 care_padding=False,
             )
-            cos, sin = tl.split(cos_sin)
+            sin = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + sin_offsets[None, :],
+                mask=token_mask[:, None],
+                other=0.0,
+                care_padding=False,
+            )
         else:
             position_ids = tl.load(
                 position_ptr + token_base + token_offsets
             ).to(tl.int32)
-            cos_sin = tl.load(
+            cos = tl.load(
                 cos_sin_cache_ptr
-                + position_ids[:, None, None] * rope_dim
-                + rope_offsets[None, :, None]
-                + cache_pair_offsets[None, None, :] * half_rope_dim,
+                + position_ids[:, None] * rope_dim
+                + cos_offsets[None, :],
                 care_padding=False,
             )
-            cos, sin = tl.split(cos_sin)
+            sin = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + sin_offsets[None, :],
+                care_padding=False,
+            )
 
         k_data = (
             k_ptr
