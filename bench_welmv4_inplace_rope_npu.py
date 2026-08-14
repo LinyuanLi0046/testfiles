@@ -56,7 +56,7 @@ ATOL = 2.0e-2
 RTOL = 2.0e-2
 IR_CAPTURE_SCRIPT = "capture_welmv4_rope_ir.sh"
 AUTO_OUTPUT_CSV = "welmv4_inplace_rope_npu_all.csv"
-IR_CAPTURE_CASE = "prefill_m8192"
+IR_CAPTURE_CASE = "decode_m128"
 PROFILE_CAPTURE_CASE = "prefill_m16384"
 
 
@@ -242,6 +242,82 @@ def _candidate_apply_tail_rope(
     tl.store(base + half_rope_dim + rope_offsets[None, :], out2, mask=mask)
 
 
+@triton.jit
+def _candidate_apply_shared_token(
+    q_ptr: tl.tensor,
+    k_ptr: tl.tensor,
+    position_ptr: tl.tensor,
+    cos_sin_cache_ptr: tl.tensor,
+    last_index_ptr: tl.tensor,
+    BS: int,
+    token_id: int,
+    q_token_stride: tl.constexpr,
+    k_token_stride: tl.constexpr,
+    head_dim: tl.constexpr,
+    rope_dim: tl.constexpr,
+    num_q_heads: tl.constexpr,
+    num_k_heads: tl.constexpr,
+    num_q_heads_blocked: tl.constexpr,
+    num_k_heads_blocked: tl.constexpr,
+):
+    half_rope_dim: tl.constexpr = rope_dim // 2
+    cos_offsets = tl.arange(0, half_rope_dim)
+    sin_offsets = tl.arange(half_rope_dim, rope_dim)
+    position_id = tl.load(position_ptr + token_id).to(tl.int32)
+    cos = tl.load(
+        cos_sin_cache_ptr + position_id * rope_dim + cos_offsets,
+        care_padding=False,
+    )
+    sin = tl.load(
+        cos_sin_cache_ptr + position_id * rope_dim + sin_offsets,
+        care_padding=False,
+    )
+    q_data = q_ptr + token_id * q_token_stride + head_dim - rope_dim
+    k_data = k_ptr + token_id * k_token_stride + head_dim - rope_dim
+    _candidate_apply_tail_rope(
+        k_data,
+        cos,
+        sin,
+        num_k_heads,
+        num_k_heads_blocked,
+        head_dim,
+        rope_dim,
+    )
+    if last_index_ptr is not None:
+        if token_id < BS:
+            q_position_id = tl.load(last_index_ptr + token_id).to(tl.int32)
+            q_position_id = tl.load(position_ptr + q_position_id).to(
+                tl.int32
+            )
+            q_cos = tl.load(
+                cos_sin_cache_ptr + q_position_id * rope_dim + cos_offsets,
+                care_padding=False,
+            )
+            q_sin = tl.load(
+                cos_sin_cache_ptr + q_position_id * rope_dim + sin_offsets,
+                care_padding=False,
+            )
+            _candidate_apply_tail_rope(
+                q_data,
+                q_cos,
+                q_sin,
+                num_q_heads,
+                num_q_heads_blocked,
+                head_dim,
+                rope_dim,
+            )
+    else:
+        _candidate_apply_tail_rope(
+            q_data,
+            cos,
+            sin,
+            num_q_heads,
+            num_q_heads_blocked,
+            head_dim,
+            rope_dim,
+        )
+
+
 @triton.jit(do_not_specialize=["N", "BS"])
 def _candidate_welmv4_inplace_rope_kernel(
     q_ptr: tl.tensor,
@@ -255,76 +331,51 @@ def _candidate_welmv4_inplace_rope_kernel(
     k_token_stride: tl.constexpr,
     head_dim: tl.constexpr,
     rope_dim: tl.constexpr,
+    decode_direct: tl.constexpr,
     num_stages: tl.constexpr,
     num_q_heads: tl.constexpr,
     num_k_heads: tl.constexpr,
     num_q_heads_blocked: tl.constexpr,
     num_k_heads_blocked: tl.constexpr,
 ):
-    half_rope_dim: tl.constexpr = rope_dim // 2
-    cos_offsets = tl.arange(0, half_rope_dim)
-    sin_offsets = tl.arange(half_rope_dim, rope_dim)
-    for token_id in tl.range(
-        tl.program_id(0), N, tl.num_programs(0), num_stages=num_stages
-    ):
-        position_id = tl.load(position_ptr + token_id).to(tl.int32)
-        cos = tl.load(
-            cos_sin_cache_ptr + position_id * rope_dim + cos_offsets,
-            care_padding=False,
-        )
-        sin = tl.load(
-            cos_sin_cache_ptr + position_id * rope_dim + sin_offsets,
-            care_padding=False,
-        )
-        q_data = q_ptr + token_id * q_token_stride + head_dim - rope_dim
-        k_data = k_ptr + token_id * k_token_stride + head_dim - rope_dim
-        _candidate_apply_tail_rope(
-            k_data,
-            cos,
-            sin,
-            num_k_heads,
-            num_k_heads_blocked,
+    if decode_direct:
+        _candidate_apply_shared_token(
+            q_ptr,
+            k_ptr,
+            position_ptr,
+            cos_sin_cache_ptr,
+            last_index_ptr,
+            BS,
+            tl.program_id(0),
+            q_token_stride,
+            k_token_stride,
             head_dim,
             rope_dim,
+            num_q_heads,
+            num_k_heads,
+            num_q_heads_blocked,
+            num_k_heads_blocked,
         )
-        if last_index_ptr is not None:
-            if token_id < BS:
-                q_position_id = tl.load(last_index_ptr + token_id).to(
-                    tl.int32
-                )
-                q_position_id = tl.load(
-                    position_ptr + q_position_id
-                ).to(tl.int32)
-                q_cos = tl.load(
-                    cos_sin_cache_ptr
-                    + q_position_id * rope_dim
-                    + cos_offsets,
-                    care_padding=False,
-                )
-                q_sin = tl.load(
-                    cos_sin_cache_ptr
-                    + q_position_id * rope_dim
-                    + sin_offsets,
-                    care_padding=False,
-                )
-                _candidate_apply_tail_rope(
-                    q_data,
-                    q_cos,
-                    q_sin,
-                    num_q_heads,
-                    num_q_heads_blocked,
-                    head_dim,
-                    rope_dim,
-                )
-        else:
-            _candidate_apply_tail_rope(
-                q_data,
-                cos,
-                sin,
-                num_q_heads,
-                num_q_heads_blocked,
+    else:
+        for token_id in tl.range(
+            tl.program_id(0), N, tl.num_programs(0), num_stages=num_stages
+        ):
+            _candidate_apply_shared_token(
+                q_ptr,
+                k_ptr,
+                position_ptr,
+                cos_sin_cache_ptr,
+                last_index_ptr,
+                BS,
+                token_id,
+                q_token_stride,
+                k_token_stride,
                 head_dim,
                 rope_dim,
+                num_q_heads,
+                num_k_heads,
+                num_q_heads_blocked,
+                num_k_heads_blocked,
             )
 
 
@@ -660,6 +711,7 @@ class Harness:
         k_stride = int(key.stride(0))
         q_heads_blocked = triton.next_power_of_2(NUM_Q_HEADS)
         k_heads_blocked = triton.next_power_of_2(NUM_K_HEADS)
+        decode_direct = case.phase == "decode"
 
         def launch() -> object:
             if use_blocked_prefill:
@@ -678,6 +730,26 @@ class Harness:
                     prefill_masked,
                     NUM_STAGES,
                     NUM_Q_HEADS,
+                )
+            if provider == "candidate":
+                return kernel[(num_programs,)](
+                    query,
+                    key,
+                    positions,
+                    self.cache,
+                    last_index,
+                    n_tokens,
+                    batch_size,
+                    q_stride,
+                    k_stride,
+                    HEAD_DIM,
+                    ROPE_DIM,
+                    decode_direct,
+                    NUM_STAGES,
+                    NUM_Q_HEADS,
+                    NUM_K_HEADS,
+                    q_heads_blocked,
+                    k_heads_blocked,
                 )
             return kernel[(num_programs,)](
                 query,
