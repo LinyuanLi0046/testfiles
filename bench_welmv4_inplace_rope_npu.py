@@ -47,7 +47,6 @@ NUM_K_HEADS = 1
 MAX_POSITION = 32768
 ROPE_BASE = 100000.0
 NUM_STAGES = 4
-PREFILL_NUM_STAGES = 1
 PROGRAMS_PER_VECTOR_CORE = 8
 PREFILL_TOKEN_BLOCK = 64
 PREFILL_TOKEN_BLOCK_FALLBACK = 32
@@ -676,7 +675,7 @@ class Harness:
                     ROPE_DIM,
                     prefill_token_block,
                     prefill_masked,
-                    PREFILL_NUM_STAGES,
+                    NUM_STAGES,
                     NUM_Q_HEADS,
                 )
             return kernel[(num_programs,)](

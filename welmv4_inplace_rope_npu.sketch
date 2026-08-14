@@ -1,4 +1,4 @@
-# architecture_decision("blocked-prefill-single-stage", reason="Retain the accepted one-program-per-64-token-block, masked tail, and exact Q-head 4+2 organization. Set only ordinary prefill to num_stages=1 because M8192, M9616, and M16384 launch one program per block, so every program executes exactly one loop iteration and has no later block to pipeline. The shared decode/mirror kernel remains at stages=4. Reject unless critical latency improves by more than 3% and IR/precision remain clean.")
+# architecture_decision("blocked-prefill-q-heads-4-plus-2", reason="Restore the accepted stages=4 prefill specialization. Reject stages=1: it produced identical 664-line last-pass IR and identical DMA call counts, left M16384 unchanged near 52.9 us, and regressed M4096-M9616 by about 4-7%. Decode and mirror remain shared and unchanged.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -34,7 +34,7 @@ sketch welmv4_inplace_rope_npu {
     program block_step = num_programs(0)
   }
 
-  pipeline each block_id in range(block_start, N / PREFILL_TOKEN_BLOCK, block_step) stages 1 {
+  pipeline each block_id in range(block_start, N / PREFILL_TOKEN_BLOCK, block_step) stages 4 {
     vector token_ids = block_id * PREFILL_TOKEN_BLOCK + arange(0, PREFILL_TOKEN_BLOCK)
     vector token_mask = token_ids < N when masked
     load pos_i64[64] = positions[token_ids]
@@ -87,4 +87,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode and mirror remain shared and unchanged at stages=4. Ordinary prefill keeps the accepted one-program-per-block grid, 64-token blocking, masked tail, separate cos/sin loads, K 2D DMA, and exact Q 4+2 groups; only its loop stages changes from 4 to 1. Rotation math, pointers, BF16/FP32 behavior, and output stores are unchanged.
+# Layer1 self-check: decode and mirror remain shared and unchanged. Ordinary prefill exactly restores the accepted one-program-per-block grid, 64-token blocking, masked tail, stages=4, separate cos/sin loads, K 2D DMA, and exact Q 4+2 groups. Rotation math, pointers, BF16/FP32 behavior, and output stores are unchanged.
