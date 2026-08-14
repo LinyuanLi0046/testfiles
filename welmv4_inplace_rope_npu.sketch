@@ -1,4 +1,4 @@
-# architecture_decision("int32-addressing-and-fma", reason="Keep decode, normal prefill, and mirror on the shared candidate kernel; remove the rejected dedicated mirror kernel. Normal-path A5 last-pass IR lowers each complex rotation to four vmul plus vadd/vsub. Use the supported tl.fma RoPE pattern in fp32 to replace each add/sub pair with fused multiply-add while preserving loads, stores, grid, and control flow.")
+# architecture_decision("int32-addressing", reason="Keep decode, normal prefill, and mirror on the shared candidate kernel. Retain only int32 casts after loading int64 position and last-index values, so A5 address arithmetic is narrower without changing tensor storage. Reject explicit fp32 tl.fma: A5 last-pass IR did not fuse it, grew from 267 to 381 lines, added vmuls, and regressed large prefill and mirror latency.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -34,14 +34,14 @@ sketch welmv4_inplace_rope_npu {
 
     load k_front = k[token_id, 0:K_HEADS, 0:HALF_ROPE]
     load k_back = k[token_id, 0:K_HEADS, HALF_ROPE:ROPE_DIM]
-    compute rotated_k_front = fma(-fp32(k_back), fp32(sin), fp32(k_front) * fp32(cos))
-    compute rotated_k_back = fma(fp32(k_front), fp32(sin), fp32(k_back) * fp32(cos))
+    compute rotated_k_front = k_front * cos - k_back * sin
+    compute rotated_k_back = k_front * sin + k_back * cos
     store k[token_id, 0:K_HEADS, 0:ROPE_DIM] = concat(rotated_k_front, rotated_k_back)
 
     if last_index is absent {
       load q_front = q[token_id, 0:Q_HEADS, 0:HALF_ROPE]
       load q_back = q[token_id, 0:Q_HEADS, HALF_ROPE:ROPE_DIM]
-      compute and store q rotation using fp32 fma, cos, and sin
+      compute and store q rotation using the shared multiply-add/sub expressions
     } else if token_id < BS {
       load q_token_i64 = last_index[token_id]
       cast q_token = int32(q_token_i64)
@@ -50,9 +50,9 @@ sketch welmv4_inplace_rope_npu {
       load q_cos_sin = cos_sin_cache[q_pos, 0:ROPE_DIM]
       load q_front = q[token_id, 0:Q_HEADS, 0:HALF_ROPE]
       load q_back = q[token_id, 0:Q_HEADS, HALF_ROPE:ROPE_DIM]
-      compute and store q rotation using fp32 fma and q_cos_sin
+      compute and store q rotation using the shared multiply-add/sub expressions and q_cos_sin
     }
   }
 }
 
-# Layer1 self-check: decode, normal prefill, and mirror again share one candidate kernel and the dedicated mirror dispatch is fully removed. Relative to the accepted int32 candidate, only the two shared multiply-plus-add/sub RoPE expressions are expressed as fp32 FMA; pointers, values, masks, destinations, loop, and grid are unchanged.
+# Layer1 self-check: decode, normal prefill, and mirror share one candidate kernel; there is no dedicated mirror kernel. The accepted candidate differs from the frozen baseline only by int32 casts applied after int64 index loads. The rejected explicit-FMA round is recorded in the architecture decision and is not present in executable code.

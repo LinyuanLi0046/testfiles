@@ -232,12 +232,8 @@ def _candidate_apply_tail_rope(
         mask=mask,
         care_padding=False,
     )
-    x1_fp32 = x1.to(tl.float32)
-    x2_fp32 = x2.to(tl.float32)
-    cos_fp32 = cos.to(tl.float32)
-    sin_fp32 = sin.to(tl.float32)
-    out1 = tl.fma(-x2_fp32, sin_fp32, x1_fp32 * cos_fp32)
-    out2 = tl.fma(x1_fp32, sin_fp32, x2_fp32 * cos_fp32)
+    out1 = x1 * cos - x2 * sin
+    out2 = x1 * sin + x2 * cos
     tl.store(base + rope_offsets[None, :], out1, mask=mask)
     tl.store(base + half_rope_dim + rope_offsets[None, :], out2, mask=mask)
 
