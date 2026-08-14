@@ -1,4 +1,4 @@
-# architecture_decision("remove-single-iteration-decode-loop", reason="Measured shared decode is flat at about 31us for every M=1..128, while each decode launch uses grid=N and therefore each program executes exactly one dynamic tl.range iteration. Specialize only on the stable semantic phase decode, not on N or any N-derived value, and directly execute token_id=program_id to remove loop control. Mirror retains the strided loop in the same kernel function; it receives no separate kernel. Capture decode_m128 IR for this round. Ordinary prefill remains frozen exactly.")
+# architecture_decision("freeze-best-prefill-and-stop-decode-optimization", reason="Preserve the accepted best ordinary-prefill kernel exactly and stop decode optimization. Dedicated blocked dispatch requires phase=prefill. Below M=8192 it applies to M>=16 divisible by 16, preferring block64 then block32 then block16; from M>=8192 every M is supported via exact or masked block64. The fixed benchmark's first prefill case is M=128. Decode and mirror remain on their shared kernel and mirror receives no separate kernel. N and num_token_blocks remain runtime do_not_specialize.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -11,7 +11,6 @@ sketch welmv4_inplace_rope_npu {
     ROPE_DIM: constexpr = 64
     HALF_ROPE: constexpr = 32
     PREFILL_TOKEN_BLOCK: constexpr = 64
-    DECODE_DIRECT: constexpr_semantic_phase
   }
 
   tensors {
@@ -23,16 +22,9 @@ sketch welmv4_inplace_rope_npu {
   }
 
   partition shared_decode_and_mirror {
-    when DECODE_DIRECT {
-      grid = N
-      program token_id = program_id(0)
-      execute exactly once without tl.range
-    }
-    otherwise mirror in the same kernel function {
-      grid = min(N, AIV * 8)
-      program token_start = program_id(0)
-      program token_step = num_programs(0)
-    }
+    grid = min(N, AIV * 8)
+    program token_start = program_id(0)
+    program token_step = num_programs(0)
   }
 
   partition ordinary_prefill_blocked {
@@ -67,7 +59,7 @@ sketch welmv4_inplace_rope_npu {
     }
   }
 
-  pipeline direct token_id for decode, otherwise each token_id in range(token_start, N, token_step) stages 4 {
+  pipeline each token_id in range(token_start, N, token_step) stages 4 {
     load pos_i64 = positions[token_id]
     cast pos = int32(pos_i64)
     load cos = cos_sin_cache[pos, 0:HALF_ROPE]
@@ -96,4 +88,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode M=1..128 directly executes one token per program with no tl.range; the stable DECODE_DIRECT semantic flag has one compile for all M and is not derived from N. Mirror uses the loop branch of this same kernel and has no separate kernel. Ordinary prefill remains frozen. N, BS, and num_token_blocks remain runtime do_not_specialize.
+# Layer1 self-check: the accepted best ordinary-prefill implementation is frozen. Its mathematical dispatch minimum is M=16 when divisible by 16, all M>=8192 are supported, and benchmark coverage starts at prefill M=128. Decode and mirror remain on their shared kernel with no mirror-only kernel. N and num_token_blocks stay runtime do_not_specialize.

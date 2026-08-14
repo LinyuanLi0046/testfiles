@@ -65,6 +65,14 @@ The fixed production-local shape is BF16, 6 query heads, 1 KV head,
 - KV mirror: `(N=8192, BS=4)` and `(N=16384, BS=8)`, where Q has only `BS`
   rows while K and positions have `N` rows.
 
+The dedicated blocked kernel is selected only for the candidate's ordinary
+`prefill` phase.  For `M < 8192`, it is selected when `M >= 16` and `M` is a
+multiple of 16 (block64 is preferred, then block32, then block16).  For
+`M >= 8192`, every ordinary-prefill M is supported; a non-multiple of 64 uses
+the masked block64 path.  Decode and KV mirror never select the dedicated
+prefill kernel.  Consequently, the fixed benchmark cases start using it at
+`prefill_m128`, while the dispatcher's mathematical minimum is `M=16`.
+
 The `baseline` kernel is frozen.  Later optimization rounds should edit only
 the clearly marked `candidate` section in
 `bench_welmv4_inplace_rope_npu.py`.  Correctness must pass before performance
