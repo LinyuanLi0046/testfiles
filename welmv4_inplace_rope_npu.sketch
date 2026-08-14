@@ -1,4 +1,4 @@
-# architecture_decision("blocked-prefill-q-heads-4-plus-2", reason="Restore the accepted separate half-tail DMA implementation. Reject full-tail reshape/flip: direct half-axis flip is unsupported, while the two final-axis NeoX identity reaches TTAdapter but BiShengIR cannot propagate UB memory scopes through the expanded/collapsed high-rank memrefs. This confirms that reshape-based full-tail assembly is not viable on the current A5 Triton stack. Decode and mirror remain shared and unchanged.")
+# architecture_decision("loop-free-blocked-prefill", reason="Retain the accepted 64-token, masked-tail, half-tail DMA, and exact Q 4+2 implementation. A5 Level2 profiling at M=16384 reports about 44.6 us device time with scalar 21.5 us/48.4%, MTE2 27.2 us/61.2%, vector 16.4 us/36.9%, and MTE3 only 6.2 us/13.9%. For target shapes the block count is at most 256, below AIV*8=448, so each program already owns exactly one block. Remove the dynamic tl.range, num_token_blocks, num_programs step, and stages argument from this direct specialization. Inputs requiring more than AIV*8 blocks fall back to the shared correct kernel. Reject unless critical latency improves by more than 3%.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -29,12 +29,12 @@ sketch welmv4_inplace_rope_npu {
 
   partition ordinary_prefill_blocked {
     choose PREFILL_TOKEN_BLOCK = 64 masked when N >= 8192 and N % 64 != 0 else 64 when N % 64 == 0 else 32 when N % 32 == 0 else 16 when N % 16 == 0
-    grid = min(ceil_div(N, PREFILL_TOKEN_BLOCK), AIV * 8)
-    program block_start = program_id(0)
-    program block_step = num_programs(0)
+    require ceil_div(N, PREFILL_TOKEN_BLOCK) <= AIV * 8 otherwise shared_kernel_fallback
+    grid = ceil_div(N, PREFILL_TOKEN_BLOCK)
+    program block_id = program_id(0)
   }
 
-  pipeline each block_id in range(block_start, N / PREFILL_TOKEN_BLOCK, block_step) stages 4 {
+  program direct_block_without_loop {
     vector token_ids = block_id * PREFILL_TOKEN_BLOCK + arange(0, PREFILL_TOKEN_BLOCK)
     vector token_mask = token_ids < N when masked
     load pos_i64[64] = positions[token_ids]
@@ -87,4 +87,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode and mirror remain shared and unchanged. Ordinary prefill exactly restores the accepted one-program-per-block grid, 64-token blocking, masked tail, stages=4, separate cos/sin loads, K 2D DMA, and exact Q 4+2 groups. Rotation math, pointers, BF16/FP32 behavior, and output stores are unchanged.
+# Layer1 self-check: decode and mirror remain shared and unchanged. For the direct ordinary-prefill path, grid equals num_token_blocks, so program_id covers every block exactly once and no loop is required. If num_token_blocks exceeds AIV*8 the host selects the shared kernel, preserving correctness for larger inputs. The accepted 64-token blocking, masked tail, separate cache loads, K 2D DMA, Q 4+2 3D DMA, rotation math, and stores are unchanged.

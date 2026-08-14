@@ -413,13 +413,12 @@ def _candidate_apply_token_head_block_rope(
     )
 
 
-@triton.jit(do_not_specialize=["num_token_blocks", "N"])
+@triton.jit(do_not_specialize=["N"])
 def _candidate_welmv4_inplace_rope_prefill_kernel(
     q_ptr: tl.tensor,
     k_ptr: tl.tensor,
     position_ptr: tl.tensor,
     cos_sin_cache_ptr: tl.tensor,
-    num_token_blocks: int,
     N: int,
     q_token_stride: tl.constexpr,
     k_token_stride: tl.constexpr,
@@ -427,125 +426,119 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
     rope_dim: tl.constexpr,
     token_block: tl.constexpr,
     masked: tl.constexpr,
-    num_stages: tl.constexpr,
     num_q_heads: tl.constexpr,
 ):
     half_rope_dim: tl.constexpr = rope_dim // 2
     token_offsets = tl.arange(0, token_block)
     cos_offsets = tl.arange(0, half_rope_dim)
     sin_offsets = tl.arange(half_rope_dim, rope_dim)
-    for block_id in tl.range(
-        tl.program_id(0),
-        num_token_blocks,
-        tl.num_programs(0),
-        num_stages=num_stages,
-    ):
-        token_base = block_id * token_block
-        token_mask = token_base + token_offsets < N
-        if masked:
-            position_ids = tl.load(
-                position_ptr + token_base + token_offsets,
-                mask=token_mask,
-                other=0,
-            ).to(tl.int32)
-            cos = tl.load(
-                cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
-                + cos_offsets[None, :],
-                mask=token_mask[:, None],
-                other=0.0,
-                care_padding=False,
-            )
-            sin = tl.load(
-                cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
-                + sin_offsets[None, :],
-                mask=token_mask[:, None],
-                other=0.0,
-                care_padding=False,
-            )
-        else:
-            position_ids = tl.load(
-                position_ptr + token_base + token_offsets
-            ).to(tl.int32)
-            cos = tl.load(
-                cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
-                + cos_offsets[None, :],
-                care_padding=False,
-            )
-            sin = tl.load(
-                cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
-                + sin_offsets[None, :],
-                care_padding=False,
-            )
-
-        k_data = (
-            k_ptr
-            + token_base * k_token_stride
-            + head_dim
-            - rope_dim
+    block_id = tl.program_id(0)
+    token_base = block_id * token_block
+    token_mask = token_base + token_offsets < N
+    if masked:
+        position_ids = tl.load(
+            position_ptr + token_base + token_offsets,
+            mask=token_mask,
+            other=0,
+        ).to(tl.int32)
+        cos = tl.load(
+            cos_sin_cache_ptr
+            + position_ids[:, None] * rope_dim
+            + cos_offsets[None, :],
+            mask=token_mask[:, None],
+            other=0.0,
+            care_padding=False,
         )
-        _candidate_apply_token_block_rope(
-            k_data,
-            token_offsets,
-            k_token_stride,
-            cos,
-            sin,
-            token_mask,
-            masked,
-            head_dim,
-            rope_dim,
+        sin = tl.load(
+            cos_sin_cache_ptr
+            + position_ids[:, None] * rope_dim
+            + sin_offsets[None, :],
+            mask=token_mask[:, None],
+            other=0.0,
+            care_padding=False,
+        )
+    else:
+        position_ids = tl.load(
+            position_ptr + token_base + token_offsets
+        ).to(tl.int32)
+        cos = tl.load(
+            cos_sin_cache_ptr
+            + position_ids[:, None] * rope_dim
+            + cos_offsets[None, :],
+            care_padding=False,
+        )
+        sin = tl.load(
+            cos_sin_cache_ptr
+            + position_ids[:, None] * rope_dim
+            + sin_offsets[None, :],
+            care_padding=False,
         )
 
-        if masked:
-            for head_id in tl.static_range(0, num_q_heads):
-                q_data = (
-                    q_ptr
-                    + token_base * q_token_stride
-                    + head_id * head_dim
-                    + head_dim
-                    - rope_dim
-                )
-                _candidate_apply_token_block_rope(
-                    q_data,
-                    token_offsets,
-                    q_token_stride,
-                    cos,
-                    sin,
-                    token_mask,
-                    masked,
-                    head_dim,
-                    rope_dim,
-                )
-        else:
+    k_data = (
+        k_ptr
+        + token_base * k_token_stride
+        + head_dim
+        - rope_dim
+    )
+    _candidate_apply_token_block_rope(
+        k_data,
+        token_offsets,
+        k_token_stride,
+        cos,
+        sin,
+        token_mask,
+        masked,
+        head_dim,
+        rope_dim,
+    )
+
+    if masked:
+        for head_id in tl.static_range(0, num_q_heads):
             q_data = (
                 q_ptr
                 + token_base * q_token_stride
+                + head_id * head_dim
                 + head_dim
                 - rope_dim
             )
-            _candidate_apply_token_head_block_rope(
+            _candidate_apply_token_block_rope(
                 q_data,
                 token_offsets,
                 q_token_stride,
                 cos,
                 sin,
-                4,
+                token_mask,
+                masked,
                 head_dim,
                 rope_dim,
             )
-            _candidate_apply_token_head_block_rope(
-                q_data + 4 * head_dim,
-                token_offsets,
-                q_token_stride,
-                cos,
-                sin,
-                2,
-                head_dim,
-                rope_dim,
-            )
+    else:
+        q_data = (
+            q_ptr
+            + token_base * q_token_stride
+            + head_dim
+            - rope_dim
+        )
+        _candidate_apply_token_head_block_rope(
+            q_data,
+            token_offsets,
+            q_token_stride,
+            cos,
+            sin,
+            4,
+            head_dim,
+            rope_dim,
+        )
+        _candidate_apply_token_head_block_rope(
+            q_data + 4 * head_dim,
+            token_offsets,
+            q_token_stride,
+            cos,
+            sin,
+            2,
+            head_dim,
+            rope_dim,
+        )
 
 PROVIDERS = {
     "baseline": _baseline_welmv4_inplace_rope_kernel,
@@ -640,22 +633,24 @@ class Harness:
             ):
                 prefill_token_block = PREFILL_TOKEN_BLOCK_MIN
         use_blocked_prefill = prefill_token_block > 0
-        kernel = (
-            _candidate_welmv4_inplace_rope_prefill_kernel
-            if use_blocked_prefill
-            else PROVIDERS[provider]
-        )
+        max_programs = self.num_vector_cores * PROGRAMS_PER_VECTOR_CORE
         if use_blocked_prefill:
             work_items = (
                 triton.cdiv(n_tokens, prefill_token_block)
                 if prefill_masked
                 else n_tokens // prefill_token_block
             )
+            if work_items > max_programs:
+                use_blocked_prefill = False
+                work_items = n_tokens
         else:
             work_items = n_tokens
-        num_programs = min(
-            work_items, self.num_vector_cores * PROGRAMS_PER_VECTOR_CORE
+        kernel = (
+            _candidate_welmv4_inplace_rope_prefill_kernel
+            if use_blocked_prefill
+            else PROVIDERS[provider]
         )
+        num_programs = min(work_items, max_programs)
         q_stride = int(query.stride(0))
         k_stride = int(key.stride(0))
         q_heads_blocked = triton.next_power_of_2(NUM_Q_HEADS)
@@ -668,7 +663,6 @@ class Harness:
                     key,
                     positions,
                     self.cache,
-                    work_items,
                     n_tokens,
                     q_stride,
                     k_stride,
@@ -676,7 +670,6 @@ class Harness:
                     ROPE_DIM,
                     prefill_token_block,
                     prefill_masked,
-                    NUM_STAGES,
                     NUM_Q_HEADS,
                 )
             return kernel[(num_programs,)](
@@ -1280,10 +1273,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--capture-profile",
         choices=("auto", "on", "off"),
-        default="auto",
+        default="off",
         help=(
-            "capture candidate A5 pipe-utilization profiler summaries; auto "
-            f"enables it only for the standard {AUTO_OUTPUT_CSV} run"
+            "capture candidate A5 pipe-utilization profiler summaries; use on "
+            "for an explicit diagnostic run"
         ),
     )
     parser.add_argument("--output-csv", default="")
