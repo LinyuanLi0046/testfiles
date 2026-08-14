@@ -44,9 +44,9 @@ same CSV.  IR capture errors are diagnostic CSV rows and do not discard valid
 correctness/performance measurements.  Use `--capture-ir off` for a manual
 run that should skip this diagnostic step.
 
-An explicit `--capture-profile on` run profiles the candidate at
-`prefill_m16384` with A5 pipe-utilization counters and stores profiler text
-summaries as gzip+base64 `record_type=profile_artifact` rows.  Profiling
+The next standard run profiles the candidate at `prefill_m16384` with A5
+memory and L2-cache counters and stores profiler text summaries as gzip+base64
+`record_type=profile_artifact` rows. Profiling
 failures remain diagnostic rows and do not discard valid benchmark results.
 
 Use `BENCH_PYTHON=/path/to/python` to select a different interpreter.  Use

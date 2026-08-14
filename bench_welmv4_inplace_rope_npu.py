@@ -1111,14 +1111,14 @@ def capture_ir_records(
 
 
 def capture_profile_records(harness: Harness) -> list[dict[str, object]]:
-    """Capture A5 pipe-utilization profiler CSVs for one accepted prefill case."""
+    """Capture A5 memory and L2 profiler CSVs for one accepted prefill case."""
     case = next(item for item in ALL_CASES if item.name == PROFILE_CAPTURE_CASE)
     common = {
         **harness.metadata(),
         **case_fields(case),
         "record_type": "profile_artifact",
         "variant": "candidate",
-        "scope": "npu_pipe_profile",
+        "scope": "npu_memory_l2_profile",
     }
     query, key, positions, last_index = make_inputs(
         case, harness.device, harness.seed
@@ -1129,13 +1129,13 @@ def capture_profile_records(harness: Harness) -> list[dict[str, object]]:
     torch_npu.npu.synchronize()
 
     with tempfile.TemporaryDirectory(prefix="welmv4_rope_profile_") as output_dir:
-        print(f"\nCapturing NPU pipe profile: {case.name} -> {output_dir}")
+        print(f"\nCapturing NPU memory/L2 profile: {case.name} -> {output_dir}")
         try:
             experimental_config = torch_npu.profiler._ExperimentalConfig(
                 export_type=[torch_npu.profiler.ExportType.Text],
-                aic_metrics=torch_npu.profiler.AiCMetrics.PipeUtilization,
+                aic_metrics=torch_npu.profiler.AiCMetrics.Memory,
                 profiler_level=torch_npu.profiler.ProfilerLevel.Level2,
-                l2_cache=False,
+                l2_cache=True,
                 data_simplification=False,
             )
             with torch_npu.profiler.profile(
@@ -1169,7 +1169,11 @@ def capture_profile_records(harness: Harness) -> list[dict[str, object]]:
             path
             for path in Path(output_dir).rglob("*")
             if path.is_file()
-            and (path.name in wanted_names or path.name.startswith("profiler_info"))
+            and (
+                path.name in wanted_names
+                or path.name.startswith("l2_cache")
+                or path.name.startswith("profiler_info")
+            )
             and path.stat().st_size <= 10_000_000
         )
         if not files:
@@ -1280,10 +1284,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--capture-profile",
         choices=("auto", "on", "off"),
-        default="off",
+        default="auto",
         help=(
-            "capture candidate A5 pipe-utilization profiler summaries; use on "
-            "for an explicit diagnostic run"
+            "capture candidate A5 memory/L2 profiler summaries; auto enables "
+            f"it only for the standard {AUTO_OUTPUT_CSV} run"
         ),
     )
     parser.add_argument("--output-csv", default="")
