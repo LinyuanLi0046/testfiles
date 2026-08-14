@@ -1,4 +1,4 @@
-# architecture_decision("int32-position-addressing", reason="All tested grid, load-order, token-vectorization, discrete-memory hint, decode-kernel, and pipeline-depth variants were rejected by Ascend950 measurement. Retain only the measured-safe narrowing of loaded positions/last_index to int32 before address arithmetic, which avoids i64 scalar lowering while preserving the original 2D kernel.")
+# architecture_decision("int32-position-addressing-and-contiguous-store", reason="Retain the measured-safe int32 position addressing. A5 last-pass IR shows four UB-to-GM calls and intervening MTE3 barriers per normal-path token because each RoPE half is stored separately. Join and transpose out1/out2 in UB, then store one contiguous 64-element tail per Q/K head block; loads, arithmetic, grid, loop, and masks remain unchanged.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -41,7 +41,8 @@ sketch welmv4_inplace_rope_npu {
     if last_index is absent {
       load q_front = q[token_id, 0:Q_HEADS, 0:HALF_ROPE]
       load q_back = q[token_id, 0:Q_HEADS, HALF_ROPE:ROPE_DIM]
-      compute and store q rotation using cos and sin
+      compute q_front_out and q_back_out using cos and sin
+      store q[token_id, 0:Q_HEADS, 0:ROPE_DIM] = concat(q_front_out, q_back_out)
     } else if token_id < BS {
       load q_token_i64 = last_index[token_id]
       cast q_token = int32(q_token_i64)
@@ -51,9 +52,10 @@ sketch welmv4_inplace_rope_npu {
       load q_front = q[token_id, 0:Q_HEADS, 0:HALF_ROPE]
       load q_back = q[token_id, 0:Q_HEADS, HALF_ROPE:ROPE_DIM]
       load q[token_id, 0:Q_HEADS, 0:ROPE_DIM]
-      compute and store q rotation using q_cos_sin
+      compute q_front_out and q_back_out using q_cos_sin
+      store q[token_id, 0:Q_HEADS, 0:ROPE_DIM] = concat(q_front_out, q_back_out)
     }
   }
 }
 
-# Layer1 self-check: every rejected experiment is fully removed. The only executable delta from the frozen baseline candidate is narrowing three loaded int64 indices to int32 before pointer arithmetic; decode 1..64, prefill, mirror, math, grid, loop, masks, and in-place regions otherwise remain identical.
+# Layer1 self-check: every rejected experiment remains removed. Relative to the accepted int32 candidate, only the two adjacent stores inside the shared Q/K helper are joined into one contiguous store; numerical expressions, loaded values, destination elements, grid, loop, masks, and in-place regions are unchanged.
