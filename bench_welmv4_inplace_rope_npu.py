@@ -57,6 +57,7 @@ RTOL = 2.0e-2
 IR_CAPTURE_SCRIPT = "capture_welmv4_rope_ir.sh"
 AUTO_OUTPUT_CSV = "welmv4_inplace_rope_npu_all.csv"
 IR_CAPTURE_CASE = "prefill_m8192"
+PROFILE_CAPTURE_CASE = "prefill_m16384"
 
 
 @dataclass(frozen=True)
@@ -1109,6 +1110,110 @@ def capture_ir_records(
         return records
 
 
+def capture_profile_records(harness: Harness) -> list[dict[str, object]]:
+    """Capture A5 pipe-utilization profiler CSVs for one accepted prefill case."""
+    case = next(item for item in ALL_CASES if item.name == PROFILE_CAPTURE_CASE)
+    common = {
+        **harness.metadata(),
+        **case_fields(case),
+        "record_type": "profile_artifact",
+        "variant": "candidate",
+        "scope": "npu_pipe_profile",
+    }
+    query, key, positions, last_index = make_inputs(
+        case, harness.device, harness.seed
+    )
+    launch = harness.bind("candidate", query, key, positions, last_index)
+    for _ in range(5):
+        launch()
+    torch_npu.npu.synchronize()
+
+    with tempfile.TemporaryDirectory(prefix="welmv4_rope_profile_") as output_dir:
+        print(f"\nCapturing NPU pipe profile: {case.name} -> {output_dir}")
+        try:
+            experimental_config = torch_npu.profiler._ExperimentalConfig(
+                export_type=[torch_npu.profiler.ExportType.Text],
+                aic_metrics=torch_npu.profiler.AiCMetrics.PipeUtilization,
+                profiler_level=torch_npu.profiler.ProfilerLevel.Level2,
+                l2_cache=False,
+                data_simplification=False,
+            )
+            with torch_npu.profiler.profile(
+                activities=[
+                    torch_npu.profiler.ProfilerActivity.CPU,
+                    torch_npu.profiler.ProfilerActivity.NPU,
+                ],
+                on_trace_ready=torch_npu.profiler.tensorboard_trace_handler(
+                    output_dir
+                ),
+                record_shapes=False,
+                profile_memory=False,
+                with_stack=False,
+                with_flops=False,
+                with_modules=False,
+                experimental_config=experimental_config,
+            ):
+                for _ in range(3):
+                    launch()
+                torch_npu.npu.synchronize()
+        except Exception as exc:
+            return [{**common, "status": "ERROR", "capture_log": repr(exc)}]
+
+        wanted_names = {
+            "kernel_details.csv",
+            "operator_details.csv",
+            "op_statistic.csv",
+            "step_trace_time.csv",
+        }
+        files = sorted(
+            path
+            for path in Path(output_dir).rglob("*")
+            if path.is_file()
+            and (path.name in wanted_names or path.name.startswith("profiler_info"))
+            and path.stat().st_size <= 10_000_000
+        )
+        if not files:
+            discovered = sorted(
+                str(path.relative_to(output_dir))
+                for path in Path(output_dir).rglob("*")
+                if path.is_file()
+            )
+            return [
+                {
+                    **common,
+                    "status": "ERROR",
+                    "capture_log": "no profiler summary files; discovered="
+                    + repr(discovered[:100]),
+                }
+            ]
+
+        records: list[dict[str, object]] = []
+        for path in files:
+            content = path.read_bytes()
+            records.append(
+                {
+                    **common,
+                    "status": "CAPTURED",
+                    "artifact_name": str(path.relative_to(output_dir)).replace(
+                        os.sep, "/"
+                    ),
+                    "artifact_encoding": "gzip+base64",
+                    "artifact_size_bytes": len(content),
+                    "artifact_sha256": hashlib.sha256(content).hexdigest(),
+                    "artifact_content": base64.b64encode(
+                        gzip.compress(content, compresslevel=9)
+                    ).decode("ascii"),
+                }
+            )
+        print(
+            "Captured NPU profile: "
+            + ", ".join(
+                f"{path.name} ({path.stat().st_size} B)" for path in files
+            )
+        )
+        return records
+
+
 def write_csv(path_text: str, records: Sequence[dict[str, object]]) -> None:
     if not path_text:
         return
@@ -1170,6 +1275,15 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "capture candidate compiler IR; auto enables it only for the "
             f"standard {AUTO_OUTPUT_CSV} run"
+        ),
+    )
+    parser.add_argument(
+        "--capture-profile",
+        choices=("auto", "on", "off"),
+        default="auto",
+        help=(
+            "capture candidate A5 pipe-utilization profiler summaries; auto "
+            f"enables it only for the standard {AUTO_OUTPUT_CSV} run"
         ),
     )
     parser.add_argument("--output-csv", default="")
@@ -1235,6 +1349,15 @@ def main() -> int:
     )
     if failures == 0 and capture_ir:
         records.extend(capture_ir_records(harness, str(device)))
+
+    capture_profile = args.capture_profile == "on" or (
+        args.capture_profile == "auto"
+        and Path(args.output_csv).name == AUTO_OUTPUT_CSV
+        and args.mode == "both"
+        and args.cases.strip().lower() in ("all", "common")
+    )
+    if failures == 0 and capture_profile:
+        records.extend(capture_profile_records(harness))
 
     write_csv(args.output_csv, records)
     return 1 if failures else 0
