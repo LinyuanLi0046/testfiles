@@ -1,4 +1,4 @@
-# architecture_decision("blocked-prefill-q-heads-4-plus-2", reason="Retain the accepted 64-token, masked-tail, and exact Q-head 4+2 kernels. Reject the M>=16384 cap of 128 programs: two blocks per program increased latency from about 52.9 us to 61.8 us, so lost parallelism outweighed loop pipelining. Restore one program per 64-token block. Continue with IR-level cache-load aggregation; decode and mirror remain shared and unchanged.")
+# architecture_decision("blocked-prefill-paired-cache-load", reason="Retain the accepted 64-token, masked-tail, exact Q-head 4+2 kernels, and one-program-per-block grid. Merge the separate [TOKEN_BLOCK,32] cos and sin cache reads into one logical [TOKEN_BLOCK,32,2] read followed by a compile-time split. The cache rows are physically [cos32,sin32], so this preserves addresses while giving the compiler one load transaction to lower. Reject unless critical latency improves by more than 3% and IR does not materialize a UB copy. Decode and mirror remain shared and unchanged.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -39,8 +39,8 @@ sketch welmv4_inplace_rope_npu {
     vector token_mask = token_ids < N when masked
     load pos_i64[64] = positions[token_ids]
     cast pos[64] = int32(pos_i64)
-    load cos[64,32] = cos_sin_cache[pos, 0:HALF_ROPE]
-    load sin[64,32] = cos_sin_cache[pos, HALF_ROPE:ROPE_DIM]
+    load cos_sin[64,32,2] = cos_sin_cache[pos, rope_lane + pair * HALF_ROPE]
+    split cos[64,32], sin[64,32] = cos_sin along pair axis
 
     for K head 0 and each Q head separately when masked {
       load front[64,32] using 2D token-strided DMA and token_mask when masked
@@ -87,4 +87,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode and mirror remain shared and unchanged. Ordinary prefill restores the accepted one-program-per-block grid at M<=16384. Kernel math, token/head blocks, masks, pointers, stores, stages=4, BF16/FP32 behavior, and exact 4+2 Q groups are unchanged. The rejected 128-program cap is absent.
+# Layer1 self-check: decode and mirror remain shared and unchanged. Ordinary prefill keeps the accepted one-program-per-block grid, 64-token blocking, masked tail, stages=4, and exact 4+2 Q groups. The paired cache pointer enumerates exactly offsets 0:32 and 32:64 for each position; tl.split only removes the size-2 logical axis. Rotation math, BF16/FP32 behavior, and output stores are unchanged.
