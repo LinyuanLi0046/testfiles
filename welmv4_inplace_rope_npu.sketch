@@ -1,4 +1,4 @@
-# architecture_decision("int32-position-addressing", reason="Ascend950 is register-based for reductions but i64 arithmetic still lowers to scalar operations. positions and last_index arrive as int64, yet every benchmarked position is below 32768 and every token index below 16384; cast loaded indices to int32 before pointer addition/multiplication while preserving the original proven 2D head-by-rope tile.")
+# architecture_decision("independent-data-load-first", reason="Keep the measured int32 position addressing. Within each token iteration, Q/K tail addresses do not depend on positions or the cache lookup, so issue their GM loads before the serial position->cos/sin chain. Ascend's compiler preserves user load order; the earlier loads can overlap the prior iteration's stores and the indirect cache latency without changing the 2D tile.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -27,22 +27,27 @@ sketch welmv4_inplace_rope_npu {
   }
 
   pipeline each token_id in range(token_start, N, token_step) {
+    load k_front = k[token_id, 0:K_HEADS, 0:HALF_ROPE]
+    load k_back = k[token_id, 0:K_HEADS, HALF_ROPE:ROPE_DIM]
+    if last_index is absent {
+      load q_front = q[token_id, 0:Q_HEADS, 0:HALF_ROPE]
+      load q_back = q[token_id, 0:Q_HEADS, HALF_ROPE:ROPE_DIM]
+    }
+
     load pos_i64 = positions[token_id]
     cast pos = int32(pos_i64)
     load cos = cos_sin_cache[pos, 0:HALF_ROPE]
     load sin = cos_sin_cache[pos, HALF_ROPE:ROPE_DIM]
 
-    load k_front = k[token_id, 0:K_HEADS, 0:HALF_ROPE]
-    load k_back = k[token_id, 0:K_HEADS, HALF_ROPE:ROPE_DIM]
     compute rotated_k_front = k_front * cos - k_back * sin
     compute rotated_k_back = k_back * cos + k_front * sin
     store k[token_id, 0:K_HEADS, 0:ROPE_DIM] = concat(rotated_k_front, rotated_k_back)
 
     if last_index is absent {
-      load q_front = q[token_id, 0:Q_HEADS, 0:HALF_ROPE]
-      load q_back = q[token_id, 0:Q_HEADS, HALF_ROPE:ROPE_DIM]
       compute and store q rotation using cos and sin
     } else if token_id < BS {
+      load q_front = q[token_id, 0:Q_HEADS, 0:HALF_ROPE]
+      load q_back = q[token_id, 0:Q_HEADS, HALF_ROPE:ROPE_DIM]
       load q_token_i64 = last_index[token_id]
       cast q_token = int32(q_token_i64)
       load q_pos_i64 = positions[q_token]
@@ -54,4 +59,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: failed #3/#4/#5 changes are fully removed. The only executable delta from the frozen candidate is narrowing loaded position/last_index values from i64 to i32 before address arithmetic; the benchmark bounds prove this exact. Decode M=1..64, all prefill, and mirror semantics are unchanged; Q/K writes remain disjoint and the 2D head-by-rope vector tile is preserved.
+# Layer1 self-check: the accepted i32 address narrowing remains. This round only splits the existing tail helper into load/store stages and moves independent Q/K loads before their position/cache dependency chain; arithmetic, masks, grid, data shape, decode M=1..64 coverage, mirror semantics, and write order are unchanged.

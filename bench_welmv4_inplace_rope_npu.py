@@ -201,10 +201,8 @@ def _baseline_welmv4_inplace_rope_kernel(
 
 
 @triton.jit
-def _candidate_apply_tail_rope(
+def _candidate_load_tail_rope(
     data_ptr: tl.tensor,
-    cos: tl.tensor,
-    sin: tl.tensor,
     num_heads: tl.constexpr,
     num_heads_blocked: tl.constexpr,
     head_dim: tl.constexpr,
@@ -223,6 +221,26 @@ def _candidate_apply_tail_rope(
         mask=mask,
         care_padding=False,
     )
+    return x1, x2
+
+
+@triton.jit
+def _candidate_store_tail_rope(
+    data_ptr: tl.tensor,
+    x1: tl.tensor,
+    x2: tl.tensor,
+    cos: tl.tensor,
+    sin: tl.tensor,
+    num_heads: tl.constexpr,
+    num_heads_blocked: tl.constexpr,
+    head_dim: tl.constexpr,
+    rope_dim: tl.constexpr,
+):
+    half_rope_dim: tl.constexpr = rope_dim // 2
+    head_offsets = tl.arange(0, num_heads_blocked)
+    rope_offsets = tl.arange(0, half_rope_dim)
+    mask = head_offsets[:, None] < num_heads
+    base = data_ptr + head_offsets[:, None] * head_dim
     out1 = x1 * cos - x2 * sin
     out2 = x1 * sin + x2 * cos
     tl.store(base + rope_offsets[None, :], out1, mask=mask)
@@ -254,6 +272,23 @@ def _candidate_welmv4_inplace_rope_kernel(
     for token_id in tl.range(
         tl.program_id(0), N, tl.num_programs(0), num_stages=num_stages
     ):
+        q_data = q_ptr + token_id * q_token_stride + head_dim - rope_dim
+        k_data = k_ptr + token_id * k_token_stride + head_dim - rope_dim
+        k_x1, k_x2 = _candidate_load_tail_rope(
+            k_data,
+            num_k_heads,
+            num_k_heads_blocked,
+            head_dim,
+            rope_dim,
+        )
+        if last_index_ptr is None:
+            q_x1, q_x2 = _candidate_load_tail_rope(
+                q_data,
+                num_q_heads,
+                num_q_heads_blocked,
+                head_dim,
+                rope_dim,
+            )
         position_id = tl.load(position_ptr + token_id).to(tl.int32)
         cos = tl.load(
             cos_sin_cache_ptr + position_id * rope_dim + cos_offsets,
@@ -263,10 +298,10 @@ def _candidate_welmv4_inplace_rope_kernel(
             cos_sin_cache_ptr + position_id * rope_dim + sin_offsets,
             care_padding=False,
         )
-        q_data = q_ptr + token_id * q_token_stride + head_dim - rope_dim
-        k_data = k_ptr + token_id * k_token_stride + head_dim - rope_dim
-        _candidate_apply_tail_rope(
+        _candidate_store_tail_rope(
             k_data,
+            k_x1,
+            k_x2,
             cos,
             sin,
             num_k_heads,
@@ -276,6 +311,13 @@ def _candidate_welmv4_inplace_rope_kernel(
         )
         if last_index_ptr is not None:
             if token_id < BS:
+                q_x1, q_x2 = _candidate_load_tail_rope(
+                    q_data,
+                    num_q_heads,
+                    num_q_heads_blocked,
+                    head_dim,
+                    rope_dim,
+                )
                 q_position_id = tl.load(last_index_ptr + token_id).to(
                     tl.int32
                 )
@@ -294,8 +336,10 @@ def _candidate_welmv4_inplace_rope_kernel(
                     + sin_offsets,
                     care_padding=False,
                 )
-                _candidate_apply_tail_rope(
+                _candidate_store_tail_rope(
                     q_data,
+                    q_x1,
+                    q_x2,
                     q_cos,
                     q_sin,
                     num_q_heads,
@@ -304,8 +348,10 @@ def _candidate_welmv4_inplace_rope_kernel(
                     rope_dim,
                 )
         else:
-            _candidate_apply_tail_rope(
+            _candidate_store_tail_rope(
                 q_data,
+                q_x1,
+                q_x2,
                 cos,
                 sin,
                 num_q_heads,
