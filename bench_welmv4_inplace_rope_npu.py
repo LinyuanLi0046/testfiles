@@ -487,18 +487,18 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
             + head_dim
             - rope_dim
         )
+        _candidate_apply_token_block_rope(
+            k_data,
+            token_offsets,
+            k_token_stride,
+            cos,
+            sin,
+            token_mask,
+            masked,
+            head_dim,
+            rope_dim,
+        )
         if masked:
-            _candidate_apply_token_block_rope(
-                k_data,
-                token_offsets,
-                k_token_stride,
-                cos,
-                sin,
-                token_mask,
-                masked,
-                head_dim,
-                rope_dim,
-            )
             for head_id in tl.static_range(0, num_q_heads):
                 q_data = (
                     q_ptr
@@ -525,80 +525,25 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
                 + head_dim
                 - rope_dim
             )
-            rope_offsets = tl.arange(0, half_rope_dim)
-
-            k_base = k_data + token_offsets[:, None] * k_token_stride
-            k_x1 = tl.load(
-                k_base + rope_offsets[None, :], care_padding=False
+            _candidate_apply_token_head_block_rope(
+                q_data,
+                token_offsets,
+                q_token_stride,
+                cos,
+                sin,
+                4,
+                head_dim,
+                rope_dim,
             )
-            k_x2 = tl.load(
-                k_base + half_rope_dim + rope_offsets[None, :],
-                care_padding=False,
-            )
-            k_out1 = k_x1 * cos - k_x2 * sin
-            k_out2 = k_x1 * sin + k_x2 * cos
-
-            q4_head_offsets = tl.arange(0, 4)
-            q4_base = (
-                q_data
-                + token_offsets[:, None, None] * q_token_stride
-                + q4_head_offsets[None, :, None] * head_dim
-            )
-            q4_x1 = tl.load(
-                q4_base + rope_offsets[None, None, :],
-                care_padding=False,
-            )
-            q4_x2 = tl.load(
-                q4_base
-                + half_rope_dim
-                + rope_offsets[None, None, :],
-                care_padding=False,
-            )
-            q4_cos = cos[:, None, :]
-            q4_sin = sin[:, None, :]
-            q4_out1 = q4_x1 * q4_cos - q4_x2 * q4_sin
-            q4_out2 = q4_x1 * q4_sin + q4_x2 * q4_cos
-
-            q2_head_offsets = tl.arange(0, 2)
-            q2_base = (
-                q_data
-                + 4 * head_dim
-                + token_offsets[:, None, None] * q_token_stride
-                + q2_head_offsets[None, :, None] * head_dim
-            )
-            q2_x1 = tl.load(
-                q2_base + rope_offsets[None, None, :],
-                care_padding=False,
-            )
-
-            tl.store(k_base + rope_offsets[None, :], k_out1)
-            tl.store(
-                k_base + half_rope_dim + rope_offsets[None, :], k_out2
-            )
-            tl.store(q4_base + rope_offsets[None, None, :], q4_out1)
-            tl.store(
-                q4_base
-                + half_rope_dim
-                + rope_offsets[None, None, :],
-                q4_out2,
-            )
-
-            q2_x2 = tl.load(
-                q2_base
-                + half_rope_dim
-                + rope_offsets[None, None, :],
-                care_padding=False,
-            )
-            q2_cos = cos[:, None, :]
-            q2_sin = sin[:, None, :]
-            q2_out1 = q2_x1 * q2_cos - q2_x2 * q2_sin
-            q2_out2 = q2_x1 * q2_sin + q2_x2 * q2_cos
-            tl.store(q2_base + rope_offsets[None, None, :], q2_out1)
-            tl.store(
-                q2_base
-                + half_rope_dim
-                + rope_offsets[None, None, :],
-                q2_out2,
+            _candidate_apply_token_head_block_rope(
+                q_data + 4 * head_dim,
+                token_offsets,
+                q_token_stride,
+                cos,
+                sin,
+                2,
+                head_dim,
+                rope_dim,
             )
 
 PROVIDERS = {
