@@ -1,4 +1,4 @@
-# architecture_decision("dedicated-hoisted-mirror-kernel", reason="Keep the accepted combined candidate unchanged for normal/decode. Host-select a dedicated mirror kernel whose K loop is pure and whose first BS programs rotate Q after the loop. This isolates normal compilation while removing the mirror IR's per-K-token Q branch and q_stride multiplication.")
+# architecture_decision("int32-addressing-and-fma", reason="Keep decode, normal prefill, and mirror on the shared candidate kernel; remove the rejected dedicated mirror kernel. Normal-path A5 last-pass IR lowers each complex rotation to four vmul plus vadd/vsub. Use the supported tl.fma RoPE pattern in fp32 to replace each add/sub pair with fused multiply-add while preserving loads, stores, grid, and control flow.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -34,28 +34,25 @@ sketch welmv4_inplace_rope_npu {
 
     load k_front = k[token_id, 0:K_HEADS, 0:HALF_ROPE]
     load k_back = k[token_id, 0:K_HEADS, HALF_ROPE:ROPE_DIM]
-    compute rotated_k_front = k_front * cos - k_back * sin
-    compute rotated_k_back = k_back * cos + k_front * sin
+    compute rotated_k_front = fma(-fp32(k_back), fp32(sin), fp32(k_front) * fp32(cos))
+    compute rotated_k_back = fma(fp32(k_front), fp32(sin), fp32(k_back) * fp32(cos))
     store k[token_id, 0:K_HEADS, 0:ROPE_DIM] = concat(rotated_k_front, rotated_k_back)
 
     if last_index is absent {
       load q_front = q[token_id, 0:Q_HEADS, 0:HALF_ROPE]
       load q_back = q[token_id, 0:Q_HEADS, HALF_ROPE:ROPE_DIM]
-      compute and store q rotation using cos and sin
-    }
-  }
-
-  if last_index is present and program_id < BS {
-      q_row = program_id
-      load selected_k_token_i64 = last_index[q_row]
-      cast selected_k_token = int32(selected_k_token_i64)
-      load q_pos_i64 = positions[selected_k_token]
+      compute and store q rotation using fp32 fma, cos, and sin
+    } else if token_id < BS {
+      load q_token_i64 = last_index[token_id]
+      cast q_token = int32(q_token_i64)
+      load q_pos_i64 = positions[q_token]
       cast q_pos = int32(q_pos_i64)
       load q_cos_sin = cos_sin_cache[q_pos, 0:ROPE_DIM]
-      load q_front = q[q_row, 0:Q_HEADS, 0:HALF_ROPE]
-      load q_back = q[q_row, 0:Q_HEADS, HALF_ROPE:ROPE_DIM]
-      compute and store q rotation using q_cos_sin
+      load q_front = q[token_id, 0:Q_HEADS, 0:HALF_ROPE]
+      load q_back = q[token_id, 0:Q_HEADS, HALF_ROPE:ROPE_DIM]
+      compute and store q rotation using fp32 fma and q_cos_sin
+    }
   }
 }
 
-# Layer1 self-check: the normal/decode candidate function is restored byte-for-byte to the accepted int32 implementation. Only host dispatch for last_index-present inputs selects the dedicated mirror kernel. It rotates every K token and exactly Q rows 0:BS using identical last_index-selected positions, relying on tested mirror cases where grid >= BS.
+# Layer1 self-check: decode, normal prefill, and mirror again share one candidate kernel and the dedicated mirror dispatch is fully removed. Relative to the accepted int32 candidate, only the two shared multiply-plus-add/sub RoPE expressions are expressed as fp32 FMA; pointers, values, masks, destinations, loop, and grid are unchanged.

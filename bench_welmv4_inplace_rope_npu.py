@@ -53,7 +53,7 @@ ATOL = 2.0e-2
 RTOL = 2.0e-2
 IR_CAPTURE_SCRIPT = "capture_welmv4_rope_ir.sh"
 AUTO_OUTPUT_CSV = "welmv4_inplace_rope_npu_all.csv"
-IR_CAPTURE_CASE = "mirror_m8192_bs4"
+IR_CAPTURE_CASE = "prefill_m8192"
 
 
 @dataclass(frozen=True)
@@ -232,8 +232,12 @@ def _candidate_apply_tail_rope(
         mask=mask,
         care_padding=False,
     )
-    out1 = x1 * cos - x2 * sin
-    out2 = x1 * sin + x2 * cos
+    x1_fp32 = x1.to(tl.float32)
+    x2_fp32 = x2.to(tl.float32)
+    cos_fp32 = cos.to(tl.float32)
+    sin_fp32 = sin.to(tl.float32)
+    out1 = tl.fma(-x2_fp32, sin_fp32, x1_fp32 * cos_fp32)
+    out2 = tl.fma(x1_fp32, sin_fp32, x2_fp32 * cos_fp32)
     tl.store(base + rope_offsets[None, :], out1, mask=mask)
     tl.store(base + half_rope_dim + rope_offsets[None, :], out2, mask=mask)
 
@@ -323,76 +327,6 @@ def _candidate_welmv4_inplace_rope_kernel(
                 rope_dim,
             )
 
-
-@triton.jit(do_not_specialize=["N", "BS"])
-def _candidate_welmv4_inplace_rope_mirror_kernel(
-    q_ptr: tl.tensor,
-    k_ptr: tl.tensor,
-    position_ptr: tl.tensor,
-    cos_sin_cache_ptr: tl.tensor,
-    last_index_ptr: tl.tensor,
-    N: int,
-    BS: int,
-    q_token_stride: tl.constexpr,
-    k_token_stride: tl.constexpr,
-    head_dim: tl.constexpr,
-    rope_dim: tl.constexpr,
-    num_stages: tl.constexpr,
-    num_q_heads: tl.constexpr,
-    num_k_heads: tl.constexpr,
-    num_q_heads_blocked: tl.constexpr,
-    num_k_heads_blocked: tl.constexpr,
-):
-    half_rope_dim: tl.constexpr = rope_dim // 2
-    cos_offsets = tl.arange(0, half_rope_dim)
-    sin_offsets = tl.arange(half_rope_dim, rope_dim)
-    for token_id in tl.range(
-        tl.program_id(0), N, tl.num_programs(0), num_stages=num_stages
-    ):
-        position_id = tl.load(position_ptr + token_id).to(tl.int32)
-        cos = tl.load(
-            cos_sin_cache_ptr + position_id * rope_dim + cos_offsets,
-            care_padding=False,
-        )
-        sin = tl.load(
-            cos_sin_cache_ptr + position_id * rope_dim + sin_offsets,
-            care_padding=False,
-        )
-        k_data = k_ptr + token_id * k_token_stride + head_dim - rope_dim
-        _candidate_apply_tail_rope(
-            k_data,
-            cos,
-            sin,
-            num_k_heads,
-            num_k_heads_blocked,
-            head_dim,
-            rope_dim,
-        )
-
-    q_token_id = tl.program_id(0)
-    if q_token_id < BS:
-        q_position_id = tl.load(last_index_ptr + q_token_id).to(tl.int32)
-        q_position_id = tl.load(position_ptr + q_position_id).to(tl.int32)
-        q_cos = tl.load(
-            cos_sin_cache_ptr + q_position_id * rope_dim + cos_offsets,
-            care_padding=False,
-        )
-        q_sin = tl.load(
-            cos_sin_cache_ptr + q_position_id * rope_dim + sin_offsets,
-            care_padding=False,
-        )
-        q_data = q_ptr + q_token_id * q_token_stride + head_dim - rope_dim
-        _candidate_apply_tail_rope(
-            q_data,
-            q_cos,
-            q_sin,
-            num_q_heads,
-            num_q_heads_blocked,
-            head_dim,
-            rope_dim,
-        )
-
-
 PROVIDERS = {
     "baseline": _baseline_welmv4_inplace_rope_kernel,
     "candidate": _candidate_welmv4_inplace_rope_kernel,
@@ -463,8 +397,6 @@ class Harness:
         last_index: torch.Tensor | None,
     ) -> Callable[[], object]:
         kernel = PROVIDERS[provider]
-        if provider == "candidate" and last_index is not None:
-            kernel = _candidate_welmv4_inplace_rope_mirror_kernel
         n_tokens = int(positions.shape[0])
         batch_size = int(last_index.numel()) if last_index is not None else 0
         num_programs = min(
