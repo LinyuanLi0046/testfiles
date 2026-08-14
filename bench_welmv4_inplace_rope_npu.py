@@ -59,27 +59,7 @@ IR_CAPTURE_SCRIPT = "capture_welmv4_rope_ir.sh"
 AUTO_OUTPUT_CSV = "welmv4_inplace_rope_npu_all.csv"
 IR_CAPTURE_CASE = "prefill_m8192"
 PROFILE_CAPTURE_CASE = "prefill_m16384"
-MSPROF_OP_CASES = (
-    "prefill_m128",
-    "prefill_m256",
-    "prefill_m448",
-    "prefill_m449",
-    "prefill_m512",
-    "prefill_m640",
-    "prefill_m641",
-    "prefill_m768",
-    "prefill_m769",
-    "prefill_m896",
-    "prefill_m897",
-    "prefill_m960",
-    "prefill_m961",
-    "prefill_m1024",
-    "prefill_m1025",
-    "prefill_m1152",
-    "prefill_m1153",
-    "prefill_m1280",
-    "prefill_m1281",
-)
+MSPROF_OP_CASES = ("prefill_m576", "prefill_m577")
 MSPROF_OP_WARMUP = 10
 MSPROF_OP_LAUNCH_COUNT = 5
 
@@ -111,6 +91,8 @@ PREFILL_CASES = tuple(
         448,
         449,
         512,
+        576,
+        577,
         640,
         641,
         768,
