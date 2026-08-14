@@ -140,7 +140,7 @@ def benchmark_command(device: str) -> list[str]:
         "--mode",
         "both",
         "--cases",
-        "all",
+        "prefill",
         "--scope",
         "kernel",
         "--device",

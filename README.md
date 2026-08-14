@@ -67,8 +67,8 @@ only.
 
 ## Benchmark coverage
 
-The fixed production-local shape is BF16, 6 query heads, 1 KV head,
-`head_dim=256`, and `rope_dim=64`.
+The fixed production-local shape uses BF16 Q/K, an FP32 cos/sin cache,
+6 query heads, 1 KV head, `head_dim=256`, and `rope_dim=64`.
 
 - Decode: every concurrency/token count from `M=1` through `M=128`.
 - Prefill: dense crossover probes from `M=128` through `M=1281`, the

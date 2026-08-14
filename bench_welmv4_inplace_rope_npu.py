@@ -47,6 +47,7 @@ NUM_K_HEADS = 1
 MAX_POSITION = 32768
 ROPE_BASE = 100000.0
 NUM_STAGES = 4
+PREFILL_NUM_STAGES = 1
 PROGRAMS_PER_VECTOR_CORE = 8
 PREFILL_TOKEN_BLOCK = 64
 PREFILL_EXACT64_THRESHOLD = 576
@@ -580,13 +581,25 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
                 + head_dim
                 - rope_dim
             )
+            # Keep each Q tile small enough that A5 auto-multibuffer can
+            # overlap FP32 cache loads with vector compute without UB overflow.
             _candidate_apply_token_head_block_rope(
                 q_data,
                 token_offsets,
                 q_token_stride,
                 cos,
                 sin,
-                4,
+                2,
+                head_dim,
+                rope_dim,
+            )
+            _candidate_apply_token_head_block_rope(
+                q_data + 2 * head_dim,
+                token_offsets,
+                q_token_stride,
+                cos,
+                sin,
+                2,
                 head_dim,
                 rope_dim,
             )
@@ -656,6 +669,7 @@ class Harness:
             "python_version": platform.python_version(),
             "seed": self.seed,
             "dtype": str(DTYPE).removeprefix("torch."),
+            "cache_dtype": str(self.cache.dtype).removeprefix("torch."),
             "head_dim": HEAD_DIM,
             "rope_dim": ROPE_DIM,
             "num_q_heads": NUM_Q_HEADS,
@@ -721,8 +735,9 @@ class Harness:
                     ROPE_DIM,
                     prefill_token_block,
                     prefill_masked,
-                    NUM_STAGES,
+                    PREFILL_NUM_STAGES,
                     NUM_Q_HEADS,
+                    multibuffer=True,
                 )
             return kernel[(num_programs,)](
                 query,
@@ -754,7 +769,7 @@ def make_cos_sin_cache(device: torch.device) -> torch.Tensor:
     positions = torch.arange(MAX_POSITION, dtype=torch.float32)
     frequencies = torch.outer(positions, inv_freq)
     cache = torch.cat((frequencies.cos(), frequencies.sin()), dim=-1)
-    return cache.to(device=device, dtype=DTYPE)
+    return cache.to(device=device, dtype=torch.float32)
 
 
 def make_last_index(case: Case, device: torch.device) -> torch.Tensor | None:
