@@ -1,4 +1,4 @@
-# architecture_decision("restore-pointer-tensors-after-block-pointer-regression", reason="Reject make_block_ptr addressing despite 150/150 correctness and TTIR shrinking from about 19 KB to 14 KB. Last-pass IR remained exactly 57,711 bytes and M4096/8192/9616/16384 regressed by roughly 4-6%, showing backend canonicalization already produces equivalent DMA descriptors and the block-pointer form does not reduce the actual scalar critical path. Restore the accepted broadcast pointer tensors. N and num_token_blocks remain runtime do_not_specialize; decode and mirror remain shared and unchanged.")
+# architecture_decision("prefetch-q2-front-half-only", reason="The prior full Q2 prefetch required about 328 KiB UB versus the A5 248 KiB limit. Prefetch only the Q heads 4:6 front half before accepted K+Q4 work, then load the back half and compute/store Q2 afterward. This halves the extra live Q2 input footprint while potentially hiding roughly half of Q2 MTE2 latency. Keep the K+Q4 source adjacency and reject unless the last-pass IR preserves its merged vector function and latency improves by at least 3%. N and num_token_blocks remain runtime do_not_specialize; decode and mirror remain shared and unchanged.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -52,9 +52,10 @@ sketch welmv4_inplace_rope_npu {
     }
 
     when unmasked {
+      prefetch Q heads 4:6 front half as one [TOKEN_BLOCK,2,32] 3D tile
       load and rotate K head 0 as [TOKEN_BLOCK,32] 2D tiles
       load and rotate Q heads 0:4 as [TOKEN_BLOCK,4,32] 3D tiles
-      load and rotate Q heads 4:6 as [TOKEN_BLOCK,2,32] 3D tiles
+      load Q heads 4:6 back half, then rotate and store both Q2 halves
       store both exact head groups without padding or masks
     }
   }
@@ -88,4 +89,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode and mirror remain shared and unchanged. N and num_token_blocks stay runtime do_not_specialize. Ordinary prefill exactly restores the accepted masked per-head path and unmasked K+Q4 then Q2 half-tail pointer-tensor path, with unchanged grid, stages, addresses, math, and writers.
+# Layer1 self-check: decode and mirror remain shared and unchanged. N and num_token_blocks stay runtime do_not_specialize. Masked prefill is unchanged. Unmasked Q2 front load moves before K+Q4, while its back load, computation, and stores remain afterward at the same addresses. Grid, stages, masks, total bytes, arithmetic, and unique writers remain equivalent.
