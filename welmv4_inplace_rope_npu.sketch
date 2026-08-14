@@ -1,4 +1,4 @@
-# architecture_decision("int32-addressing", reason="Keep decode, normal prefill, and mirror on the shared candidate kernel. Retain only int32 casts after loading int64 position and last-index values, so A5 address arithmetic is narrower without changing tensor storage. Reject explicit fp32 tl.fma: A5 last-pass IR did not fuse it, grew from 267 to 381 lines, added vmuls, and regressed large prefill and mirror latency.")
+# architecture_decision("int32-addressing-and-prefill-grid224", reason="Keep decode, normal prefill, and mirror on the shared candidate kernel. Retain int32 casts after int64 index loads. A5 normal-prefill last-pass IR shows 448 programs repeatedly issuing six GM-to-UB loads, four UB-to-GM stores, and three barriers per token; test four programs per vector core (224 total) only for ordinary prefill to reduce over-partitioning, while decode<=64 and mirror retain their existing dispatch. Explicit fp32 tl.fma remains rejected because it did not fuse and regressed latency.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -21,7 +21,8 @@ sketch welmv4_inplace_rope_npu {
   }
 
   partition {
-    grid = min(N, AIV * 8)
+    grid = min(N, AIV * 4) when ordinary_prefill
+    grid = min(N, AIV * 8) otherwise
     program token_start = program_id(0)
     program token_step = num_programs(0)
   }
@@ -55,4 +56,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode, normal prefill, and mirror share one candidate kernel; there is no dedicated mirror kernel. The accepted candidate differs from the frozen baseline only by int32 casts applied after int64 index loads. The rejected explicit-FMA round is recorded in the architecture decision and is not present in executable code.
+# Layer1 self-check: decode, normal prefill, and mirror share one candidate kernel; there is no dedicated mirror kernel. This round changes only the ordinary-prefill launch grid from eight to four programs per vector core. Decode<=64 and mirror retain the existing grid rule. Kernel values, pointers, masks, stores, precision, and control flow are unchanged; explicit FMA is absent.
