@@ -48,7 +48,8 @@ MAX_POSITION = 32768
 ROPE_BASE = 100000.0
 NUM_STAGES = 4
 PROGRAMS_PER_VECTOR_CORE = 8
-PREFILL_TOKEN_BLOCK = 16
+PREFILL_TOKEN_BLOCK = 32
+PREFILL_TOKEN_BLOCK_FALLBACK = 16
 DTYPE = torch.bfloat16
 ATOL = 2.0e-2
 RTOL = 2.0e-2
@@ -498,19 +499,26 @@ class Harness:
     ) -> Callable[[], object]:
         n_tokens = int(positions.shape[0])
         batch_size = int(last_index.numel()) if last_index is not None else 0
-        use_blocked_prefill = (
-            provider == "candidate"
-            and last_index is None
-            and n_tokens >= PREFILL_TOKEN_BLOCK
-            and n_tokens % PREFILL_TOKEN_BLOCK == 0
-        )
+        prefill_token_block = 0
+        if provider == "candidate" and last_index is None:
+            if (
+                n_tokens >= PREFILL_TOKEN_BLOCK
+                and n_tokens % PREFILL_TOKEN_BLOCK == 0
+            ):
+                prefill_token_block = PREFILL_TOKEN_BLOCK
+            elif (
+                n_tokens >= PREFILL_TOKEN_BLOCK_FALLBACK
+                and n_tokens % PREFILL_TOKEN_BLOCK_FALLBACK == 0
+            ):
+                prefill_token_block = PREFILL_TOKEN_BLOCK_FALLBACK
+        use_blocked_prefill = prefill_token_block > 0
         kernel = (
             _candidate_welmv4_inplace_rope_prefill_kernel
             if use_blocked_prefill
             else PROVIDERS[provider]
         )
         work_items = (
-            n_tokens // PREFILL_TOKEN_BLOCK
+            n_tokens // prefill_token_block
             if use_blocked_prefill
             else n_tokens
         )
@@ -534,7 +542,7 @@ class Harness:
                     k_stride,
                     HEAD_DIM,
                     ROPE_DIM,
-                    PREFILL_TOKEN_BLOCK,
+                    prefill_token_block,
                     NUM_STAGES,
                     NUM_Q_HEADS,
                 )
