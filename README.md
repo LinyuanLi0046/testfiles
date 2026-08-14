@@ -36,8 +36,8 @@ error log, commits it, and pushes.  Automatic result commits contain
 `Auto-Benchmark: true`, allowing the monitor to recover safely after a restart
 or push failure.
 
-The standard all-case run also recompiles only the candidate for
-`prefill_m8192` with Triton debug dumping enabled.  It lowers the adapter IR
+The standard all-case run also recompiles only the candidate for a selected
+representative case with Triton debug dumping enabled.  It lowers the adapter IR
 with `bishengir-compile` for the detected A5 target and stores gzip+base64
 TTIR, TTAdapter, and last-pass MLIR as `record_type=ir_artifact` rows in the
 same CSV.  IR capture errors are diagnostic CSV rows and do not discard valid

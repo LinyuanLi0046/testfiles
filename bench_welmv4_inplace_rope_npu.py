@@ -53,7 +53,7 @@ ATOL = 2.0e-2
 RTOL = 2.0e-2
 IR_CAPTURE_SCRIPT = "capture_welmv4_rope_ir.sh"
 AUTO_OUTPUT_CSV = "welmv4_inplace_rope_npu_all.csv"
-IR_CAPTURE_CASE = "prefill_m8192"
+IR_CAPTURE_CASE = "mirror_m8192_bs4"
 
 
 @dataclass(frozen=True)
@@ -234,15 +234,8 @@ def _candidate_apply_tail_rope(
     )
     out1 = x1 * cos - x2 * sin
     out2 = x1 * sin + x2 * cos
-    # Join the two adjacent RoPE halves in UB so that each head is written by
-    # one 64-element MTE3 transfer instead of two 32-element transfers.
-    joined = tl.join(out1, out2)
-    contiguous = tl.reshape(
-        tl.trans(joined, (0, 2, 1)),
-        (num_heads_blocked, rope_dim),
-    )
-    store_offsets = tl.arange(0, rope_dim)
-    tl.store(base + store_offsets[None, :], contiguous, mask=mask)
+    tl.store(base + rope_offsets[None, :], out1, mask=mask)
+    tl.store(base + half_rope_dim + rope_offsets[None, :], out2, mask=mask)
 
 
 @triton.jit(do_not_specialize=["N", "BS"])
