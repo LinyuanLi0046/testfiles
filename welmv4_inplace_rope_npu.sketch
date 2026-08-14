@@ -1,4 +1,4 @@
-# architecture_decision("balanced-prefill-q4-then-k-plus-q2", reason="Retain runtime do_not_specialize shapes, the accepted tl.range/stages=4 pipeline, 64-token tiles, masked tail, half-tail DMA, and exact Q 4+2 grouping. In the unmasked path only, move K rotation between Q4 and Q2. The accepted IR fused K+Q4 then processed Q2, creating an imbalanced 5-head-equivalent first group and 2-head second group. The new source adjacency targets Q4 then K+Q2, balancing UB/MTE work as 4+3 without changing any address, byte count, DMA count, math, or writer. The masked M9616 path keeps its accepted order. Reject unless critical latency improves by more than 3%.")
+# architecture_decision("runtime-shape-blocked-prefill", reason="Restore the accepted K then Q4 then Q2 source order. Reject the Q4 then K+Q2 rebalance: it changed merged vector functions and regressed M8192/M9616/M16384 to about 34.7/34.8/58.6 us. Keep N and num_token_blocks runtime do_not_specialize and preserve the compiler's efficient K+Q4 fusion. Decode and mirror remain shared and unchanged.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -52,8 +52,8 @@ sketch welmv4_inplace_rope_npu {
     }
 
     when unmasked {
-      load and rotate Q heads 0:4 as [TOKEN_BLOCK,4,32] 3D tiles
       load and rotate K head 0 as [TOKEN_BLOCK,32] 2D tiles
+      load and rotate Q heads 0:4 as [TOKEN_BLOCK,4,32] 3D tiles
       load and rotate Q heads 4:6 as [TOKEN_BLOCK,2,32] 3D tiles
       store both exact head groups without padding or masks
     }
@@ -88,4 +88,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode and mirror remain shared and unchanged. N and num_token_blocks stay runtime do_not_specialize. Masked ordinary prefill keeps K then six Q heads. Unmasked ordinary prefill writes Q0:4, then K, then Q4:6; these regions are disjoint and each has one writer. Grid, stages, token blocks, cache loads, DMA counts, addresses, math, and output values are unchanged; only source scheduling adjacency changes.
+# Layer1 self-check: decode and mirror remain shared and unchanged. N and num_token_blocks stay runtime do_not_specialize. Ordinary prefill restores the accepted K then Q order, grid, stages, 64-token blocks, masked tail, cache loads, DMA shapes, addresses, math, and output values.
