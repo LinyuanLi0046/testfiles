@@ -1,4 +1,4 @@
-# architecture_decision("validate-prefill-threshold-with-msprof-op", reason="Event timing is pinned near a 30us submission floor for small M and cannot authoritatively determine the device-task crossover. Freeze the accepted prefill kernel and the provisional M=2560 host threshold while adding native msprof-op probes. Use OpBasicInfo.csv Task Duration(us), with warm-up=10 and launch-count=5, to re-evaluate the final all-M threshold. Decode optimization remains stopped; decode and mirror keep their shared kernel. N and num_token_blocks remain runtime do_not_specialize.")
+# architecture_decision("scan-prefill-crossover-with-targeted-msprof-op", reason="Targeted msprof-op proves event timing is invalid below its ~30us submission floor: at M=128 shared is 4.892us versus blocked 11.617us, while at M=2560 shared is 46.021us versus blocked 12.467us. Temporarily set the all-M threshold to 128 to force blocked measurement and scan exact/masked pairs around the shared grid transitions from M=448 through 1281. Select the final threshold only where exact64 and adjacent masked64 both exceed 3% speedup in Task Duration(us). The accepted kernel body remains frozen. Decode optimization remains stopped; decode and mirror keep their shared kernel. N and num_token_blocks remain runtime do_not_specialize.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -88,4 +88,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: the accepted prefill kernel implementation is frozen; only host dispatch changes. Every ordinary-prefill M>=2560 is covered by exact64 or masked64. Below 2560, exact aligned paths remain and non-16-aligned M uses shared fallback. M and all derived quantities remain runtime values, never constexpr. Decode and mirror remain on their shared kernel with no mirror-only kernel. N and num_token_blocks stay runtime do_not_specialize.
+# Layer1 self-check: the accepted prefill kernel implementation is frozen; only the provisional host threshold changes to force exact/masked msprof-op measurement. M and all derived quantities remain runtime values, never constexpr. Decode and mirror remain on their shared kernel with no mirror-only kernel. N and num_token_blocks stay runtime do_not_specialize.

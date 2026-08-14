@@ -55,7 +55,9 @@ selected baseline or candidate Triton kernel.  Parsed `OpBasicInfo.csv`
 `Task Duration(us)` values are stored as `record_type=msprof_op`, and the raw
 files are stored as gzip+base64 `record_type=msprof_op_artifact` rows.  These
 device task durations, rather than the approximately 30-us event submission
-floor, are authoritative for the small-M dispatch threshold.  Use
+floor, are authoritative for the small-M dispatch threshold.  The scan covers
+the shared-grid transition around M=448 and aligned/non-aligned pairs through
+M=1281.  Use
 `--capture-msprof-op off` only for manual runs that intentionally skip them.
 
 Use `BENCH_PYTHON=/path/to/python` to select a different interpreter.  Use
@@ -70,17 +72,17 @@ The fixed production-local shape is BF16, 6 query heads, 1 KV head,
 `head_dim=256`, and `rope_dim=64`.
 
 - Decode: every concurrency/token count from `M=1` through `M=128`.
-- Prefill: `M=128,256,512,1024,2048,4096,8192,9616,16384`.
+- Prefill: dense crossover probes from `M=128` through `M=1281`, the
+  `M=2048..4097` threshold pairs, and `M=6145,7169,8191,8192,9616,16384`.
 - KV mirror: `(N=8192, BS=4)` and `(N=16384, BS=8)`, where Q has only `BS`
   rows while K and positions have `N` rows.
 
 The dedicated blocked kernel is selected only for the candidate's ordinary
-`prefill` phase.  The empirically selected all-M threshold is `M=2560`: from
-that point, 64-aligned M uses exact block64 and every other M uses masked
-block64.  Below 2560, aligned M retains the existing exact block64/block32/
-block16 fast paths, while non-16-aligned M falls back to the shared kernel.
-The threshold is based on the >=3% acceptance rule: M=2304 was only 1.0229x,
-whereas M=2560 was 1.0328x and M=2561 was 1.0489x.  Decode and KV mirror never
+`prefill` phase.  During the msprof-op crossover scan the provisional all-M
+threshold is intentionally set to `M=128`, forcing exact block64 or masked
+block64 so both can be compared with the shared baseline.  The final threshold
+must be selected from `Task Duration(us)`, with both an exact64 boundary and
+its adjacent masked length achieving at least 3%.  Decode and KV mirror never
 select the dedicated prefill kernel.
 
 The `baseline` kernel is frozen.  Later optimization rounds should edit only

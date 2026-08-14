@@ -51,7 +51,7 @@ PROGRAMS_PER_VECTOR_CORE = 8
 PREFILL_TOKEN_BLOCK = 64
 PREFILL_TOKEN_BLOCK_FALLBACK = 32
 PREFILL_TOKEN_BLOCK_MIN = 16
-PREFILL_ALL_M_THRESHOLD = 2560
+PREFILL_ALL_M_THRESHOLD = 128
 DTYPE = torch.bfloat16
 ATOL = 2.0e-2
 RTOL = 2.0e-2
@@ -59,7 +59,27 @@ IR_CAPTURE_SCRIPT = "capture_welmv4_rope_ir.sh"
 AUTO_OUTPUT_CSV = "welmv4_inplace_rope_npu_all.csv"
 IR_CAPTURE_CASE = "prefill_m8192"
 PROFILE_CAPTURE_CASE = "prefill_m16384"
-MSPROF_OP_CASES = ("prefill_m128", "prefill_m2560")
+MSPROF_OP_CASES = (
+    "prefill_m128",
+    "prefill_m256",
+    "prefill_m448",
+    "prefill_m449",
+    "prefill_m512",
+    "prefill_m640",
+    "prefill_m641",
+    "prefill_m768",
+    "prefill_m769",
+    "prefill_m896",
+    "prefill_m897",
+    "prefill_m960",
+    "prefill_m961",
+    "prefill_m1024",
+    "prefill_m1025",
+    "prefill_m1152",
+    "prefill_m1153",
+    "prefill_m1280",
+    "prefill_m1281",
+)
 MSPROF_OP_WARMUP = 10
 MSPROF_OP_LAUNCH_COUNT = 5
 
@@ -88,8 +108,23 @@ PREFILL_CASES = tuple(
     for m in (
         128,
         256,
+        448,
+        449,
         512,
+        640,
+        641,
+        768,
+        769,
+        896,
+        897,
+        960,
+        961,
         1024,
+        1025,
+        1152,
+        1153,
+        1280,
+        1281,
         1536,
         2048,
         2049,
