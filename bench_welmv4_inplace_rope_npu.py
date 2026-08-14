@@ -51,6 +51,7 @@ PROGRAMS_PER_VECTOR_CORE = 8
 PREFILL_TOKEN_BLOCK = 64
 PREFILL_TOKEN_BLOCK_FALLBACK = 32
 PREFILL_TOKEN_BLOCK_MIN = 16
+LARGE_PREFILL_MAX_PROGRAMS = 128
 DTYPE = torch.bfloat16
 ATOL = 2.0e-2
 RTOL = 2.0e-2
@@ -655,6 +656,8 @@ class Harness:
         num_programs = min(
             work_items, self.num_vector_cores * PROGRAMS_PER_VECTOR_CORE
         )
+        if use_blocked_prefill and n_tokens >= 16384:
+            num_programs = min(num_programs, LARGE_PREFILL_MAX_PROGRAMS)
         q_stride = int(query.stride(0))
         k_stride = int(key.stride(0))
         q_heads_blocked = triton.next_power_of_2(NUM_Q_HEADS)
