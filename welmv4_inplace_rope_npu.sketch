@@ -1,4 +1,4 @@
-# architecture_decision("blocked-2d-prefill-masked64-tail", reason="Keep decode and mirror on the shared int32-addressing kernel; do not create a mirror-only kernel. Retain the accepted unmasked 64-token path (2.52x at M=8192, 3.53x at M=16384) and rejected 128-token result. M=9616 equals 150*64+16 but currently processes every token with 16-token tiles. For ordinary prefill M>=8192 not divisible by 64, launch ceil_div(N,64) two-dimensional blocks and apply a token mask only in the compile-time masked variant, so 150 full blocks plus one tail share one kernel launch. Exact divisible shapes keep the unmasked path; 32 and 16 remain smaller-shape fallbacks.")
+# architecture_decision("blocked-prefill-q-heads-4-plus-2", reason="Keep decode and mirror on the shared kernel and retain the accepted masked 64-token tail path, which improved M=9616 from 1.85x to 2.70x. Normal unmasked IR still expands six Q heads into twelve 2D loads and twelve 2D stores per token block. Merge the independent contiguous head dimension into exact power-of-two groups 4+2, using two unmasked 3D tiles per RoPE half instead of six 2D tiles, with no padded head. Keep the masked-tail variant on proven per-head 2D DMA to avoid the rejected masked 3D lowering. This targets a 3x reduction in Q DMA call count; K, cache, math, grid, and precision are unchanged.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -42,13 +42,19 @@ sketch welmv4_inplace_rope_npu {
     load cos[64,32] = cos_sin_cache[pos, 0:HALF_ROPE]
     load sin[64,32] = cos_sin_cache[pos, HALF_ROPE:ROPE_DIM]
 
-    for each real head in [K head 0, Q heads 0..5] statically {
+    for K head 0 and each Q head separately when masked {
       load front[64,32] using 2D token-strided DMA and token_mask when masked
       load back[64,32] using 2D token-strided DMA and token_mask when masked
       compute rotated_front = front * cos - back * sin
       compute rotated_back = front * sin + back * cos
       store rotated_front[64,32] using 2D token-strided DMA and token_mask when masked
       store rotated_back[64,32] using 2D token-strided DMA and token_mask when masked
+    }
+
+    when unmasked {
+      load and rotate Q heads 0:4 as [TOKEN_BLOCK,4,32] 3D tiles
+      load and rotate Q heads 4:6 as [TOKEN_BLOCK,2,32] 3D tiles
+      store both exact head groups without padding or masks
     }
   }
 
@@ -81,4 +87,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode and mirror share the original candidate kernel and dispatch; there is no dedicated mirror kernel. Ordinary prefill M>=8192 uses 64-token blocks even with a tail; exact shapes compile without masks and tail shapes compile with masks. Smaller exact shapes retain 64/32/16 and other shapes fall back. Every valid token is processed exactly once; invalid tail lanes are masked on positions, cache, Q, K, and stores. Six Q heads plus one K head and BF16/FP32 behavior are unchanged.
+# Layer1 self-check: decode and mirror remain shared and have no dedicated mirror kernel. The compile-time masked prefill variant is unchanged and uses per-head 2D DMA. Only the unmasked variant replaces six independent Q-head calls with exact 4+2 head groups; all six Q heads and one K head are processed once, with identical addresses, BF16 loads/stores, and FP32 arithmetic promotion. No head padding and no 3D mask are introduced.
