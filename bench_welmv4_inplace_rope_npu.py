@@ -49,9 +49,8 @@ ROPE_BASE = 100000.0
 NUM_STAGES = 4
 PROGRAMS_PER_VECTOR_CORE = 8
 PREFILL_TOKEN_BLOCK = 64
-PREFILL_TOKEN_BLOCK_FALLBACK = 32
-PREFILL_TOKEN_BLOCK_MIN = 16
-PREFILL_ALL_M_THRESHOLD = 128
+PREFILL_EXACT64_THRESHOLD = 576
+PREFILL_ALL_M_THRESHOLD = 640
 DTYPE = torch.bfloat16
 ATOL = 2.0e-2
 RTOL = 2.0e-2
@@ -59,7 +58,12 @@ IR_CAPTURE_SCRIPT = "capture_welmv4_rope_ir.sh"
 AUTO_OUTPUT_CSV = "welmv4_inplace_rope_npu_all.csv"
 IR_CAPTURE_CASE = "prefill_m8192"
 PROFILE_CAPTURE_CASE = "prefill_m16384"
-MSPROF_OP_CASES = ("prefill_m576", "prefill_m577")
+MSPROF_OP_CASES = (
+    "prefill_m576",
+    "prefill_m577",
+    "prefill_m640",
+    "prefill_m641",
+)
 MSPROF_OP_WARMUP = 10
 MSPROF_OP_LAUNCH_COUNT = 5
 
@@ -672,27 +676,14 @@ class Harness:
         prefill_token_block = 0
         prefill_masked = False
         if provider == "candidate" and case.phase == "prefill":
-            if (
-                n_tokens >= PREFILL_ALL_M_THRESHOLD
-                and n_tokens % PREFILL_TOKEN_BLOCK != 0
-            ):
+            if n_tokens >= PREFILL_ALL_M_THRESHOLD:
                 prefill_token_block = PREFILL_TOKEN_BLOCK
-                prefill_masked = True
+                prefill_masked = n_tokens % PREFILL_TOKEN_BLOCK != 0
             elif (
-                n_tokens >= PREFILL_TOKEN_BLOCK
+                n_tokens >= PREFILL_EXACT64_THRESHOLD
                 and n_tokens % PREFILL_TOKEN_BLOCK == 0
             ):
                 prefill_token_block = PREFILL_TOKEN_BLOCK
-            elif (
-                n_tokens >= PREFILL_TOKEN_BLOCK_FALLBACK
-                and n_tokens % PREFILL_TOKEN_BLOCK_FALLBACK == 0
-            ):
-                prefill_token_block = PREFILL_TOKEN_BLOCK_FALLBACK
-            elif (
-                n_tokens >= PREFILL_TOKEN_BLOCK_MIN
-                and n_tokens % PREFILL_TOKEN_BLOCK_MIN == 0
-            ):
-                prefill_token_block = PREFILL_TOKEN_BLOCK_MIN
         use_blocked_prefill = prefill_token_block > 0
         kernel = (
             _candidate_welmv4_inplace_rope_prefill_kernel
@@ -1297,8 +1288,8 @@ def capture_msprof_op_records(
                 and (
                     case.n_tokens >= PREFILL_ALL_M_THRESHOLD
                     or (
-                        case.n_tokens >= PREFILL_TOKEN_BLOCK_MIN
-                        and case.n_tokens % PREFILL_TOKEN_BLOCK_MIN == 0
+                        case.n_tokens >= PREFILL_EXACT64_THRESHOLD
+                        and case.n_tokens % PREFILL_TOKEN_BLOCK == 0
                     )
                 )
             )

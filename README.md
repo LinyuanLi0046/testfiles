@@ -55,9 +55,8 @@ selected baseline or candidate Triton kernel.  Parsed `OpBasicInfo.csv`
 `Task Duration(us)` values are stored as `record_type=msprof_op`, and the raw
 files are stored as gzip+base64 `record_type=msprof_op_artifact` rows.  These
 device task durations, rather than the approximately 30-us event submission
-floor, are authoritative for the small-M dispatch threshold.  The broad scan
-located the crossover between M=512 and M=640; the current focused probe tests
-the remaining exact/masked boundary pair M=576/577.  Use
+floor, are authoritative for the small-M dispatch threshold.  The final
+verification probe covers M=576/577/640/641.  Use
 `--capture-msprof-op off` only for manual runs that intentionally skip them.
 
 Use `BENCH_PYTHON=/path/to/python` to select a different interpreter.  Use
@@ -78,11 +77,11 @@ The fixed production-local shape is BF16, 6 query heads, 1 KV head,
   rows while K and positions have `N` rows.
 
 The dedicated blocked kernel is selected only for the candidate's ordinary
-`prefill` phase.  During the focused msprof-op crossover probe the provisional
-all-M threshold remains `M=128`, forcing exact block64 or masked block64.  The
-final threshold is M=576 only if both M=576 exact64 and M=577 masked64 achieve
-at least 3%; otherwise it is the already verified M=640 boundary.  Decode and
-KV mirror never select the dedicated prefill kernel.
+`prefill` phase.  Native msprof-op establishes the all-M threshold at `M=640`:
+M=640 exact64 improves 15.65% and M=641 masked64 improves 8.32%.  M=576 exact64
+improves 6.23% and is retained as an aligned fast path, but M=577 masked64
+regresses 1.8%, so other M below 640 use the shared kernel.  Decode and KV
+mirror never select the dedicated prefill kernel.
 
 The `baseline` kernel is frozen.  Later optimization rounds should edit only
 the clearly marked `candidate` section in
