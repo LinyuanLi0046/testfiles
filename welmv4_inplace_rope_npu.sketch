@@ -1,4 +1,4 @@
-# architecture_decision("prefetch-q2-front-half-only", reason="The prior full Q2 prefetch required about 328 KiB UB versus the A5 248 KiB limit. Prefetch only the Q heads 4:6 front half before accepted K+Q4 work, then load the back half and compute/store Q2 afterward. This halves the extra live Q2 input footprint while potentially hiding roughly half of Q2 MTE2 latency. Keep the K+Q4 source adjacency and reject unless the last-pass IR preserves its merged vector function and latency improves by at least 3%. N and num_token_blocks remain runtime do_not_specialize; decode and mirror remain shared and unchanged.")
+# architecture_decision("restore-after-half-q2-prefetch-ub-limit", reason="Reject even front-half-only Q2 prefetch: final A5 lowering requires 2,097,152 bits (256 KiB) while only 2,031,616 bits (248 KiB) are available. The 8 KiB excess is exactly the extra copy created because auto multibuffer supports only size=2; there is no documented per-tensor single-buffer disable hint. Restore accepted K+Q4 then Q2 lifetime boundaries. N and num_token_blocks remain runtime do_not_specialize; decode and mirror remain shared and unchanged.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -52,10 +52,9 @@ sketch welmv4_inplace_rope_npu {
     }
 
     when unmasked {
-      prefetch Q heads 4:6 front half as one [TOKEN_BLOCK,2,32] 3D tile
       load and rotate K head 0 as [TOKEN_BLOCK,32] 2D tiles
       load and rotate Q heads 0:4 as [TOKEN_BLOCK,4,32] 3D tiles
-      load Q heads 4:6 back half, then rotate and store both Q2 halves
+      load and rotate Q heads 4:6 as [TOKEN_BLOCK,2,32] 3D tiles
       store both exact head groups without padding or masks
     }
   }
@@ -89,4 +88,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode and mirror remain shared and unchanged. N and num_token_blocks stay runtime do_not_specialize. Masked prefill is unchanged. Unmasked Q2 front load moves before K+Q4, while its back load, computation, and stores remain afterward at the same addresses. Grid, stages, masks, total bytes, arithmetic, and unique writers remain equivalent.
+# Layer1 self-check: decode and mirror remain shared and unchanged. N and num_token_blocks stay runtime do_not_specialize. Ordinary prefill exactly restores the accepted masked per-head path and unmasked K+Q4 then Q2 lifetime boundaries, with unchanged grid, stages, addresses, math, and writers.
