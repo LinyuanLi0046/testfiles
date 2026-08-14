@@ -1,4 +1,4 @@
-# architecture_decision("large-prefill-two-block-pipeline", reason="Keep the accepted 64-token, masked-tail, and exact Q-head 4+2 kernels. Current M=16384 launches 256 programs for 256 token blocks, so each stages=4 loop runs exactly once and cannot overlap consecutive blocks. Cap only ordinary prefill M>=16384 at 128 programs: every program processes two blocks, exposing a second iteration for A5 auto-multi-buffer/load-compute-store overlap while retaining 2.3 programs per AIV. M<=9616, decode, and mirror keep their accepted dispatch. Reject unless critical latency improves by more than 3%.")
+# architecture_decision("blocked-prefill-q-heads-4-plus-2", reason="Retain the accepted 64-token, masked-tail, and exact Q-head 4+2 kernels. Reject the M>=16384 cap of 128 programs: two blocks per program increased latency from about 52.9 us to 61.8 us, so lost parallelism outweighed loop pipelining. Restore one program per 64-token block. Continue with IR-level cache-load aggregation; decode and mirror remain shared and unchanged.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -29,8 +29,7 @@ sketch welmv4_inplace_rope_npu {
 
   partition ordinary_prefill_blocked {
     choose PREFILL_TOKEN_BLOCK = 64 masked when N >= 8192 and N % 64 != 0 else 64 when N % 64 == 0 else 32 when N % 32 == 0 else 16 when N % 16 == 0
-    grid = min(ceil_div(N, PREFILL_TOKEN_BLOCK), 128) when N >= 16384
-    grid = min(ceil_div(N, PREFILL_TOKEN_BLOCK), AIV * 8) otherwise
+    grid = min(ceil_div(N, PREFILL_TOKEN_BLOCK), AIV * 8)
     program block_start = program_id(0)
     program block_step = num_programs(0)
   }
@@ -88,4 +87,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode and mirror remain shared and unchanged. M<=9616 keeps the accepted blocked-prefill grid; only ordinary prefill M>=16384 is capped at 128 programs. Kernel math, token/head blocks, masks, pointers, stores, stages=4, BF16/FP32 behavior, and exact 4+2 Q groups are unchanged. At M=16384, 256 blocks are covered exactly twice per program with stride 128.
+# Layer1 self-check: decode and mirror remain shared and unchanged. Ordinary prefill restores the accepted one-program-per-block grid at M<=16384. Kernel math, token/head blocks, masks, pointers, stores, stages=4, BF16/FP32 behavior, and exact 4+2 Q groups are unchanged. The rejected 128-program cap is absent.
