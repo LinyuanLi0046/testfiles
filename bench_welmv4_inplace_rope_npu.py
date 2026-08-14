@@ -359,8 +359,9 @@ def _candidate_apply_token_block_rope(
     x_rotated = tl.reshape(
         x_rotated, (token_count, 2, half_rope_dim)
     )
-    x_rotated = tl.flip(x_rotated, 1)
+    x_rotated = tl.flip(x_rotated, 2)
     x_rotated = tl.reshape(x_rotated, (token_count, rope_dim))
+    x_rotated = tl.flip(x_rotated, 1)
     cos_full = tl.broadcast_to(
         cos[:, None, :], (token_count, 2, half_rope_dim)
     )
@@ -405,10 +406,11 @@ def _candidate_apply_token_head_block_rope(
     x_rotated = tl.reshape(
         x_rotated, (token_count, num_heads, 2, half_rope_dim)
     )
-    x_rotated = tl.flip(x_rotated, 2)
+    x_rotated = tl.flip(x_rotated, 3)
     x_rotated = tl.reshape(
         x_rotated, (token_count, num_heads, rope_dim)
     )
+    x_rotated = tl.flip(x_rotated, 2)
     cos_full = tl.broadcast_to(
         cos[:, None, :], (token_count, 2, half_rope_dim)
     )
