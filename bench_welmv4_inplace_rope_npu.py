@@ -1274,6 +1274,25 @@ def capture_msprof_op_records(
     for case_name in MSPROF_OP_CASES:
         case = cases_by_name[case_name]
         for provider in PROVIDERS:
+            candidate_blocked = (
+                provider == "candidate"
+                and case.phase == "prefill"
+                and (
+                    case.n_tokens >= PREFILL_ALL_M_THRESHOLD
+                    or (
+                        case.n_tokens >= PREFILL_TOKEN_BLOCK_MIN
+                        and case.n_tokens % PREFILL_TOKEN_BLOCK_MIN == 0
+                    )
+                )
+            )
+            if provider == "baseline":
+                kernel_name = "_baseline_welmv4_inplace_rope_kernel"
+            elif candidate_blocked:
+                kernel_name = (
+                    "_candidate_welmv4_inplace_rope_prefill_kernel"
+                )
+            else:
+                kernel_name = "_candidate_welmv4_inplace_rope_kernel"
             common = {
                 **harness.metadata(),
                 **case_fields(case),
@@ -1289,6 +1308,7 @@ def capture_msprof_op_records(
                     "op",
                     f"--warm-up={MSPROF_OP_WARMUP}",
                     f"--launch-count={MSPROF_OP_LAUNCH_COUNT}",
+                    f"--kernel-name={kernel_name}",
                     f"--output={output_dir}",
                     sys.executable,
                     str(script),
@@ -1324,8 +1344,13 @@ def capture_msprof_op_records(
                     continue
 
                 output = result.stdout or ""
-                basic_files = sorted(Path(output_dir).rglob("OpBasicInfo.csv"))
-                if result.returncode != 0 or not basic_files:
+                csv_files = sorted(Path(output_dir).rglob("*.csv"))
+                basic_files = [
+                    path
+                    for path in csv_files
+                    if "opbasicinfo" in path.name.lower()
+                ]
+                if result.returncode != 0:
                     records.append(
                         {
                             **common,
@@ -1338,6 +1363,21 @@ def capture_msprof_op_records(
 
                 durations: list[float] = []
                 discovered_names: list[str] = []
+                log_content = output.encode("utf-8", errors="replace")
+                records.append(
+                    {
+                        **common,
+                        "record_type": "msprof_op_artifact",
+                        "status": "CAPTURED",
+                        "artifact_name": "msprof_stdout.log",
+                        "artifact_encoding": "gzip+base64",
+                        "artifact_size_bytes": len(log_content),
+                        "artifact_sha256": hashlib.sha256(log_content).hexdigest(),
+                        "artifact_content": base64.b64encode(
+                            gzip.compress(log_content, compresslevel=9)
+                        ).decode("ascii"),
+                    }
+                )
                 for path in basic_files:
                     content = path.read_bytes()
                     records.append(
@@ -1363,13 +1403,34 @@ def capture_msprof_op_records(
                     for row in rows:
                         op_name = str(row.get("Op Name", ""))
                         discovered_names.append(op_name)
-                        if "welmv4_inplace_rope" not in op_name.lower():
+                        if kernel_name.lower() not in op_name.lower():
                             continue
                         raw_duration = row.get("Task Duration(us)", "")
                         try:
                             durations.append(float(raw_duration))
                         except (TypeError, ValueError):
                             pass
+
+                if not basic_files:
+                    lines = output.splitlines()
+                    for index, line in enumerate(lines):
+                        stripped = line.strip()
+                        if not stripped.startswith("Op Name:"):
+                            continue
+                        op_name = stripped.partition(":")[2].strip()
+                        discovered_names.append(op_name)
+                        for detail in lines[index + 1 : index + 8]:
+                            detail = detail.strip()
+                            if not detail.startswith("Task Duration(us):"):
+                                continue
+                            if kernel_name.lower() in op_name.lower():
+                                try:
+                                    durations.append(
+                                        float(detail.partition(":")[2].strip())
+                                    )
+                                except ValueError:
+                                    pass
+                            break
 
                 if not durations:
                     records.append(
@@ -1379,6 +1440,13 @@ def capture_msprof_op_records(
                             "capture_log": (
                                 "target op missing from OpBasicInfo.csv; names="
                                 + repr(sorted(set(discovered_names))[:100])
+                                + "; csv_files="
+                                + repr(
+                                    [
+                                        str(path.relative_to(output_dir))
+                                        for path in csv_files[:100]
+                                    ]
+                                )
                             ),
                         }
                     )

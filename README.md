@@ -50,7 +50,8 @@ summaries as gzip+base64 `record_type=profile_artifact` rows. Profiling
 failures remain diagnostic rows and do not discard valid benchmark results.
 
 The standard remote run also invokes native `msprof op` for a small probe set
-with `--warm-up=10 --launch-count=5`.  Parsed `OpBasicInfo.csv`
+with `--warm-up=10 --launch-count=5` and an exact `--kernel-name` for the
+selected baseline or candidate Triton kernel.  Parsed `OpBasicInfo.csv`
 `Task Duration(us)` values are stored as `record_type=msprof_op`, and the raw
 files are stored as gzip+base64 `record_type=msprof_op_artifact` rows.  These
 device task durations, rather than the approximately 30-us event submission
