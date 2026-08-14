@@ -48,8 +48,9 @@ MAX_POSITION = 32768
 ROPE_BASE = 100000.0
 NUM_STAGES = 4
 PROGRAMS_PER_VECTOR_CORE = 8
-PREFILL_TOKEN_BLOCK = 32
-PREFILL_TOKEN_BLOCK_FALLBACK = 16
+PREFILL_TOKEN_BLOCK = 64
+PREFILL_TOKEN_BLOCK_FALLBACK = 32
+PREFILL_TOKEN_BLOCK_MIN = 16
 DTYPE = torch.bfloat16
 ATOL = 2.0e-2
 RTOL = 2.0e-2
@@ -511,6 +512,11 @@ class Harness:
                 and n_tokens % PREFILL_TOKEN_BLOCK_FALLBACK == 0
             ):
                 prefill_token_block = PREFILL_TOKEN_BLOCK_FALLBACK
+            elif (
+                n_tokens >= PREFILL_TOKEN_BLOCK_MIN
+                and n_tokens % PREFILL_TOKEN_BLOCK_MIN == 0
+            ):
+                prefill_token_block = PREFILL_TOKEN_BLOCK_MIN
         use_blocked_prefill = prefill_token_block > 0
         kernel = (
             _candidate_welmv4_inplace_rope_prefill_kernel
