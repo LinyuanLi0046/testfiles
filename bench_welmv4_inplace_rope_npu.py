@@ -78,7 +78,7 @@ class Case:
 
 # Decode latency is launch-bound and can vary at every batch size.  Keep the
 # complete production concurrency range instead of sampling powers of two.
-DECODE_CASES = tuple(Case(f"decode_m{m}", "decode", m) for m in range(1, 65))
+DECODE_CASES = tuple(Case(f"decode_m{m}", "decode", m) for m in range(1, 129))
 PREFILL_CASES = tuple(
     Case(f"prefill_m{m}", "prefill", m)
     for m in (128, 256, 512, 1024, 2048, 4096, 8192, 9616, 16384)
@@ -610,6 +610,7 @@ class Harness:
     def bind(
         self,
         provider: str,
+        case: Case,
         query: torch.Tensor,
         key: torch.Tensor,
         positions: torch.Tensor,
@@ -619,7 +620,7 @@ class Harness:
         batch_size = int(last_index.numel()) if last_index is not None else 0
         prefill_token_block = 0
         prefill_masked = False
-        if provider == "candidate" and last_index is None:
+        if provider == "candidate" and case.phase == "prefill":
             if n_tokens >= 8192 and n_tokens % PREFILL_TOKEN_BLOCK != 0:
                 prefill_token_block = PREFILL_TOKEN_BLOCK
                 prefill_masked = True
@@ -806,7 +807,7 @@ def run_correctness(
             query_out = query.clone()
             key_out = key.clone()
             launch = harness.bind(
-                provider, query_out, key_out, positions, last_index
+                provider, case, query_out, key_out, positions, last_index
             )
             launch()
             torch_npu.npu.synchronize()
@@ -907,7 +908,12 @@ def run_performance(
         launches: dict[str, Callable[[], object]] = {}
         for provider in PROVIDERS:
             launches[provider] = harness.bind(
-                provider, query.clone(), key.clone(), positions, last_index
+                provider,
+                case,
+                query.clone(),
+                key.clone(),
+                positions,
+                last_index,
             )
 
         for provider in PROVIDERS:
@@ -1015,7 +1021,7 @@ def run_compile_only(
     query, key, positions, last_index = make_inputs(
         case, harness.device, harness.seed
     )
-    launch = harness.bind(provider, query, key, positions, last_index)
+    launch = harness.bind(provider, case, query, key, positions, last_index)
     launch()
     torch_npu.npu.synchronize()
     print(f"IR compile-only launch completed: {provider}, {case.name}")
@@ -1122,7 +1128,9 @@ def capture_profile_records(harness: Harness) -> list[dict[str, object]]:
     query, key, positions, last_index = make_inputs(
         case, harness.device, harness.seed
     )
-    launch = harness.bind("candidate", query, key, positions, last_index)
+    launch = harness.bind(
+        "candidate", case, query, key, positions, last_index
+    )
     for _ in range(5):
         launch()
     torch_npu.npu.synchronize()

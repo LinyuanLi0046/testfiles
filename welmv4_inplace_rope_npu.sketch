@@ -1,4 +1,4 @@
-# architecture_decision("restore-accepted-helper-fusion-after-store-overlap-regression", reason="Reject manually inserting the Q2 front load between K+Q4 arithmetic and stores despite 150/150 correctness. M4096/8192/9616 regressed about 5-7%, M16384 did not improve, and last-pass IR grew from 57,711 to 57,934 bytes. The hand-expanded schedule disrupted the compiler's compact helper fusion without producing useful MTE2/MTE3 overlap. Restore accepted helper boundaries. N and num_token_blocks remain runtime do_not_specialize; decode and mirror remain shared and unchanged.")
+# architecture_decision("freeze-accepted-prefill-and-measure-shared-decode-through-128", reason="The applicable prefill optimization space has been exhausted under the >=3% acceptance rule, so preserve the accepted ordinary-prefill kernel exactly. Extend decode coverage from M=1..64 to M=1..128 and fix host dispatch so only phase=prefill may select the dedicated blocked kernel. Decode and mirror both use the same shared kernel; mirror receives no separate kernel. N and num_token_blocks remain runtime do_not_specialize.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -88,4 +88,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode and mirror remain shared and unchanged. N and num_token_blocks stay runtime do_not_specialize. Ordinary prefill exactly restores the accepted helper calls, masked per-head path, unmasked K+Q4 then Q2 ordering, grid, stages, addresses, math, and writers.
+# Layer1 self-check: ordinary prefill remains frozen at the accepted implementation. Decode M=1..128 and mirror are dispatched to this same shared kernel; mirror has no separate kernel. N and num_token_blocks stay runtime do_not_specialize.

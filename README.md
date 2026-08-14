@@ -60,7 +60,7 @@ only.
 The fixed production-local shape is BF16, 6 query heads, 1 KV head,
 `head_dim=256`, and `rope_dim=64`.
 
-- Decode: every concurrency/token count from `M=1` through `M=64`.
+- Decode: every concurrency/token count from `M=1` through `M=128`.
 - Prefill: `M=128,256,512,1024,2048,4096,8192,9616,16384`.
 - KV mirror: `(N=8192, BS=4)` and `(N=16384, BS=8)`, where Q has only `BS`
   rows while K and positions have `N` rows.
