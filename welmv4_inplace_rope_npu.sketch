@@ -1,8 +1,8 @@
-# architecture_decision("compile-time-prefill-bounds", reason="Retain the accepted tl.range-based 64-token, masked-tail, half-tail DMA, stages=4, and exact Q 4+2 implementation. A5 profiling shows scalar at about 48.4%, while deleting tl.range regressed because the loop anchors auto-multibuffer/fusion. Keep that loop but specialize num_token_blocks and N as constexpr so its endpoint and the masked tail extent are compile-time constants. This preserves pipeline structure while removing runtime loop-bound/mask scalar work where the compiler can prove it. Reject unless critical latency improves by more than 3%.")
+# architecture_decision("runtime-shape-blocked-prefill", reason="Retain the accepted tl.range-based 64-token, masked-tail, half-tail DMA, stages=4, and exact Q 4+2 implementation. N, num_token_blocks, and values derived from token/sequence length must remain runtime and do_not_specialize because production shapes change frequently and constexpr specialization would trigger costly recompilation. The scalar bottleneck must be reduced without adding shape-dependent cache keys. Decode and mirror remain shared and unchanged.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
-    N: compile_time_shape
+    N: runtime_do_not_specialize
     BS: runtime
     AIV: runtime_host_constant
     Q_HEADS: constexpr = 6
@@ -87,4 +87,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode and mirror remain shared and unchanged. Ordinary prefill retains the accepted grid-stride loop, stages=4, 64-token blocking, masked tail, cache loads, K 2D DMA, and Q 4+2 3D DMA. Only N and num_token_blocks move from runtime scalar arguments to compile-time shape constants; grid coverage, masks, math, pointers, and stores are unchanged.
+# Layer1 self-check: decode and mirror remain shared and unchanged. Ordinary prefill restores runtime do_not_specialize N and num_token_blocks, while retaining the accepted grid-stride loop, stages=4, 64-token blocking, masked tail, cache loads, K 2D DMA, and Q 4+2 3D DMA. No frequently changing shape or derived value enters the compilation cache key.

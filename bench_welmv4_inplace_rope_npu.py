@@ -413,14 +413,14 @@ def _candidate_apply_token_head_block_rope(
     )
 
 
-@triton.jit
+@triton.jit(do_not_specialize=["num_token_blocks", "N"])
 def _candidate_welmv4_inplace_rope_prefill_kernel(
     q_ptr: tl.tensor,
     k_ptr: tl.tensor,
     position_ptr: tl.tensor,
     cos_sin_cache_ptr: tl.tensor,
-    num_token_blocks: tl.constexpr,
-    N: tl.constexpr,
+    num_token_blocks: int,
+    N: int,
     q_token_stride: tl.constexpr,
     k_token_stride: tl.constexpr,
     head_dim: tl.constexpr,
