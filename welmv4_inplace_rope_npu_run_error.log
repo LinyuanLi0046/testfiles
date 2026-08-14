@@ -1,26 +1,57 @@
-time: 2026-08-14T14:03:25+08:00
+time: 2026-08-14T14:05:42+08:00
 command: /usr/local/python3.11.10/bin/python bench_welmv4_inplace_rope_npu.py --mode both --cases all --scope kernel --device npu:5 --output-csv welmv4_inplace_rope_npu_all.csv
 return_code: 1
 reason: benchmark exited with status 1
 
 ===== stdout + stderr =====
-/data2/hw_lly/testfiles/bench_welmv4_inplace_rope_npu.py:732: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:423.)
+/data2/hw_lly/testfiles/bench_welmv4_inplace_rope_npu.py:733: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:423.)
   positions = (
 WeLMv4 inplace tail-RoPE manual Ascend A5 study
-device=npu:5 (Ascend950PR_957b), physical_AIV=56, commit=2fe5f7853873
+device=npu:5 (Ascend950PR_957b), physical_AIV=56, commit=96e0407bd90f
 shape: q_heads=6, kv_heads=1, head_dim=256, rope_dim=64, dtype=torch.bfloat16
 
 Correctness (BF16 tail-RoPE reference):
+  decode_m1                baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m1                candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m2                baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m2                candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m3                baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m3                candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m4                baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m4                candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m5                baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m5                candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m6                baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m6                candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m7                baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m7                candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m8                baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m8                candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m9                baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m9                candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m10               baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m10               candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m11               baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m11               candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m12               baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m12               candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m13               baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m13               candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m14               baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m14               candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m15               baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m15               candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m16               baseline   PASS max_abs_q=0 max_abs_k=0
 Traceback (most recent call last):
-  File "/data2/hw_lly/testfiles/bench_welmv4_inplace_rope_npu.py", line 1247, in <module>
+  File "/data2/hw_lly/testfiles/bench_welmv4_inplace_rope_npu.py", line 1248, in <module>
     raise SystemExit(main())
                      ^^^^^^
-  File "/data2/hw_lly/testfiles/bench_welmv4_inplace_rope_npu.py", line 1212, in main
+  File "/data2/hw_lly/testfiles/bench_welmv4_inplace_rope_npu.py", line 1213, in main
     correctness_records, failures = run_correctness(harness, cases)
                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/data2/hw_lly/testfiles/bench_welmv4_inplace_rope_npu.py", line 814, in run_correctness
+  File "/data2/hw_lly/testfiles/bench_welmv4_inplace_rope_npu.py", line 815, in run_correctness
     launch()
-  File "/data2/hw_lly/testfiles/bench_welmv4_inplace_rope_npu.py", line 684, in launch
+  File "/data2/hw_lly/testfiles/bench_welmv4_inplace_rope_npu.py", line 669, in launch
     return kernel[(num_programs,)](
            ^^^^^^^^^^^^^^^^^^^^^^^^
   File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/runtime/jit.py", line 333, in <lambda>
@@ -41,19 +72,19 @@ Traceback (most recent call last):
   File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/compiler/compiler.py", line 102, in make_ir
     return ast_to_ttir(self.fn, self, context=context, options=options, codegen_fns=codegen_fns,
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-triton.compiler.errors.CompilationError: at 36:8:
-        position_id = tl.load(position_ptr + token_id)
-        cos = tl.load(
-            cos_sin_cache_ptr + position_id * rope_dim + cos_offsets,
-            care_padding=False,
-        )
-        sin = tl.load(
-            cos_sin_cache_ptr + position_id * rope_dim + sin_offsets,
-            care_padding=False,
-        )
-        q_data = q_ptr + token_id * q_token_stride + head_dim - rope_dim
-        k_data = k_ptr + token_id * k_token_stride + head_dim - rope_dim
-        _baseline_apply_tail_rope(
-        ^
-TypeError('_baseline_apply_tail_rope() takes 6 positional arguments but 7 were given')
-[ERROR] 2026-08-14-14:03:23 (PID:1439828, Device:5, RankID:-1) ERR99999 UNKNOWN applicaiton exception
+triton.compiler.errors.CompilationError: at 113:12:
+                    masked,
+                    head_dim,
+                    rope_dim,
+                )
+        else:
+            q_data = (
+                q_ptr
+                + token_base * q_token_stride
+                + head_dim
+                - rope_dim
+            )
+            _candidate_apply_token_head_block_rope(
+            ^
+TypeError("_candidate_apply_token_head_block_rope() missing 1 required positional argument: 'rope_dim'")
+[ERROR] 2026-08-14-14:05:41 (PID:1442592, Device:5, RankID:-1) ERR99999 UNKNOWN applicaiton exception
