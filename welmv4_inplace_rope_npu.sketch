@@ -1,4 +1,4 @@
-# architecture_decision("independent-data-load-first", reason="Keep the measured int32 position addressing. Within each token iteration, Q/K tail addresses do not depend on positions or the cache lookup, so issue their GM loads before the serial position->cos/sin chain. Ascend's compiler preserves user load order; the earlier loads can overlap the prior iteration's stores and the indirect cache latency without changing the 2D tile.")
+# architecture_decision("decode-prefill-two-path-dispatch", reason="Keep the measured int32 position addressing and revert the rejected load reorder. Decode has N<=64 and grid=N, so every program executes exactly one token; dispatch it to a loop-free kernel. Prefill and mirror retain the general grid-stride kernel required for N up to 16384. Two paths remove decode loop/control overhead without perturbing the accepted prefill implementation.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -21,42 +21,54 @@ sketch welmv4_inplace_rope_npu {
   }
 
   partition {
-    grid = min(N, AIV * 8)
-    program token_start = program_id(0)
-    program token_step = num_programs(0)
+    if N <= 64 and last_index is absent {
+      path = decode_direct
+      grid = N
+      program token_id = program_id(0)
+    } else {
+      path = prefill_general
+      grid = min(N, AIV * 8)
+      program token_start = program_id(0)
+      program token_step = num_programs(0)
+    }
   }
 
-  pipeline each token_id in range(token_start, N, token_step) {
-    load k_front = k[token_id, 0:K_HEADS, 0:HALF_ROPE]
-    load k_back = k[token_id, 0:K_HEADS, HALF_ROPE:ROPE_DIM]
-    if last_index is absent {
-      load q_front = q[token_id, 0:Q_HEADS, 0:HALF_ROPE]
-      load q_back = q[token_id, 0:Q_HEADS, HALF_ROPE:ROPE_DIM]
-    }
+  decode_direct token_id {
+    execute rope_token_body without loop or bounds branch
+  }
 
+  prefill_general each token_id in range(token_start, N, token_step) {
+    execute rope_token_body
+  }
+
+  rope_token_body token_id {
     load pos_i64 = positions[token_id]
     cast pos = int32(pos_i64)
     load cos = cos_sin_cache[pos, 0:HALF_ROPE]
     load sin = cos_sin_cache[pos, HALF_ROPE:ROPE_DIM]
 
+    load k_front = k[token_id, 0:K_HEADS, 0:HALF_ROPE]
+    load k_back = k[token_id, 0:K_HEADS, HALF_ROPE:ROPE_DIM]
     compute rotated_k_front = k_front * cos - k_back * sin
     compute rotated_k_back = k_back * cos + k_front * sin
     store k[token_id, 0:K_HEADS, 0:ROPE_DIM] = concat(rotated_k_front, rotated_k_back)
 
     if last_index is absent {
-      compute and store q rotation using cos and sin
-    } else if token_id < BS {
       load q_front = q[token_id, 0:Q_HEADS, 0:HALF_ROPE]
       load q_back = q[token_id, 0:Q_HEADS, HALF_ROPE:ROPE_DIM]
+      compute and store q rotation using cos and sin
+    } else if token_id < BS {
       load q_token_i64 = last_index[token_id]
       cast q_token = int32(q_token_i64)
       load q_pos_i64 = positions[q_token]
       cast q_pos = int32(q_pos_i64)
       load q_cos_sin = cos_sin_cache[q_pos, 0:ROPE_DIM]
+      load q_front = q[token_id, 0:Q_HEADS, 0:HALF_ROPE]
+      load q_back = q[token_id, 0:Q_HEADS, HALF_ROPE:ROPE_DIM]
       load q[token_id, 0:Q_HEADS, 0:ROPE_DIM]
       compute and store q rotation using q_cos_sin
     }
   }
 }
 
-# Layer1 self-check: the accepted i32 address narrowing remains. This round only splits the existing tail helper into load/store stages and moves independent Q/K loads before their position/cache dependency chain; arithmetic, masks, grid, data shape, decode M=1..64 coverage, mirror semantics, and write order are unchanged.
+# Layer1 self-check: rejected load reordering is fully removed and accepted int32 address narrowing remains. Host dispatch selects decode_direct only for normal-path N<=64, exactly covering required concurrency 1..64; all prefill and mirror cases stay on the previously validated general kernel. Both paths share identical token math and in-place write regions.
