@@ -315,60 +315,6 @@ def _candidate_welmv4_inplace_rope_kernel(
             )
 
 
-@triton.jit
-def _candidate_welmv4_inplace_rope_decode_kernel(
-    q_ptr: tl.tensor,
-    k_ptr: tl.tensor,
-    position_ptr: tl.tensor,
-    cos_sin_cache_ptr: tl.tensor,
-    last_index_ptr: tl.tensor,
-    N: int,
-    BS: int,
-    q_token_stride: tl.constexpr,
-    k_token_stride: tl.constexpr,
-    head_dim: tl.constexpr,
-    rope_dim: tl.constexpr,
-    num_stages: tl.constexpr,
-    num_q_heads: tl.constexpr,
-    num_k_heads: tl.constexpr,
-    num_q_heads_blocked: tl.constexpr,
-    num_k_heads_blocked: tl.constexpr,
-):
-    token_id = tl.program_id(0)
-    half_rope_dim: tl.constexpr = rope_dim // 2
-    cos_offsets = tl.arange(0, half_rope_dim)
-    sin_offsets = tl.arange(half_rope_dim, rope_dim)
-    position_id = tl.load(position_ptr + token_id).to(tl.int32)
-    cos = tl.load(
-        cos_sin_cache_ptr + position_id * rope_dim + cos_offsets,
-        care_padding=False,
-    )
-    sin = tl.load(
-        cos_sin_cache_ptr + position_id * rope_dim + sin_offsets,
-        care_padding=False,
-    )
-    q_data = q_ptr + token_id * q_token_stride + head_dim - rope_dim
-    k_data = k_ptr + token_id * k_token_stride + head_dim - rope_dim
-    _candidate_apply_tail_rope(
-        k_data,
-        cos,
-        sin,
-        num_k_heads,
-        num_k_heads_blocked,
-        head_dim,
-        rope_dim,
-    )
-    _candidate_apply_tail_rope(
-        q_data,
-        cos,
-        sin,
-        num_q_heads,
-        num_q_heads_blocked,
-        head_dim,
-        rope_dim,
-    )
-
-
 PROVIDERS = {
     "baseline": _baseline_welmv4_inplace_rope_kernel,
     "candidate": _candidate_welmv4_inplace_rope_kernel,
@@ -441,10 +387,15 @@ class Harness:
         kernel = PROVIDERS[provider]
         n_tokens = int(positions.shape[0])
         batch_size = int(last_index.numel()) if last_index is not None else 0
-        if provider == "candidate" and n_tokens <= 64 and last_index is None:
-            kernel = _candidate_welmv4_inplace_rope_decode_kernel
         num_programs = min(
             n_tokens, self.num_vector_cores * PROGRAMS_PER_VECTOR_CORE
+        )
+        pipeline_stages = (
+            1
+            if provider == "candidate"
+            and n_tokens <= 64
+            and last_index is None
+            else NUM_STAGES
         )
         q_stride = int(query.stride(0))
         k_stride = int(key.stride(0))
@@ -464,7 +415,7 @@ class Harness:
                 k_stride,
                 HEAD_DIM,
                 ROPE_DIM,
-                NUM_STAGES,
+                pipeline_stages,
                 NUM_Q_HEADS,
                 NUM_K_HEADS,
                 q_heads_blocked,
