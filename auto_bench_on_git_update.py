@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Poll origin every minute and run the NPU benchmark after remote updates.
+"""Poll origin every minute and run the WeLMv4 tail-RoPE NPU benchmark.
 
 Put this file in the root of the ``testfiles`` Git repository, then run:
 
@@ -25,9 +25,9 @@ from typing import Sequence
 
 
 REMOTE = "origin"
-BENCHMARK_SCRIPT = "bench_welmv4_expert_bias_topk_npu.py"
-OUTPUT_CSV = "welmv4_topk_r0_r5_all.csv"
-ERROR_LOG = "welmv4_topk_run_error.log"
+BENCHMARK_SCRIPT = "bench_welmv4_inplace_rope_npu.py"
+OUTPUT_CSV = "welmv4_inplace_rope_npu_all.csv"
+ERROR_LOG = "welmv4_inplace_rope_npu_run_error.log"
 DEFAULT_INTERVAL_SECONDS = 60
 AUTO_COMMIT_MARKER = "Auto-Benchmark: true"
 
@@ -353,6 +353,14 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="check once and exit; useful for testing the setup",
     )
+    parser.add_argument(
+        "--run-now",
+        action="store_true",
+        help=(
+            "benchmark the current synchronized HEAD once at startup, then "
+            "continue monitoring"
+        ),
+    )
     args = parser.parse_args()
     if args.interval <= 0:
         parser.error("--interval must be greater than zero")
@@ -363,9 +371,15 @@ def main() -> int:
     args = parse_args()
     validate_repository()
     branch = current_branch()
-    log(f"monitoring {REMOTE}/{branch} every {args.interval:g} seconds")
+    log(
+        f"monitoring {REMOTE}/{branch} every {args.interval:g} seconds; "
+        f"benchmark={BENCHMARK_SCRIPT}, artifact={OUTPUT_CSV}"
+    )
 
     pending: PendingPush | None = detect_interrupted_pending_push(branch)
+    # Recovering an already-produced pending result takes precedence; do not
+    # immediately benchmark the automatic result commit itself after pushing.
+    force_run = args.run_now and pending is None
     while True:
         retry_immediately = False
         try:
@@ -373,6 +387,17 @@ def main() -> int:
                 pending, retry_immediately = try_push(pending)
             else:
                 base_sha = pull_if_updated(branch)
+                if force_run and base_sha is None:
+                    local = git_text("rev-parse", "HEAD")
+                    remote = remote_sha(branch)
+                    if local != remote:
+                        raise GitCommandError(
+                            "--run-now requires local HEAD to equal origin; "
+                            "resolve or push the local-only commits first"
+                        )
+                    base_sha = local
+                    log(f"--run-now selected current HEAD {base_sha[:12]}")
+                force_run = False
                 if base_sha is not None:
                     succeeded = run_benchmark()
 

@@ -1,0 +1,827 @@
+#!/usr/bin/env python3
+"""Standalone Ascend benchmark for ``welmv4_inplace_rope_npu``.
+
+The file intentionally contains two independent Triton implementations:
+
+* ``baseline`` is a frozen copy of the current NEWSGLANG NPU implementation.
+* ``candidate`` is the only section that should change during optimization.
+
+The benchmark does not import NEWSGLANG, so the remote NPU worker only needs
+this small Git repository plus its normal torch/torch_npu/Triton environment.
+It checks both ordinary Q/K RoPE and the KV-mirror path where Q has ``BS`` rows
+while K/positions have ``N`` rows.
+
+Default model-local shape (WeLM v4.5 TP rank): 6 Q heads, 1 KV head,
+head_dim=256, rope_dim=64, BF16.
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import math
+import platform
+import statistics
+import subprocess
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Callable, Iterable, Sequence
+
+import torch
+import torch_npu
+import triton
+import triton.language as tl
+
+
+HEAD_DIM = 256
+ROPE_DIM = 64
+HALF_ROPE_DIM = ROPE_DIM // 2
+NUM_Q_HEADS = 6
+NUM_K_HEADS = 1
+MAX_POSITION = 32768
+ROPE_BASE = 100000.0
+NUM_STAGES = 4
+PROGRAMS_PER_VECTOR_CORE = 8
+DTYPE = torch.bfloat16
+ATOL = 2.0e-2
+RTOL = 2.0e-2
+
+
+@dataclass(frozen=True)
+class Case:
+    name: str
+    phase: str
+    n_tokens: int
+    batch_size: int = 0
+
+    @property
+    def is_mirror(self) -> bool:
+        return self.batch_size > 0
+
+    @property
+    def q_rows(self) -> int:
+        return self.batch_size if self.is_mirror else self.n_tokens
+
+
+# Decode latency is launch-bound and can vary at every batch size.  Keep the
+# complete production concurrency range instead of sampling powers of two.
+DECODE_CASES = tuple(Case(f"decode_m{m}", "decode", m) for m in range(1, 65))
+PREFILL_CASES = tuple(
+    Case(f"prefill_m{m}", "prefill", m)
+    for m in (128, 256, 512, 1024, 2048, 4096, 8192, 9616, 16384)
+)
+MIRROR_CASES = (
+    Case("mirror_m8192_bs4", "prefill_mirror", 8192, 4),
+    Case("mirror_m16384_bs8", "prefill_mirror", 16384, 8),
+)
+ALL_CASES = DECODE_CASES + PREFILL_CASES + MIRROR_CASES
+
+
+# ---------------------------------------------------------------------------
+# Frozen R0 baseline: copied from NEWSGLANG welmv4_npu_op.py on 2026-08-14.
+# Do not edit this section during optimization rounds.
+# ---------------------------------------------------------------------------
+
+
+@triton.jit
+def _baseline_apply_tail_rope(
+    data_ptr: tl.tensor,
+    cos: tl.tensor,
+    sin: tl.tensor,
+    num_heads: tl.constexpr,
+    num_heads_blocked: tl.constexpr,
+    head_dim: tl.constexpr,
+    rope_dim: tl.constexpr,
+):
+    half_rope_dim: tl.constexpr = rope_dim // 2
+    head_offsets = tl.arange(0, num_heads_blocked)
+    rope_offsets = tl.arange(0, half_rope_dim)
+    mask = head_offsets[:, None] < num_heads
+    base = data_ptr + head_offsets[:, None] * head_dim
+    x1 = tl.load(
+        base + rope_offsets[None, :], mask=mask, care_padding=False
+    )
+    x2 = tl.load(
+        base + half_rope_dim + rope_offsets[None, :],
+        mask=mask,
+        care_padding=False,
+    )
+    out1 = x1 * cos - x2 * sin
+    out2 = x1 * sin + x2 * cos
+    tl.store(base + rope_offsets[None, :], out1, mask=mask)
+    tl.store(base + half_rope_dim + rope_offsets[None, :], out2, mask=mask)
+
+
+@triton.jit(do_not_specialize=["N", "BS"])
+def _baseline_welmv4_inplace_rope_kernel(
+    q_ptr: tl.tensor,
+    k_ptr: tl.tensor,
+    position_ptr: tl.tensor,
+    cos_sin_cache_ptr: tl.tensor,
+    last_index_ptr: tl.tensor,
+    N: int,
+    BS: int,
+    q_token_stride: tl.constexpr,
+    k_token_stride: tl.constexpr,
+    head_dim: tl.constexpr,
+    rope_dim: tl.constexpr,
+    num_stages: tl.constexpr,
+    num_q_heads: tl.constexpr,
+    num_k_heads: tl.constexpr,
+    num_q_heads_blocked: tl.constexpr,
+    num_k_heads_blocked: tl.constexpr,
+):
+    half_rope_dim: tl.constexpr = rope_dim // 2
+    cos_offsets = tl.arange(0, half_rope_dim)
+    sin_offsets = tl.arange(half_rope_dim, rope_dim)
+    for token_id in tl.range(
+        tl.program_id(0), N, tl.num_programs(0), num_stages=num_stages
+    ):
+        position_id = tl.load(position_ptr + token_id)
+        cos = tl.load(
+            cos_sin_cache_ptr + position_id * rope_dim + cos_offsets,
+            care_padding=False,
+        )
+        sin = tl.load(
+            cos_sin_cache_ptr + position_id * rope_dim + sin_offsets,
+            care_padding=False,
+        )
+        q_data = q_ptr + token_id * q_token_stride + head_dim - rope_dim
+        k_data = k_ptr + token_id * k_token_stride + head_dim - rope_dim
+        _baseline_apply_tail_rope(
+            k_data,
+            cos,
+            sin,
+            num_k_heads,
+            num_k_heads_blocked,
+            head_dim,
+            rope_dim,
+        )
+        if last_index_ptr is not None:
+            if token_id < BS:
+                q_position_id = tl.load(last_index_ptr + token_id)
+                q_position_id = tl.load(position_ptr + q_position_id)
+                q_cos = tl.load(
+                    cos_sin_cache_ptr
+                    + q_position_id * rope_dim
+                    + cos_offsets,
+                    care_padding=False,
+                )
+                q_sin = tl.load(
+                    cos_sin_cache_ptr
+                    + q_position_id * rope_dim
+                    + sin_offsets,
+                    care_padding=False,
+                )
+                _baseline_apply_tail_rope(
+                    q_data,
+                    q_cos,
+                    q_sin,
+                    num_q_heads,
+                    num_q_heads_blocked,
+                    head_dim,
+                    rope_dim,
+                )
+        else:
+            _baseline_apply_tail_rope(
+                q_data,
+                cos,
+                sin,
+                num_q_heads,
+                num_q_heads_blocked,
+                head_dim,
+                rope_dim,
+            )
+
+
+# ---------------------------------------------------------------------------
+# Optimization candidate (R1 initially equals the frozen R0 baseline).
+# Edit only this section in later optimization rounds.
+# ---------------------------------------------------------------------------
+
+
+@triton.jit
+def _candidate_apply_tail_rope(
+    data_ptr: tl.tensor,
+    cos: tl.tensor,
+    sin: tl.tensor,
+    num_heads: tl.constexpr,
+    num_heads_blocked: tl.constexpr,
+    head_dim: tl.constexpr,
+    rope_dim: tl.constexpr,
+):
+    half_rope_dim: tl.constexpr = rope_dim // 2
+    head_offsets = tl.arange(0, num_heads_blocked)
+    rope_offsets = tl.arange(0, half_rope_dim)
+    mask = head_offsets[:, None] < num_heads
+    base = data_ptr + head_offsets[:, None] * head_dim
+    x1 = tl.load(
+        base + rope_offsets[None, :], mask=mask, care_padding=False
+    )
+    x2 = tl.load(
+        base + half_rope_dim + rope_offsets[None, :],
+        mask=mask,
+        care_padding=False,
+    )
+    out1 = x1 * cos - x2 * sin
+    out2 = x1 * sin + x2 * cos
+    tl.store(base + rope_offsets[None, :], out1, mask=mask)
+    tl.store(base + half_rope_dim + rope_offsets[None, :], out2, mask=mask)
+
+
+@triton.jit(do_not_specialize=["N", "BS"])
+def _candidate_welmv4_inplace_rope_kernel(
+    q_ptr: tl.tensor,
+    k_ptr: tl.tensor,
+    position_ptr: tl.tensor,
+    cos_sin_cache_ptr: tl.tensor,
+    last_index_ptr: tl.tensor,
+    N: int,
+    BS: int,
+    q_token_stride: tl.constexpr,
+    k_token_stride: tl.constexpr,
+    head_dim: tl.constexpr,
+    rope_dim: tl.constexpr,
+    num_stages: tl.constexpr,
+    num_q_heads: tl.constexpr,
+    num_k_heads: tl.constexpr,
+    num_q_heads_blocked: tl.constexpr,
+    num_k_heads_blocked: tl.constexpr,
+):
+    half_rope_dim: tl.constexpr = rope_dim // 2
+    cos_offsets = tl.arange(0, half_rope_dim)
+    sin_offsets = tl.arange(half_rope_dim, rope_dim)
+    for token_id in tl.range(
+        tl.program_id(0), N, tl.num_programs(0), num_stages=num_stages
+    ):
+        position_id = tl.load(position_ptr + token_id)
+        cos = tl.load(
+            cos_sin_cache_ptr + position_id * rope_dim + cos_offsets,
+            care_padding=False,
+        )
+        sin = tl.load(
+            cos_sin_cache_ptr + position_id * rope_dim + sin_offsets,
+            care_padding=False,
+        )
+        q_data = q_ptr + token_id * q_token_stride + head_dim - rope_dim
+        k_data = k_ptr + token_id * k_token_stride + head_dim - rope_dim
+        _candidate_apply_tail_rope(
+            k_data,
+            cos,
+            sin,
+            num_k_heads,
+            num_k_heads_blocked,
+            head_dim,
+            rope_dim,
+        )
+        if last_index_ptr is not None:
+            if token_id < BS:
+                q_position_id = tl.load(last_index_ptr + token_id)
+                q_position_id = tl.load(position_ptr + q_position_id)
+                q_cos = tl.load(
+                    cos_sin_cache_ptr
+                    + q_position_id * rope_dim
+                    + cos_offsets,
+                    care_padding=False,
+                )
+                q_sin = tl.load(
+                    cos_sin_cache_ptr
+                    + q_position_id * rope_dim
+                    + sin_offsets,
+                    care_padding=False,
+                )
+                _candidate_apply_tail_rope(
+                    q_data,
+                    q_cos,
+                    q_sin,
+                    num_q_heads,
+                    num_q_heads_blocked,
+                    head_dim,
+                    rope_dim,
+                )
+        else:
+            _candidate_apply_tail_rope(
+                q_data,
+                cos,
+                sin,
+                num_q_heads,
+                num_q_heads_blocked,
+                head_dim,
+                rope_dim,
+            )
+
+
+PROVIDERS = {
+    "baseline": _baseline_welmv4_inplace_rope_kernel,
+    "candidate": _candidate_welmv4_inplace_rope_kernel,
+}
+
+
+# ---------------------------------------------------------------------------
+# Inputs, reference, launch binding, and measurement.
+# ---------------------------------------------------------------------------
+
+
+def repository_head() -> str:
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=Path(__file__).resolve().parent,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        capture_output=True,
+        check=False,
+    )
+    return result.stdout.strip() if result.returncode == 0 else "unknown"
+
+
+class Harness:
+    def __init__(self, device: torch.device, seed: int) -> None:
+        self.device = device
+        self.seed = seed
+        self.device_index = int(torch_npu.npu.current_device())
+        properties = triton.runtime.driver.active.utils.get_device_properties(
+            self.device_index
+        )
+        self.num_vector_cores = int(
+            properties.get("num_vectorcore", properties.get("num_aicore", -1))
+        )
+        if self.num_vector_cores <= 0:
+            raise RuntimeError("could not determine the visible NPU vector-core count")
+        self.device_name = str(torch_npu.npu.get_device_name(self.device_index))
+        self.cache = make_cos_sin_cache(device)
+        self.commit = repository_head()
+
+    def metadata(self) -> dict[str, object]:
+        return {
+            "benchmark_commit": self.commit,
+            "device": str(self.device),
+            "device_name": self.device_name,
+            "device_index": self.device_index,
+            "num_vector_cores": self.num_vector_cores,
+            "torch_version": str(torch.__version__),
+            "torch_npu_version": str(getattr(torch_npu, "__version__", "unknown")),
+            "triton_version": str(getattr(triton, "__version__", "unknown")),
+            "cann_version": str(getattr(torch.version, "cann", "unknown")),
+            "python_version": platform.python_version(),
+            "seed": self.seed,
+            "dtype": str(DTYPE).removeprefix("torch."),
+            "head_dim": HEAD_DIM,
+            "rope_dim": ROPE_DIM,
+            "num_q_heads": NUM_Q_HEADS,
+            "num_k_heads": NUM_K_HEADS,
+        }
+
+    def bind(
+        self,
+        provider: str,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        positions: torch.Tensor,
+        last_index: torch.Tensor | None,
+    ) -> Callable[[], object]:
+        kernel = PROVIDERS[provider]
+        n_tokens = int(positions.shape[0])
+        batch_size = int(last_index.numel()) if last_index is not None else 0
+        num_programs = min(
+            n_tokens, self.num_vector_cores * PROGRAMS_PER_VECTOR_CORE
+        )
+        q_stride = int(query.stride(0))
+        k_stride = int(key.stride(0))
+        q_heads_blocked = triton.next_power_of_2(NUM_Q_HEADS)
+        k_heads_blocked = triton.next_power_of_2(NUM_K_HEADS)
+
+        def launch() -> object:
+            return kernel[(num_programs,)](
+                query,
+                key,
+                positions,
+                self.cache,
+                last_index,
+                n_tokens,
+                batch_size,
+                q_stride,
+                k_stride,
+                HEAD_DIM,
+                ROPE_DIM,
+                NUM_STAGES,
+                NUM_Q_HEADS,
+                NUM_K_HEADS,
+                q_heads_blocked,
+                k_heads_blocked,
+            )
+
+        return launch
+
+
+def make_cos_sin_cache(device: torch.device) -> torch.Tensor:
+    inv_freq = 1.0 / (
+        ROPE_BASE
+        ** (torch.arange(0, ROPE_DIM, 2, dtype=torch.float32) / ROPE_DIM)
+    )
+    positions = torch.arange(MAX_POSITION, dtype=torch.float32)
+    frequencies = torch.outer(positions, inv_freq)
+    cache = torch.cat((frequencies.cos(), frequencies.sin()), dim=-1)
+    return cache.to(device=device, dtype=DTYPE)
+
+
+def make_last_index(case: Case, device: torch.device) -> torch.Tensor | None:
+    if not case.is_mirror:
+        return None
+    values = [
+        max(0, min(case.n_tokens - 1, (i + 1) * case.n_tokens // case.batch_size - 1))
+        for i in range(case.batch_size)
+    ]
+    return torch.tensor(values, device=device, dtype=torch.int64)
+
+
+def make_inputs(
+    case: Case, device: torch.device, seed: int
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor | None]:
+    case_seed = seed + case.n_tokens * 17 + case.batch_size * 101
+    torch.manual_seed(case_seed)
+    positions = (
+        torch.arange(case.n_tokens, device=device, dtype=torch.int64) * 17 + 11
+    ) % MAX_POSITION
+    query = torch.randn(
+        (case.q_rows, NUM_Q_HEADS, HEAD_DIM), device=device, dtype=DTYPE
+    )
+    key = torch.randn(
+        (case.n_tokens, NUM_K_HEADS, HEAD_DIM), device=device, dtype=DTYPE
+    )
+    return query, key, positions, make_last_index(case, device)
+
+
+def apply_reference(
+    data: torch.Tensor,
+    rope_positions: torch.Tensor,
+    cache: torch.Tensor,
+) -> torch.Tensor:
+    output = data.clone()
+    cos_sin = cache.index_select(0, rope_positions)
+    cos = cos_sin[:, :HALF_ROPE_DIM].float().unsqueeze(1)
+    sin = cos_sin[:, HALF_ROPE_DIM:].float().unsqueeze(1)
+    rotary = data[..., HEAD_DIM - ROPE_DIM :]
+    x1 = rotary[..., :HALF_ROPE_DIM].float()
+    x2 = rotary[..., HALF_ROPE_DIM:].float()
+    output[..., HEAD_DIM - ROPE_DIM : HEAD_DIM - HALF_ROPE_DIM] = (
+        x1 * cos - x2 * sin
+    ).to(DTYPE)
+    output[..., HEAD_DIM - HALF_ROPE_DIM :] = (x1 * sin + x2 * cos).to(DTYPE)
+    return output
+
+
+def reference_outputs(
+    query: torch.Tensor,
+    key: torch.Tensor,
+    positions: torch.Tensor,
+    last_index: torch.Tensor | None,
+    cache: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    query_positions = (
+        positions if last_index is None else positions.index_select(0, last_index)
+    )
+    return (
+        apply_reference(query, query_positions, cache),
+        apply_reference(key, positions, cache),
+    )
+
+
+def max_abs_error(actual: torch.Tensor, expected: torch.Tensor) -> float:
+    difference = (actual.float() - expected.float()).abs()
+    return float(difference.max().item()) if difference.numel() else 0.0
+
+
+def case_fields(case: Case) -> dict[str, object]:
+    return {
+        "case": case.name,
+        "phase": case.phase,
+        "path": "kv_mirror" if case.is_mirror else "normal",
+        "n_tokens": case.n_tokens,
+        "q_rows": case.q_rows,
+        "batch_size": case.batch_size,
+    }
+
+
+def run_correctness(
+    harness: Harness, cases: Sequence[Case]
+) -> tuple[list[dict[str, object]], int]:
+    records: list[dict[str, object]] = []
+    failures = 0
+    print("\nCorrectness (BF16 tail-RoPE reference):")
+    for case in cases:
+        query, key, positions, last_index = make_inputs(
+            case, harness.device, harness.seed
+        )
+        query_ref, key_ref = reference_outputs(
+            query, key, positions, last_index, harness.cache
+        )
+        for provider in PROVIDERS:
+            query_out = query.clone()
+            key_out = key.clone()
+            launch = harness.bind(
+                provider, query_out, key_out, positions, last_index
+            )
+            launch()
+            torch_npu.npu.synchronize()
+            status = "PASS"
+            detail = ""
+            try:
+                torch.testing.assert_close(
+                    query_out, query_ref, atol=ATOL, rtol=RTOL
+                )
+                torch.testing.assert_close(key_out, key_ref, atol=ATOL, rtol=RTOL)
+                nope_dim = HEAD_DIM - ROPE_DIM
+                if not torch.equal(query_out[..., :nope_dim], query[..., :nope_dim]):
+                    raise AssertionError("query non-RoPE prefix was modified")
+                if not torch.equal(key_out[..., :nope_dim], key[..., :nope_dim]):
+                    raise AssertionError("key non-RoPE prefix was modified")
+            except AssertionError as exc:
+                status = "FAIL"
+                detail = str(exc).replace("\n", " | ")
+                failures += 1
+
+            q_error = max_abs_error(query_out, query_ref)
+            k_error = max_abs_error(key_out, key_ref)
+            print(
+                f"  {case.name:<24} {provider:<10} {status:<4} "
+                f"max_abs_q={q_error:.6g} max_abs_k={k_error:.6g}"
+            )
+            records.append(
+                {
+                    **harness.metadata(),
+                    **case_fields(case),
+                    "record_type": "correctness",
+                    "variant": provider,
+                    "status": status,
+                    "detail": detail,
+                    "atol": ATOL,
+                    "rtol": RTOL,
+                    "max_abs_q": q_error,
+                    "max_abs_k": k_error,
+                }
+            )
+    return records, failures
+
+
+def percentile(values: Sequence[float], quantile: float) -> float:
+    ordered = sorted(values)
+    if len(ordered) == 1:
+        return ordered[0]
+    position = (len(ordered) - 1) * quantile
+    low = math.floor(position)
+    high = math.ceil(position)
+    if low == high:
+        return ordered[low]
+    fraction = position - low
+    return ordered[low] * (1.0 - fraction) + ordered[high] * fraction
+
+
+def automatic_inner_repeat(n_tokens: int) -> int:
+    if n_tokens <= 64:
+        return 200
+    if n_tokens <= 512:
+        return 100
+    if n_tokens <= 2048:
+        return 50
+    if n_tokens <= 9616:
+        return 10
+    return 5
+
+
+def event_sample_us(launch: Callable[[], object], inner_repeat: int) -> float:
+    start = torch_npu.npu.Event(enable_timing=True)
+    end = torch_npu.npu.Event(enable_timing=True)
+    start.record()
+    for _ in range(inner_repeat):
+        launch()
+    end.record()
+    torch_npu.npu.synchronize()
+    return float(start.elapsed_time(end)) * 1000.0 / inner_repeat
+
+
+def run_performance(
+    harness: Harness,
+    cases: Sequence[Case],
+    *,
+    scope: str,
+    warmup: int,
+    rounds: int,
+    inner_repeat_override: int,
+) -> list[dict[str, object]]:
+    records: list[dict[str, object]] = []
+    print(
+        f"\nPerformance: scope={scope}, warmup={warmup}, rounds={rounds}, "
+        f"physical_AIV={harness.num_vector_cores}"
+    )
+    for case in cases:
+        query, key, positions, last_index = make_inputs(
+            case, harness.device, harness.seed
+        )
+        launches: dict[str, Callable[[], object]] = {}
+        for provider in PROVIDERS:
+            launches[provider] = harness.bind(
+                provider, query.clone(), key.clone(), positions, last_index
+            )
+
+        for provider in PROVIDERS:
+            for _ in range(warmup):
+                launches[provider]()
+        torch_npu.npu.synchronize()
+
+        inner_repeat = (
+            inner_repeat_override
+            if inner_repeat_override > 0
+            else automatic_inner_repeat(case.n_tokens)
+        )
+        samples = {provider: [] for provider in PROVIDERS}
+        providers = tuple(PROVIDERS)
+        for round_index in range(rounds):
+            order: Iterable[str] = (
+                providers if round_index % 2 == 0 else reversed(providers)
+            )
+            for provider in order:
+                samples[provider].append(
+                    event_sample_us(launches[provider], inner_repeat)
+                )
+
+        stats: dict[str, dict[str, float]] = {}
+        for provider, values in samples.items():
+            stats[provider] = {
+                "p20_us": percentile(values, 0.20),
+                "p50_us": statistics.median(values),
+                "p80_us": percentile(values, 0.80),
+                "mean_us": statistics.fmean(values),
+            }
+
+        baseline_p50 = stats["baseline"]["p50_us"]
+        print(
+            f"\n  {case.name}: N={case.n_tokens}, Q_rows={case.q_rows}, "
+            f"BS={case.batch_size}, inner_repeat={inner_repeat}"
+        )
+        print("    variant      p20(us)   p50(us)   p80(us)   speedup/R0")
+        for provider in PROVIDERS:
+            current = stats[provider]
+            speedup = baseline_p50 / current["p50_us"]
+            print(
+                f"    {provider:<10} {current['p20_us']:>9.3f} "
+                f"{current['p50_us']:>9.3f} {current['p80_us']:>9.3f} "
+                f"{speedup:>10.4f}x"
+            )
+            records.append(
+                {
+                    **harness.metadata(),
+                    **case_fields(case),
+                    "record_type": "performance",
+                    "variant": provider,
+                    "status": "MEASURED",
+                    "scope": scope,
+                    "warmup": warmup,
+                    "rounds": rounds,
+                    "inner_repeat": inner_repeat,
+                    **current,
+                    "speedup_vs_baseline": speedup,
+                }
+            )
+    return records
+
+
+# ---------------------------------------------------------------------------
+# CLI and CSV.
+# ---------------------------------------------------------------------------
+
+
+def parse_cases(spec: str) -> list[Case]:
+    normalized = spec.strip().lower()
+    if normalized in ("all", "common"):
+        return list(ALL_CASES)
+    if normalized == "decode":
+        return list(DECODE_CASES)
+    if normalized == "prefill":
+        return list(PREFILL_CASES)
+    if normalized in ("mirror", "prefill_mirror"):
+        return list(MIRROR_CASES)
+
+    by_name = {case.name: case for case in ALL_CASES}
+    by_tokens = {
+        str(case.n_tokens): case for case in DECODE_CASES + PREFILL_CASES
+    }
+    selected: list[Case] = []
+    for raw_item in spec.split(","):
+        item = raw_item.strip().lower()
+        case = by_name.get(item, by_tokens.get(item))
+        if case is None:
+            raise ValueError(
+                f"unknown case {raw_item!r}; use all|decode|prefill|mirror, "
+                "a case name, or a comma-separated normal-path token count"
+            )
+        if case not in selected:
+            selected.append(case)
+    if not selected:
+        raise ValueError("no benchmark cases were selected")
+    return selected
+
+
+def write_csv(path_text: str, records: Sequence[dict[str, object]]) -> None:
+    if not path_text:
+        return
+    path = Path(path_text)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fieldnames = sorted({key for record in records for key in record})
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(records)
+    print(f"\nCSV written to: {path.resolve()}")
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description=(
+            "WeLMv4 A5 inplace tail-RoPE correctness and kernel-latency study"
+        )
+    )
+    parser.add_argument(
+        "--mode",
+        choices=("both", "correctness", "performance"),
+        default="both",
+    )
+    parser.add_argument(
+        "--cases",
+        default="all",
+        help=(
+            "all|decode|prefill|mirror, a case name, or comma-separated "
+            "normal-path token counts"
+        ),
+    )
+    parser.add_argument("--device", default="npu:0")
+    parser.add_argument("--seed", type=int, default=20260814)
+    parser.add_argument(
+        "--scope",
+        choices=("kernel",),
+        default="kernel",
+        help="time only pre-bound Triton kernel launches on the NPU timeline",
+    )
+    parser.add_argument("--warmup", type=int, default=5)
+    parser.add_argument("--rounds", type=int, default=9)
+    parser.add_argument(
+        "--inner-repeat",
+        type=int,
+        default=0,
+        help="0 selects an N-dependent repeat count; positive forces one value",
+    )
+    parser.add_argument("--output-csv", default="")
+    return parser
+
+
+def main() -> int:
+    args = build_parser().parse_args()
+    if args.warmup < 1 or args.rounds < 1 or args.inner_repeat < 0:
+        raise ValueError("warmup/rounds must be positive; inner-repeat must be >= 0")
+    device = torch.device(args.device)
+    if device.type != "npu":
+        raise ValueError(f"--device must select an NPU, got: {device}")
+    torch_npu.npu.set_device(0 if device.index is None else device.index)
+    cases = parse_cases(args.cases)
+    harness = Harness(device, args.seed)
+
+    print("WeLMv4 inplace tail-RoPE manual Ascend A5 study")
+    print(
+        f"device={device} ({harness.device_name}), "
+        f"physical_AIV={harness.num_vector_cores}, commit={harness.commit[:12]}"
+    )
+    print(
+        f"shape: q_heads={NUM_Q_HEADS}, kv_heads={NUM_K_HEADS}, "
+        f"head_dim={HEAD_DIM}, rope_dim={ROPE_DIM}, dtype={DTYPE}"
+    )
+
+    records: list[dict[str, object]] = []
+    failures = 0
+    if args.mode in ("both", "correctness"):
+        correctness_records, failures = run_correctness(harness, cases)
+        records.extend(correctness_records)
+        print(
+            f"\nCorrectness summary: "
+            f"{'PASS' if failures == 0 else 'FAIL'}, failures={failures}"
+        )
+
+    if failures:
+        print("Performance skipped because correctness failed.")
+    elif args.mode in ("both", "performance"):
+        records.extend(
+            run_performance(
+                harness,
+                cases,
+                scope=args.scope,
+                warmup=args.warmup,
+                rounds=args.rounds,
+                inner_repeat_override=args.inner_repeat,
+            )
+        )
+
+    write_csv(args.output_csv, records)
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
