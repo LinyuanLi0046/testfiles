@@ -1,4 +1,4 @@
-# architecture_decision("explicit-prefill-sub-vector-binding", reason="Keep the accepted 64-token tile, K+Q4 then Q2 lifetime boundaries, stages=4, and runtime shape bounds, but replace the block tl.range with Ascend al.parallel(bind_sub_block=True). The compiler command enables auto sub-block binding yet A5 profiling still reports Block Num=56, so explicitly expose independent block iterations to the platform's sub-Vector mapping. This changes only loop scheduling and adds no UB-resident data. Reject unless correctness is exact and latency improves by at least 3%. Decode and mirror remain shared and unchanged.")
+# architecture_decision("restore-auto-blockify-after-explicit-sub-block-regression", reason="Reject explicit al.parallel(bind_sub_block=True) despite 150/150 correctness and hivm.parallel_loop appearing in TTIR/TTAdapter. Final IR exposed no additional sub-block mapping and M16384 regressed from about 52.6 to 57.0 us, while smaller changes were below 3%. Restore tl.range and let the A5 auto-blockify/auto-bind pipeline choose scheduling. N and num_token_blocks remain runtime do_not_specialize; decode and mirror remain shared and unchanged.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -34,7 +34,7 @@ sketch welmv4_inplace_rope_npu {
     program block_step = num_programs(0)
   }
 
-  pipeline each block_id in ascend_parallel(block_start, N / PREFILL_TOKEN_BLOCK, block_step) stages 4 bind_sub_block {
+  pipeline each block_id in range(block_start, N / PREFILL_TOKEN_BLOCK, block_step) stages 4 {
     vector token_ids = block_id * PREFILL_TOKEN_BLOCK + arange(0, PREFILL_TOKEN_BLOCK)
     vector token_mask = token_ids < N when masked
     load pos_i64[64] = positions[token_ids]
@@ -88,4 +88,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode and mirror remain shared and unchanged. N and num_token_blocks stay runtime do_not_specialize. Prefill addresses, masks, tile sizes, stages, K+Q4 then Q2 ordering, math, and writers are unchanged; only the independent block loop gains an explicit Ascend sub-Vector binding hint.
+# Layer1 self-check: decode and mirror remain shared and unchanged. N and num_token_blocks stay runtime do_not_specialize. Ordinary prefill restores the accepted tl.range, auto blockify scheduling, addresses, masks, tile sizes, stages, K+Q4 then Q2 ordering, math, and writers.
