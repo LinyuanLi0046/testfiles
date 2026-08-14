@@ -434,11 +434,12 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
     token_offsets = tl.arange(0, token_block)
     cos_offsets = tl.arange(0, half_rope_dim)
     sin_offsets = tl.arange(half_rope_dim, rope_dim)
-    for block_id in tl.range(
+    for block_id in tl.extra.cann.extension.parallel(
         tl.program_id(0),
         num_token_blocks,
         tl.num_programs(0),
         num_stages=num_stages,
+        bind_sub_block=True,
     ):
         token_base = block_id * token_block
         token_mask = token_base + token_offsets < N

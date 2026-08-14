@@ -1,4 +1,4 @@
-# architecture_decision("restore-after-half-q2-prefetch-ub-limit", reason="Reject even front-half-only Q2 prefetch: final A5 lowering requires 2,097,152 bits (256 KiB) while only 2,031,616 bits (248 KiB) are available. The 8 KiB excess is exactly the extra copy created because auto multibuffer supports only size=2; there is no documented per-tensor single-buffer disable hint. Restore accepted K+Q4 then Q2 lifetime boundaries. N and num_token_blocks remain runtime do_not_specialize; decode and mirror remain shared and unchanged.")
+# architecture_decision("explicit-prefill-sub-vector-binding", reason="Keep the accepted 64-token tile, K+Q4 then Q2 lifetime boundaries, stages=4, and runtime shape bounds, but replace the block tl.range with Ascend al.parallel(bind_sub_block=True). The compiler command enables auto sub-block binding yet A5 profiling still reports Block Num=56, so explicitly expose independent block iterations to the platform's sub-Vector mapping. This changes only loop scheduling and adds no UB-resident data. Reject unless correctness is exact and latency improves by at least 3%. Decode and mirror remain shared and unchanged.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -34,7 +34,7 @@ sketch welmv4_inplace_rope_npu {
     program block_step = num_programs(0)
   }
 
-  pipeline each block_id in range(block_start, N / PREFILL_TOKEN_BLOCK, block_step) stages 4 {
+  pipeline each block_id in ascend_parallel(block_start, N / PREFILL_TOKEN_BLOCK, block_step) stages 4 bind_sub_block {
     vector token_ids = block_id * PREFILL_TOKEN_BLOCK + arange(0, PREFILL_TOKEN_BLOCK)
     vector token_mask = token_ids < N when masked
     load pos_i64[64] = positions[token_ids]
@@ -88,4 +88,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode and mirror remain shared and unchanged. N and num_token_blocks stay runtime do_not_specialize. Ordinary prefill exactly restores the accepted masked per-head path and unmasked K+Q4 then Q2 lifetime boundaries, with unchanged grid, stages, addresses, math, and writers.
+# Layer1 self-check: decode and mirror remain shared and unchanged. N and num_token_blocks stay runtime do_not_specialize. Prefill addresses, masks, tile sizes, stages, K+Q4 then Q2 ordering, math, and writers are unchanged; only the independent block loop gains an explicit Ascend sub-Vector binding hint.
