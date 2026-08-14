@@ -340,6 +340,7 @@ def _candidate_apply_token_block_rope(
     head_dim: tl.constexpr,
     rope_dim: tl.constexpr,
 ):
+    token_count: tl.constexpr = token_offsets.shape[0]
     half_rope_dim: tl.constexpr = rope_dim // 2
     rope_offsets = tl.arange(0, half_rope_dim)
     base = data_ptr + token_offsets[:, None] * token_stride
@@ -358,13 +359,19 @@ def _candidate_apply_token_block_rope(
             care_padding=False,
         )
     else:
-        x1 = tl.load(
-            base + rope_offsets[None, :], care_padding=False
+        block_ptr = tl.make_block_ptr(
+            base=data_ptr,
+            shape=(token_count, rope_dim),
+            strides=(token_stride, 1),
+            offsets=(0, 0),
+            block_shape=(token_count, half_rope_dim),
+            order=(1, 0),
         )
-        x2 = tl.load(
-            base + half_rope_dim + rope_offsets[None, :],
-            care_padding=False,
+        back_block_ptr = tl.advance(
+            block_ptr, (0, half_rope_dim)
         )
+        x1 = tl.load(block_ptr)
+        x2 = tl.load(back_block_ptr)
     out1 = x1 * cos - x2 * sin
     out2 = x1 * sin + x2 * cos
     if masked:
@@ -373,8 +380,8 @@ def _candidate_apply_token_block_rope(
             base + half_rope_dim + rope_offsets[None, :], out2, mask=mask
         )
     else:
-        tl.store(base + rope_offsets[None, :], out1)
-        tl.store(base + half_rope_dim + rope_offsets[None, :], out2)
+        tl.store(block_ptr, out1)
+        tl.store(back_block_ptr, out2)
 
 
 @triton.jit
@@ -388,29 +395,27 @@ def _candidate_apply_token_head_block_rope(
     head_dim: tl.constexpr,
     rope_dim: tl.constexpr,
 ):
+    token_count: tl.constexpr = token_offsets.shape[0]
     half_rope_dim: tl.constexpr = rope_dim // 2
-    head_offsets = tl.arange(0, num_heads)
-    rope_offsets = tl.arange(0, half_rope_dim)
-    base = (
-        data_ptr
-        + token_offsets[:, None, None] * token_stride
-        + head_offsets[None, :, None] * head_dim
+    block_ptr = tl.make_block_ptr(
+        base=data_ptr,
+        shape=(token_count, num_heads, rope_dim),
+        strides=(token_stride, head_dim, 1),
+        offsets=(0, 0, 0),
+        block_shape=(token_count, num_heads, half_rope_dim),
+        order=(2, 1, 0),
     )
-    x1 = tl.load(
-        base + rope_offsets[None, None, :], care_padding=False
+    back_block_ptr = tl.advance(
+        block_ptr, (0, 0, half_rope_dim)
     )
-    x2 = tl.load(
-        base + half_rope_dim + rope_offsets[None, None, :],
-        care_padding=False,
-    )
+    x1 = tl.load(block_ptr)
+    x2 = tl.load(back_block_ptr)
     cos = cos[:, None, :]
     sin = sin[:, None, :]
     out1 = x1 * cos - x2 * sin
     out2 = x1 * sin + x2 * cos
-    tl.store(base + rope_offsets[None, None, :], out1)
-    tl.store(
-        base + half_rope_dim + rope_offsets[None, None, :], out2
-    )
+    tl.store(block_ptr, out1)
+    tl.store(back_block_ptr, out2)
 
 
 @triton.jit(do_not_specialize=["num_token_blocks", "N"])
