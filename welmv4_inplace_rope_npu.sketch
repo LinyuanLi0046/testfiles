@@ -1,4 +1,4 @@
-# architecture_decision("blocked-prefill-q-heads-blocked8-valid6", reason="Keep decode, mirror, and the accepted masked 64-token tail path unchanged. The accepted unmasked Q-head 4+2 merge reduced last-pass IR from 745 to 664 lines, Q DMA to four 3D loads plus four 3D stores, barriers from 8 to 4, and M=16384 to 52.9 us. IR still contains two independent Q head-group transfers per RoPE half. Test one [TOKEN_BLOCK,8,32] tile with a compile-time head<6 mask: this can halve Q 3D DMA and synchronization again at the cost of two padded vector lanes. Token dimension remains unmasked. Reject immediately if static head masking prevents regular 3D lowering or fails the >3% threshold.")
+# architecture_decision("blocked-prefill-q-heads-4-plus-2", reason="Keep decode, mirror, the accepted masked 64-token tail, and the accepted exact unmasked Q-head 4+2 merge. The 4+2 merge reduced last-pass IR from 745 to 664 lines, barriers from 8 to 4, and M=16384 to 52.9 us. Reject blocked-8/valid-6: A5 HIVM memory planning required 3,735,552 bits of UB while only 2,031,616 bits are available. Exact 4+2 stays within UB and emits regular unmasked 3D DMA without padded heads.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -52,9 +52,9 @@ sketch welmv4_inplace_rope_npu {
     }
 
     when unmasked {
-      vector head_mask = arange(0,8) < 6
-      load and rotate Q heads as [TOKEN_BLOCK,8,32] 3D tiles with static head_mask
-      store the valid six heads with static head_mask
+      load and rotate Q heads 0:4 as [TOKEN_BLOCK,4,32] 3D tiles
+      load and rotate Q heads 4:6 as [TOKEN_BLOCK,2,32] 3D tiles
+      store both exact head groups without padding or masks
     }
   }
 
@@ -87,4 +87,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode and mirror remain shared and have no dedicated mirror kernel. The token-masked prefill variant is unchanged and uses per-head 2D DMA. Only the unmasked variant replaces exact 4+2 Q groups with one blocked-8/valid-6 group. The static head mask guards every Q load and store; all six real Q heads and one K head are processed once, addresses and BF16/FP32 behavior are unchanged, and token lanes remain unmasked.
+# Layer1 self-check: decode and mirror remain shared and have no dedicated mirror kernel. The token-masked prefill variant uses per-head 2D DMA. The unmasked variant uses exact 4+2 Q groups; all six real Q heads and one K head are processed once, with identical addresses and BF16/FP32 behavior. The UB-overflowing blocked-8 variant and padded head lanes are absent.
