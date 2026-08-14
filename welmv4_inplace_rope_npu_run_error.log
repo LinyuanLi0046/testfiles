@@ -1,0 +1,124 @@
+time: 2026-08-14T14:32:24+08:00
+command: /usr/local/python3.11.10/bin/python bench_welmv4_inplace_rope_npu.py --mode both --cases all --scope kernel --device npu:5 --output-csv welmv4_inplace_rope_npu_all.csv
+return_code: 1
+reason: benchmark exited with status 1
+
+===== stdout + stderr =====
+/data2/hw_lly/testfiles/bench_welmv4_inplace_rope_npu.py:741: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:423.)
+  positions = (
+WeLMv4 inplace tail-RoPE manual Ascend A5 study
+device=npu:5 (Ascend950PR_957b), physical_AIV=56, commit=a9a46046d78d
+shape: q_heads=6, kv_heads=1, head_dim=256, rope_dim=64, dtype=torch.bfloat16
+
+Correctness (BF16 tail-RoPE reference):
+  decode_m1                baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m1                candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m2                baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m2                candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m3                baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m3                candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m4                baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m4                candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m5                baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m5                candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m6                baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m6                candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m7                baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m7                candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m8                baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m8                candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m9                baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m9                candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m10               baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m10               candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m11               baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m11               candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m12               baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m12               candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m13               baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m13               candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m14               baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m14               candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m15               baseline   PASS max_abs_q=0 max_abs_k=0
+  decode_m15               candidate  PASS max_abs_q=0 max_abs_k=0
+  decode_m16               baseline   PASS max_abs_q=0 max_abs_k=0
+triton.compiler.errors.CompilationError: at 10:48:
+def flip(x, dim=None):
+    """
+    Flips a tensor `x` along the dimension `dim`.
+
+    :param x: the first input tensor
+    :type x: Block
+    :param dim: the dimension to flip along (currently only final dimension supported)
+    :type dim: int
+    """
+    core.static_assert(_is_power_of_two(x.shape[_get_flip_dim(dim, x.shape)]))
+                                                ^
+AssertionError('Currently only support flipping the last dimension')
+
+The above exception was the direct cause of the following exception:
+
+triton.compiler.errors.CompilationError: at 32:16:
+            other=0.0,
+            care_padding=False,
+        )
+    else:
+        x = tl.load(base + rope_offsets[None, :], care_padding=False)
+    x_rotated = tl.where(
+        rope_offsets[None, :] < half_rope_dim, x, -x
+    )
+    x_rotated = tl.reshape(
+        x_rotated, (token_count, 2, half_rope_dim)
+    )
+    x_rotated = tl.flip(x_rotated, 1)
+                ^
+CompilationError('def flip(x, dim=None):\n    """\n    Flips a tensor `x` along the dimension `dim`.\n\n    :param x: the first input tensor\n    :type x: Block\n    :param dim: the dimension to flip along (currently only final dimension supported)\n    :type dim: int\n    """\n    core.static_assert(_is_power_of_two(x.shape[_get_flip_dim(dim, x.shape)]))\n    core.static_assert(_is_power_of_two(x.numel))\n    # # reshape the tensor to have all dimensions be 2.\n    # # TODO: We shouldn\'t have to change the dimensions not sorted.\n    steps: core.constexpr = _log2(x.numel)\n    start: core.constexpr = _log2(x.numel) - _log2(x.shape[_get_flip_dim(dim, x.shape)])\n    y = core.reshape(x, [2] * steps)\n    y = core.expand_dims(y, start)\n    flip = (core.arange(0, 2)[:, None] == 1 - core.arange(0, 2))\n    for i in core.static_range(start, steps):\n        flip2 = flip\n        for j in core.static_range(0, steps + 1):\n            if j != i and j != i + 1:\n                flip2 = core.expand_dims(flip2, j)\n        y = sum(y * flip2, i + 1, keep_dims=True)\n    x = core.reshape(y, x.shape)\n    return x\n', <ast.Call object at 0x7f0827eee530>, "AssertionError('Currently only support flipping the last dimension')")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/data2/hw_lly/testfiles/bench_welmv4_inplace_rope_npu.py", line 1256, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/data2/hw_lly/testfiles/bench_welmv4_inplace_rope_npu.py", line 1221, in main
+    correctness_records, failures = run_correctness(harness, cases)
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data2/hw_lly/testfiles/bench_welmv4_inplace_rope_npu.py", line 823, in run_correctness
+    launch()
+  File "/data2/hw_lly/testfiles/bench_welmv4_inplace_rope_npu.py", line 677, in launch
+    return kernel[(num_programs,)](
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/runtime/jit.py", line 333, in <lambda>
+    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/runtime/jit.py", line 622, in run
+    kernel = self._do_compile(key, signature, device, backend, target, constants, options, configs[0], warmup)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/runtime/jit.py", line 787, in _do_compile
+    kernel = self.compile(src, target=target, options=options.__dict__)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/compiler/compiler.py", line 282, in compile
+    module = src.make_ir(options, codegen_fns, module_map, context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/__init__.py", line 38, in _patched_make_ir
+    module = _original_make_ir(self, options, codegen_fns, module_map, context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/compiler/compiler.py", line 102, in make_ir
+    return ast_to_ttir(self.fn, self, context=context, options=options, codegen_fns=codegen_fns,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+triton.compiler.errors.CompilationError: at 74:8:
+                + position_ids[:, None] * rope_dim
+                + sin_offsets[None, :],
+                care_padding=False,
+            )
+
+        k_data = (
+            k_ptr
+            + token_base * k_token_stride
+            + head_dim
+            - rope_dim
+        )
+        _candidate_apply_token_block_rope(
+        ^
+CompilationError('def _candidate_apply_token_block_rope(\n    data_ptr: tl.tensor,\n    token_offsets: tl.tensor,\n    token_stride: tl.constexpr,\n    cos: tl.tensor,\n    sin: tl.tensor,\n    token_mask: tl.tensor,\n    masked: tl.constexpr,\n    head_dim: tl.constexpr,\n    rope_dim: tl.constexpr,\n):\n    token_count: tl.constexpr = token_offsets.shape[0]\n    half_rope_dim: tl.constexpr = rope_dim // 2\n    rope_offsets = tl.arange(0, rope_dim)\n    base = data_ptr + token_offsets[:, None] * token_stride\n    mask = token_mask[:, None]\n    if masked:\n        x = tl.load(\n            base + rope_offsets[None, :],\n            mask=mask,\n            other=0.0,\n            care_padding=False,\n        )\n    else:\n        x = tl.load(base + rope_offsets[None, :], care_padding=False)\n    x_rotated = tl.where(\n        rope_offsets[None, :] < half_rope_dim, x, -x\n    )\n    x_rotated = tl.reshape(\n        x_rotated, (token_count, 2, half_rope_dim)\n    )\n    x_rotated = tl.flip(x_rotated, 1)\n    x_rotated = tl.reshape(x_rotated, (token_count, rope_dim))\n    cos_full = tl.broadcast_to(\n        cos[:, None, :], (token_count, 2, half_rope_dim)\n    )\n    sin_full = tl.broadcast_to(\n        sin[:, None, :], (token_count, 2, half_rope_dim)\n    )\n    cos_full = tl.reshape(cos_full, (token_count, rope_dim))\n    sin_full = tl.reshape(sin_full, (token_count, rope_dim))\n    out = x * cos_full + x_rotated * sin_full\n    if masked:\n        tl.store(base + rope_offsets[None, :], out, mask=mask)\n    else:\n        tl.store(base + rope_offsets[None, :], out)\n', <ast.Call object at 0x7f0827f36740>, 'CompilationError(\'def flip(x, dim=None):\\n    """\\n    Flips a tensor `x` along the dimension `dim`.\\n\\n    :param x: the first input tensor\\n    :type x: Block\\n    :param dim: the dimension to flip along (currently only final dimension supported)\\n    :type dim: int\\n    """\\n    core.static_assert(_is_power_of_two(x.shape[_get_flip_dim(dim, x.shape)]))\\n    core.static_assert(_is_power_of_two(x.numel))\\n    # # reshape the tensor to have all dimensions be 2.\\n    # # TODO: We shouldn\\\'t have to change the dimensions not sorted.\\n    steps: core.constexpr = _log2(x.numel)\\n    start: core.constexpr = _log2(x.numel) - _log2(x.shape[_get_flip_dim(dim, x.shape)])\\n    y = core.reshape(x, [2] * steps)\\n    y = core.expand_dims(y, start)\\n    flip = (core.arange(0, 2)[:, None] == 1 - core.arange(0, 2))\\n    for i in core.static_range(start, steps):\\n        flip2 = flip\\n        for j in core.static_range(0, steps + 1):\\n            if j != i and j != i + 1:\\n                flip2 = core.expand_dims(flip2, j)\\n        y = sum(y * flip2, i + 1, keep_dims=True)\\n    x = core.reshape(y, x.shape)\\n    return x\\n\', <ast.Call object at 0x7f0827eee530>, "AssertionError(\'Currently only support flipping the last dimension\')")')
+[ERROR] 2026-08-14-14:32:22 (PID:1455346, Device:5, RankID:-1) ERR99999 UNKNOWN applicaiton exception
