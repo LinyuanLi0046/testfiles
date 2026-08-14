@@ -36,6 +36,14 @@ error log, commits it, and pushes.  Automatic result commits contain
 `Auto-Benchmark: true`, allowing the monitor to recover safely after a restart
 or push failure.
 
+The standard all-case run also recompiles only the candidate for
+`prefill_m8192` with Triton debug dumping enabled.  It lowers the adapter IR
+with `bishengir-compile` for the detected A5 target and stores gzip+base64
+TTIR, TTAdapter, and last-pass MLIR as `record_type=ir_artifact` rows in the
+same CSV.  IR capture errors are diagnostic CSV rows and do not discard valid
+correctness/performance measurements.  Use `--capture-ir off` for a manual
+run that should skip this diagnostic step.
+
 Use `BENCH_PYTHON=/path/to/python` to select a different interpreter.  Use
 `--device npu:N` to select the NPU (`npu:5` by default) and `--interval
 SECONDS` to change the poll interval.  `--once --run-now` runs and publishes

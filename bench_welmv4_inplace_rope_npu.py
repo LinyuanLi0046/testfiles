@@ -18,11 +18,17 @@ head_dim=256, rope_dim=64, BF16.
 from __future__ import annotations
 
 import argparse
+import base64
 import csv
+import gzip
+import hashlib
 import math
+import os
 import platform
 import statistics
 import subprocess
+import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterable, Sequence
@@ -45,6 +51,9 @@ PROGRAMS_PER_VECTOR_CORE = 8
 DTYPE = torch.bfloat16
 ATOL = 2.0e-2
 RTOL = 2.0e-2
+IR_CAPTURE_SCRIPT = "capture_welmv4_rope_ir.sh"
+AUTO_OUTPUT_CSV = "welmv4_inplace_rope_npu_all.csv"
+IR_CAPTURE_CASE = "prefill_m8192"
 
 
 @dataclass(frozen=True)
@@ -390,13 +399,6 @@ class Harness:
         num_programs = min(
             n_tokens, self.num_vector_cores * PROGRAMS_PER_VECTOR_CORE
         )
-        pipeline_stages = (
-            1
-            if provider == "candidate"
-            and n_tokens <= 64
-            and last_index is None
-            else NUM_STAGES
-        )
         q_stride = int(query.stride(0))
         k_stride = int(key.stride(0))
         q_heads_blocked = triton.next_power_of_2(NUM_Q_HEADS)
@@ -415,7 +417,7 @@ class Harness:
                 k_stride,
                 HEAD_DIM,
                 ROPE_DIM,
-                pipeline_stages,
+                NUM_STAGES,
                 NUM_Q_HEADS,
                 NUM_K_HEADS,
                 q_heads_blocked,
@@ -733,6 +735,107 @@ def parse_cases(spec: str) -> list[Case]:
     return selected
 
 
+def run_compile_only(
+    harness: Harness, case: Case, provider: str
+) -> None:
+    """Compile and launch one provider once for the external IR extractor."""
+    query, key, positions, last_index = make_inputs(
+        case, harness.device, harness.seed
+    )
+    launch = harness.bind(provider, query, key, positions, last_index)
+    launch()
+    torch_npu.npu.synchronize()
+    print(f"IR compile-only launch completed: {provider}, {case.name}")
+
+
+def capture_ir_records(
+    harness: Harness, device: str
+) -> list[dict[str, object]]:
+    """Capture A5 compiler IR and encode it into the auto-committed CSV."""
+    script = Path(__file__).resolve().with_name(IR_CAPTURE_SCRIPT)
+    case = next(item for item in ALL_CASES if item.name == IR_CAPTURE_CASE)
+    common = {
+        **harness.metadata(),
+        **case_fields(case),
+        "record_type": "ir_artifact",
+        "variant": "candidate",
+        "scope": "compiler_ir",
+    }
+    if not script.is_file():
+        return [{**common, "status": "ERROR", "capture_log": f"missing {script.name}"}]
+
+    with tempfile.TemporaryDirectory(prefix="welmv4_rope_ir_") as output_dir:
+        env = os.environ.copy()
+        env.update(
+            {
+                "BENCH_PYTHON": sys.executable,
+                "IR_OUTPUT_DIR": output_dir,
+                "BISHENGIR_TARGET": harness.device_name,
+            }
+        )
+        command = [
+            "bash",
+            str(script),
+            str(Path(__file__).resolve()),
+            "--compile-only-provider",
+            "candidate",
+            "--cases",
+            case.name,
+            "--device",
+            device,
+        ]
+        print(f"\nCapturing compiler IR: {' '.join(command)}")
+        try:
+            result = subprocess.run(
+                command,
+                cwd=Path(__file__).resolve().parent,
+                env=env,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                check=False,
+            )
+        except OSError as exc:
+            return [{**common, "status": "ERROR", "capture_log": str(exc)}]
+
+        output = result.stdout or ""
+        files = sorted(Path(output_dir).glob("*.mlir"))
+        if result.returncode != 0 or not files:
+            print(output)
+            return [
+                {
+                    **common,
+                    "status": "ERROR",
+                    "capture_returncode": result.returncode,
+                    "capture_log": output[-60000:],
+                }
+            ]
+
+        records: list[dict[str, object]] = []
+        for path in files:
+            content = path.read_bytes()
+            records.append(
+                {
+                    **common,
+                    "status": "CAPTURED",
+                    "artifact_name": path.name,
+                    "artifact_encoding": "gzip+base64",
+                    "artifact_size_bytes": len(content),
+                    "artifact_sha256": hashlib.sha256(content).hexdigest(),
+                    "artifact_content": base64.b64encode(
+                        gzip.compress(content, compresslevel=9)
+                    ).decode("ascii"),
+                }
+            )
+        print(
+            "Captured compiler IR: "
+            + ", ".join(f"{path.name} ({path.stat().st_size} B)" for path in files)
+        )
+        return records
+
+
 def write_csv(path_text: str, records: Sequence[dict[str, object]]) -> None:
     if not path_text:
         return
@@ -781,6 +884,21 @@ def build_parser() -> argparse.ArgumentParser:
         default=0,
         help="0 selects an N-dependent repeat count; positive forces one value",
     )
+    parser.add_argument(
+        "--compile-only-provider",
+        choices=tuple(PROVIDERS),
+        default="",
+        help="launch one selected provider/case once, for compiler IR capture",
+    )
+    parser.add_argument(
+        "--capture-ir",
+        choices=("auto", "on", "off"),
+        default="auto",
+        help=(
+            "capture candidate compiler IR; auto enables it only for the "
+            f"standard {AUTO_OUTPUT_CSV} run"
+        ),
+    )
     parser.add_argument("--output-csv", default="")
     return parser
 
@@ -806,6 +924,12 @@ def main() -> int:
         f"head_dim={HEAD_DIM}, rope_dim={ROPE_DIM}, dtype={DTYPE}"
     )
 
+    if args.compile_only_provider:
+        if len(cases) != 1:
+            raise ValueError("--compile-only-provider requires exactly one case")
+        run_compile_only(harness, cases[0], args.compile_only_provider)
+        return 0
+
     records: list[dict[str, object]] = []
     failures = 0
     if args.mode in ("both", "correctness"):
@@ -829,6 +953,15 @@ def main() -> int:
                 inner_repeat_override=args.inner_repeat,
             )
         )
+
+    capture_ir = args.capture_ir == "on" or (
+        args.capture_ir == "auto"
+        and Path(args.output_csv).name == AUTO_OUTPUT_CSV
+        and args.mode == "both"
+        and args.cases.strip().lower() in ("all", "common")
+    )
+    if failures == 0 and capture_ir:
+        records.extend(capture_ir_records(harness, str(device)))
 
     write_csv(args.output_csv, records)
     return 1 if failures else 0

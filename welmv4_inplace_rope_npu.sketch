@@ -1,4 +1,4 @@
-# architecture_decision("shape-dependent-pipeline-depth", reason="Keep the measured int32 position addressing and revert the rejected loop-free decode kernel. Decode N<=64 executes one loop iteration per program, so use num_stages=1 to avoid a four-stage pipeline setup with no overlap opportunity. Prefill and mirror retain num_stages=4 for their multi-iteration grid-stride loops.")
+# architecture_decision("int32-position-addressing", reason="All tested grid, load-order, token-vectorization, discrete-memory hint, decode-kernel, and pipeline-depth variants were rejected by Ascend950 measurement. Retain only the measured-safe narrowing of loaded positions/last_index to int32 before address arithmetic, which avoids i64 scalar lowering while preserving the original 2D kernel.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -24,10 +24,9 @@ sketch welmv4_inplace_rope_npu {
     grid = min(N, AIV * 8)
     program token_start = program_id(0)
     program token_step = num_programs(0)
-    pipeline_stages = select(N <= 64 and last_index is absent, 1, 4)
   }
 
-  pipeline each token_id in range(token_start, N, token_step) stages pipeline_stages {
+  pipeline each token_id in range(token_start, N, token_step) stages 4 {
     load pos_i64 = positions[token_id]
     cast pos = int32(pos_i64)
     load cos = cos_sin_cache[pos, 0:HALF_ROPE]
@@ -57,4 +56,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: rejected loop-free decode kernel is fully removed and accepted int32 addressing remains. The only new shape-dependent choice is a constexpr pipeline depth: decode concurrency 1..64 uses stage 1, while every prefill/mirror case keeps stage 4. Kernel math, grid, loop, masks, and in-place regions are identical.
+# Layer1 self-check: every rejected experiment is fully removed. The only executable delta from the frozen baseline candidate is narrowing three loaded int64 indices to int32 before pointer arithmetic; decode 1..64, prefill, mirror, math, grid, loop, masks, and in-place regions otherwise remain identical.
