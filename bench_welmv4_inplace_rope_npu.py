@@ -49,6 +49,7 @@ ROPE_BASE = 100000.0
 NUM_STAGES = 4
 PROGRAMS_PER_VECTOR_CORE = 8
 PREFILL_PROGRAMS_PER_VECTOR_CORE = 4
+LARGE_PREFILL_MIN_TOKENS = 16384
 DTYPE = torch.bfloat16
 ATOL = 2.0e-2
 RTOL = 2.0e-2
@@ -400,7 +401,7 @@ class Harness:
         if (
             provider == "candidate"
             and last_index is None
-            and n_tokens > self.num_vector_cores
+            and n_tokens >= LARGE_PREFILL_MIN_TOKENS
         ):
             programs_per_vector_core = PREFILL_PROGRAMS_PER_VECTOR_CORE
         num_programs = min(

@@ -1,4 +1,4 @@
-# architecture_decision("int32-addressing-and-prefill-grid224", reason="Keep decode, normal prefill, and mirror on the shared candidate kernel. Retain int32 casts after int64 index loads. A5 normal-prefill last-pass IR shows 448 programs repeatedly issuing six GM-to-UB loads, four UB-to-GM stores, and three barriers per token; test four programs per vector core (224 total) only for ordinary prefill to reduce over-partitioning, while decode<=64 and mirror retain their existing dispatch. Explicit fp32 tl.fma remains rejected because it did not fuse and regressed latency.")
+# architecture_decision("int32-addressing-and-large-prefill-grid224", reason="Keep decode, normal prefill, and mirror on the shared candidate kernel. Retain int32 casts after int64 index loads. The all-prefill 224-program round improved M=16384 by 2.13% but regressed M=9616 by 1.72%, while its last-pass IR was byte-identical to the 448-program build. Apply four programs per vector core only for ordinary prefill M>=16384 and restore eight per core elsewhere. Explicit fp32 tl.fma remains rejected because it did not fuse and regressed latency.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -21,7 +21,7 @@ sketch welmv4_inplace_rope_npu {
   }
 
   partition {
-    grid = min(N, AIV * 4) when ordinary_prefill
+    grid = min(N, AIV * 4) when ordinary_prefill and N >= 16384
     grid = min(N, AIV * 8) otherwise
     program token_start = program_id(0)
     program token_step = num_programs(0)
@@ -56,4 +56,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode, normal prefill, and mirror share one candidate kernel; there is no dedicated mirror kernel. This round changes only the ordinary-prefill launch grid from eight to four programs per vector core. Decode<=64 and mirror retain the existing grid rule. Kernel values, pointers, masks, stores, precision, and control flow are unchanged; explicit FMA is absent.
+# Layer1 self-check: decode, normal prefill, and mirror share one candidate kernel; there is no dedicated mirror kernel. This round narrows the 224-program dispatch to ordinary prefill M>=16384; M<=9616, decode<=64, and mirror use the original 448-cap rule. Kernel values, pointers, masks, stores, precision, and control flow are unchanged; explicit FMA is absent.
