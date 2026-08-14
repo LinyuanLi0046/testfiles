@@ -272,6 +272,7 @@ def _candidate_welmv4_inplace_rope_kernel(
             cos_sin_cache_ptr + position_id * rope_dim + sin_offsets,
             care_padding=False,
         )
+        q_data = q_ptr + token_id * q_token_stride + head_dim - rope_dim
         k_data = k_ptr + token_id * k_token_stride + head_dim - rope_dim
         _candidate_apply_tail_rope(
             k_data,
@@ -282,8 +283,36 @@ def _candidate_welmv4_inplace_rope_kernel(
             head_dim,
             rope_dim,
         )
-        if last_index_ptr is None:
-            q_data = q_ptr + token_id * q_token_stride + head_dim - rope_dim
+        if last_index_ptr is not None:
+            if token_id < BS:
+                q_position_id = tl.load(last_index_ptr + token_id).to(
+                    tl.int32
+                )
+                q_position_id = tl.load(
+                    position_ptr + q_position_id
+                ).to(tl.int32)
+                q_cos = tl.load(
+                    cos_sin_cache_ptr
+                    + q_position_id * rope_dim
+                    + cos_offsets,
+                    care_padding=False,
+                )
+                q_sin = tl.load(
+                    cos_sin_cache_ptr
+                    + q_position_id * rope_dim
+                    + sin_offsets,
+                    care_padding=False,
+                )
+                _candidate_apply_tail_rope(
+                    q_data,
+                    q_cos,
+                    q_sin,
+                    num_q_heads,
+                    num_q_heads_blocked,
+                    head_dim,
+                    rope_dim,
+                )
+        else:
             _candidate_apply_tail_rope(
                 q_data,
                 cos,
@@ -294,33 +323,74 @@ def _candidate_welmv4_inplace_rope_kernel(
                 rope_dim,
             )
 
-    if last_index_ptr is not None:
-        q_token_id = tl.program_id(0)
-        if q_token_id < BS:
-            q_position_id = tl.load(last_index_ptr + q_token_id).to(tl.int32)
-            q_position_id = tl.load(position_ptr + q_position_id).to(tl.int32)
-            q_cos = tl.load(
-                cos_sin_cache_ptr
-                + q_position_id * rope_dim
-                + cos_offsets,
-                care_padding=False,
-            )
-            q_sin = tl.load(
-                cos_sin_cache_ptr
-                + q_position_id * rope_dim
-                + sin_offsets,
-                care_padding=False,
-            )
-            q_data = q_ptr + q_token_id * q_token_stride + head_dim - rope_dim
-            _candidate_apply_tail_rope(
-                q_data,
-                q_cos,
-                q_sin,
-                num_q_heads,
-                num_q_heads_blocked,
-                head_dim,
-                rope_dim,
-            )
+
+@triton.jit(do_not_specialize=["N", "BS"])
+def _candidate_welmv4_inplace_rope_mirror_kernel(
+    q_ptr: tl.tensor,
+    k_ptr: tl.tensor,
+    position_ptr: tl.tensor,
+    cos_sin_cache_ptr: tl.tensor,
+    last_index_ptr: tl.tensor,
+    N: int,
+    BS: int,
+    q_token_stride: tl.constexpr,
+    k_token_stride: tl.constexpr,
+    head_dim: tl.constexpr,
+    rope_dim: tl.constexpr,
+    num_stages: tl.constexpr,
+    num_q_heads: tl.constexpr,
+    num_k_heads: tl.constexpr,
+    num_q_heads_blocked: tl.constexpr,
+    num_k_heads_blocked: tl.constexpr,
+):
+    half_rope_dim: tl.constexpr = rope_dim // 2
+    cos_offsets = tl.arange(0, half_rope_dim)
+    sin_offsets = tl.arange(half_rope_dim, rope_dim)
+    for token_id in tl.range(
+        tl.program_id(0), N, tl.num_programs(0), num_stages=num_stages
+    ):
+        position_id = tl.load(position_ptr + token_id).to(tl.int32)
+        cos = tl.load(
+            cos_sin_cache_ptr + position_id * rope_dim + cos_offsets,
+            care_padding=False,
+        )
+        sin = tl.load(
+            cos_sin_cache_ptr + position_id * rope_dim + sin_offsets,
+            care_padding=False,
+        )
+        k_data = k_ptr + token_id * k_token_stride + head_dim - rope_dim
+        _candidate_apply_tail_rope(
+            k_data,
+            cos,
+            sin,
+            num_k_heads,
+            num_k_heads_blocked,
+            head_dim,
+            rope_dim,
+        )
+
+    q_token_id = tl.program_id(0)
+    if q_token_id < BS:
+        q_position_id = tl.load(last_index_ptr + q_token_id).to(tl.int32)
+        q_position_id = tl.load(position_ptr + q_position_id).to(tl.int32)
+        q_cos = tl.load(
+            cos_sin_cache_ptr + q_position_id * rope_dim + cos_offsets,
+            care_padding=False,
+        )
+        q_sin = tl.load(
+            cos_sin_cache_ptr + q_position_id * rope_dim + sin_offsets,
+            care_padding=False,
+        )
+        q_data = q_ptr + q_token_id * q_token_stride + head_dim - rope_dim
+        _candidate_apply_tail_rope(
+            q_data,
+            q_cos,
+            q_sin,
+            num_q_heads,
+            num_q_heads_blocked,
+            head_dim,
+            rope_dim,
+        )
 
 
 PROVIDERS = {
@@ -393,6 +463,8 @@ class Harness:
         last_index: torch.Tensor | None,
     ) -> Callable[[], object]:
         kernel = PROVIDERS[provider]
+        if provider == "candidate" and last_index is not None:
+            kernel = _candidate_welmv4_inplace_rope_mirror_kernel
         n_tokens = int(positions.shape[0])
         batch_size = int(last_index.numel()) if last_index is not None else 0
         num_programs = min(

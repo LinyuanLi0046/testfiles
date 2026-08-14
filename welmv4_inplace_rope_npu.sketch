@@ -1,4 +1,4 @@
-# architecture_decision("int32-addressing-and-hoisted-mirror-q", reason="Retain measured-safe int32 position addressing. Mirror last-pass IR places token_id*q_stride outside token_id<BS and executes that branch for every K token even though only program_id<BS performs Q once. Keep the K grid-stride loop pure, then let the first BS programs rotate their one Q row after the loop; normal/decode specialization is unchanged.")
+# architecture_decision("dedicated-hoisted-mirror-kernel", reason="Keep the accepted combined candidate unchanged for normal/decode. Host-select a dedicated mirror kernel whose K loop is pure and whose first BS programs rotate Q after the loop. This isolates normal compilation while removing the mirror IR's per-K-token Q branch and q_stride multiplication.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -58,4 +58,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: normal/decode specializes last_index as absent and is byte-for-byte the accepted int32 loop. Mirror still rotates every K token and exactly Q rows 0:BS using the same last_index-selected positions; only the per-token Q branch/address arithmetic is hoisted after the K loop, relying on tested mirror cases where grid >= BS.
+# Layer1 self-check: the normal/decode candidate function is restored byte-for-byte to the accepted int32 implementation. Only host dispatch for last_index-present inputs selects the dedicated mirror kernel. It rotates every K token and exactly Q rows 0:BS using identical last_index-selected positions, relying on tested mirror cases where grid >= BS.
