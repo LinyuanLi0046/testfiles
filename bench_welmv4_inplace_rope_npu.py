@@ -251,9 +251,12 @@ def _candidate_welmv4_inplace_rope_kernel(
     half_rope_dim: tl.constexpr = rope_dim // 2
     cos_offsets = tl.arange(0, half_rope_dim)
     sin_offsets = tl.arange(half_rope_dim, rope_dim)
-    for token_id in tl.range(
-        tl.program_id(0), N, tl.num_programs(0), num_stages=num_stages
-    ):
+    program_id = tl.program_id(0)
+    num_programs = tl.num_programs(0)
+    tokens_per_program = tl.cdiv(N, num_programs)
+    token_start = program_id * tokens_per_program
+    token_end = tl.minimum(token_start + tokens_per_program, N)
+    for token_id in tl.range(token_start, token_end, num_stages=num_stages):
         position_id = tl.load(position_ptr + token_id)
         cos = tl.load(
             cos_sin_cache_ptr + position_id * rope_dim + cos_offsets,
@@ -383,8 +386,11 @@ class Harness:
         kernel = PROVIDERS[provider]
         n_tokens = int(positions.shape[0])
         batch_size = int(last_index.numel()) if last_index is not None else 0
+        programs_per_vector_core = (
+            PROGRAMS_PER_VECTOR_CORE if provider == "baseline" else 1
+        )
         num_programs = min(
-            n_tokens, self.num_vector_cores * PROGRAMS_PER_VECTOR_CORE
+            n_tokens, self.num_vector_cores * programs_per_vector_core
         )
         q_stride = int(query.stride(0))
         k_stride = int(key.stride(0))

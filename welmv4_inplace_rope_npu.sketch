@@ -1,0 +1,55 @@
+# architecture_decision("physical-aiv-token-partition", reason="The operator is independent across tokens and has no reduction. On Ascend A5, cap the 1D grid at the runtime physical AIV count and let each program consume a contiguous-stride token stream. This preserves the existing in-place math while removing the eight scheduling waves caused by a GPU-style oversubscribed grid.")
+
+sketch welmv4_inplace_rope_npu {
+  symbols {
+    N: runtime
+    BS: runtime
+    AIV: runtime_host_constant
+    Q_HEADS: constexpr = 6
+    K_HEADS: constexpr = 1
+    HEAD_DIM: constexpr = 256
+    ROPE_DIM: constexpr = 64
+    HALF_ROPE: constexpr = 32
+  }
+
+  tensors {
+    q: bf16[N or BS, Q_HEADS, HEAD_DIM] inplace
+    k: bf16[N, K_HEADS, HEAD_DIM] inplace
+    positions: int64[N]
+    cos_sin_cache: bf16[max_position, ROPE_DIM]
+    last_index: optional int64[BS]
+  }
+
+  partition {
+    grid = min(N, AIV)
+    program tokens_per_program = ceil_div(N, num_programs(0))
+    program token_start = program_id(0) * tokens_per_program
+    program token_end = min(token_start + tokens_per_program, N)
+  }
+
+  pipeline each token_id in range(token_start, token_end) {
+    load pos = positions[token_id]
+    load cos = cos_sin_cache[pos, 0:HALF_ROPE]
+    load sin = cos_sin_cache[pos, HALF_ROPE:ROPE_DIM]
+
+    load k_front = k[token_id, 0:K_HEADS, 0:HALF_ROPE]
+    load k_back = k[token_id, 0:K_HEADS, HALF_ROPE:ROPE_DIM]
+    compute rotated_k_front = k_front * cos - k_back * sin
+    compute rotated_k_back = k_back * cos + k_front * sin
+    store k[token_id, 0:K_HEADS, 0:ROPE_DIM] = concat(rotated_k_front, rotated_k_back)
+
+    if last_index is absent {
+      load q_front = q[token_id, 0:Q_HEADS, 0:HALF_ROPE]
+      load q_back = q[token_id, 0:Q_HEADS, HALF_ROPE:ROPE_DIM]
+      compute and store q rotation using cos and sin
+    } else if token_id < BS {
+      load q_token = last_index[token_id]
+      load q_pos = positions[q_token]
+      load q_cos_sin = cos_sin_cache[q_pos, 0:ROPE_DIM]
+      load q[token_id, 0:Q_HEADS, 0:ROPE_DIM]
+      compute and store q rotation using q_cos_sin
+    }
+  }
+}
+
+# Layer1 self-check: the grid is exactly min(real token work, runtime physical AIV count); decode M<=56 launches M programs, decode 57..64 and all prefill use 56 programs. Q/K writes are disjoint by token/head, no reduction or cross-program synchronization exists, and all dimensions/strides that are invariant for the deployed head_dim=256, rope_dim=64 shape remain compile-time constants.
