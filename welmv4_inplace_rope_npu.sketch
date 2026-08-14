@@ -1,4 +1,4 @@
-# architecture_decision("contiguous-full-tail-prefill-dma", reason="A5 profiling shows MTE2 at about 61% and scalar at about 48%, while MTE3 is only about 14%. Replace each pair of 128-byte half-tail DMAs with one contiguous 256-byte full-tail load/store, then reshape-trans-split and join-trans-reshape inside UB. This differs from the rejected flip-based full-tail lowering: it uses the established split/trans rotation idiom and avoids flip/where expansion. N and num_token_blocks remain runtime do_not_specialize; decode and mirror remain shared and unchanged.")
+# architecture_decision("restore-half-tail-after-split-trans-ir-expansion", reason="Reject contiguous full-tail split/trans lowering despite 150/150 correctness. M4096/8192/9616/16384 regressed to about 930/1394/1674/2324 us and last-pass IR expanded from the accepted 57,711 bytes to 116,697 bytes. It reduced data DMA calls to one load/store per K/Q4/Q2 tile, but reshape-trans-split/join expanded into costly vector movement on A5. Restore the accepted half-tail DMAs. N and num_token_blocks remain runtime do_not_specialize; decode and mirror remain shared and unchanged.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -43,19 +43,19 @@ sketch welmv4_inplace_rope_npu {
     load sin[64,32] = cos_sin_cache[pos, HALF_ROPE:ROPE_DIM]
 
     for K head 0 and each Q head separately when masked {
-      load full_tail[64,64] using one contiguous-last-axis 2D DMA and token_mask
-      reshape_trans_split full_tail into front[64,32], back[64,32]
+      load front[64,32] using 2D token-strided DMA and token_mask when masked
+      load back[64,32] using 2D token-strided DMA and token_mask when masked
       compute rotated_front = front * cos - back * sin
       compute rotated_back = front * sin + back * cos
-      join_trans_reshape rotated halves into rotated_full_tail[64,64]
-      store rotated_full_tail using one contiguous-last-axis 2D DMA and token_mask
+      store rotated_front[64,32] using 2D token-strided DMA and token_mask when masked
+      store rotated_back[64,32] using 2D token-strided DMA and token_mask when masked
     }
 
     when unmasked {
-      load and rotate K head 0 as one [TOKEN_BLOCK,64] full-tail tile
-      load and rotate Q heads 0:4 as one [TOKEN_BLOCK,4,64] full-tail tile
-      load and rotate Q heads 4:6 as one [TOKEN_BLOCK,2,64] full-tail tile
-      split/join only inside UB and store each full-tail group once
+      load and rotate K head 0 as [TOKEN_BLOCK,32] 2D tiles
+      load and rotate Q heads 0:4 as [TOKEN_BLOCK,4,32] 3D tiles
+      load and rotate Q heads 4:6 as [TOKEN_BLOCK,2,32] 3D tiles
+      store both exact head groups without padding or masks
     }
   }
 
@@ -88,4 +88,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode and mirror remain shared and unchanged. N and num_token_blocks stay runtime do_not_specialize. Ordinary prefill keeps the accepted grid, block size, stages, masked per-head path, and unmasked K+Q4 then Q2 grouping. Only each contiguous 64-element RoPE tail changes from two half-tail DMAs to one full-tail DMA plus UB-local reshape/trans/split/join; addresses, math, masks, and unique writers remain equivalent.
+# Layer1 self-check: decode and mirror remain shared and unchanged. N and num_token_blocks stay runtime do_not_specialize. Ordinary prefill exactly restores the accepted masked per-head path and unmasked K+Q4 then Q2 half-tail DMA path, with unchanged grid, stages, addresses, math, and writers.
