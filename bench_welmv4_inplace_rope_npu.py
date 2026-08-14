@@ -413,6 +413,53 @@ def _candidate_apply_token_head_block_rope(
     )
 
 
+@triton.jit
+def _candidate_apply_masked_token_head_block_rope(
+    data_ptr: tl.tensor,
+    token_offsets: tl.tensor,
+    token_stride: tl.constexpr,
+    cos: tl.tensor,
+    sin: tl.tensor,
+    token_mask: tl.tensor,
+    num_heads: tl.constexpr,
+    head_dim: tl.constexpr,
+    rope_dim: tl.constexpr,
+):
+    half_rope_dim: tl.constexpr = rope_dim // 2
+    head_offsets = tl.arange(0, num_heads)
+    rope_offsets = tl.arange(0, half_rope_dim)
+    base = (
+        data_ptr
+        + token_offsets[:, None, None] * token_stride
+        + head_offsets[None, :, None] * head_dim
+    )
+    mask = token_mask[:, None, None]
+    x1 = tl.load(
+        base + rope_offsets[None, None, :],
+        mask=mask,
+        other=0.0,
+        care_padding=False,
+    )
+    x2 = tl.load(
+        base + half_rope_dim + rope_offsets[None, None, :],
+        mask=mask,
+        other=0.0,
+        care_padding=False,
+    )
+    cos = cos[:, None, :]
+    sin = sin[:, None, :]
+    out1 = x1 * cos - x2 * sin
+    out2 = x1 * sin + x2 * cos
+    tl.store(
+        base + rope_offsets[None, None, :], out1, mask=mask
+    )
+    tl.store(
+        base + half_rope_dim + rope_offsets[None, None, :],
+        out2,
+        mask=mask,
+    )
+
+
 @triton.jit(do_not_specialize=["num_token_blocks", "N"])
 def _candidate_welmv4_inplace_rope_prefill_kernel(
     q_ptr: tl.tensor,
@@ -500,25 +547,34 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
         )
 
         if masked:
-            for head_id in tl.static_range(0, num_q_heads):
-                q_data = (
-                    q_ptr
-                    + token_base * q_token_stride
-                    + head_id * head_dim
-                    + head_dim
-                    - rope_dim
-                )
-                _candidate_apply_token_block_rope(
-                    q_data,
-                    token_offsets,
-                    q_token_stride,
-                    cos,
-                    sin,
-                    token_mask,
-                    masked,
-                    head_dim,
-                    rope_dim,
-                )
+            q_data = (
+                q_ptr
+                + token_base * q_token_stride
+                + head_dim
+                - rope_dim
+            )
+            _candidate_apply_masked_token_head_block_rope(
+                q_data,
+                token_offsets,
+                q_token_stride,
+                cos,
+                sin,
+                token_mask,
+                4,
+                head_dim,
+                rope_dim,
+            )
+            _candidate_apply_masked_token_head_block_rope(
+                q_data + 4 * head_dim,
+                token_offsets,
+                q_token_stride,
+                cos,
+                sin,
+                token_mask,
+                2,
+                head_dim,
+                rope_dim,
+            )
         else:
             q_data = (
                 q_ptr

@@ -1,4 +1,4 @@
-# architecture_decision("runtime-shape-blocked-prefill", reason="Restore the accepted K+Q4 then Q2 implementation. Reject Q2 prefetch across K+Q4 because BiShengIR required 2,686,976 UB bits versus 2,031,616 available: keeping Q2 BF16 inputs live caused fused FP32 outputs and double buffers to overlap. N and num_token_blocks remain runtime do_not_specialize. Decode and mirror remain shared and unchanged.")
+# architecture_decision("masked-prefill-q-heads-4-plus-2", reason="Retain runtime do_not_specialize N/num_token_blocks and the accepted unmasked K+Q4 then Q2 kernel unchanged. For masked ordinary prefill such as M9616, replace six per-head Q helpers with exact masked Q4 and Q2 3D tiles; broadcast token_mask across head and rope axes. This preserves dynamic tail correctness while reducing Q load/store source operations from twelve each to four each. Reject unless M9616 improves by more than 3%, all correctness cases pass, and A5 lowers the grouped masked accesses without scalar/UB explosion. Decode and mirror remain shared and unchanged.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -42,13 +42,18 @@ sketch welmv4_inplace_rope_npu {
     load cos[64,32] = cos_sin_cache[pos, 0:HALF_ROPE]
     load sin[64,32] = cos_sin_cache[pos, HALF_ROPE:ROPE_DIM]
 
-    for K head 0 and each Q head separately when masked {
+    for K head 0 when masked {
       load front[64,32] using 2D token-strided DMA and token_mask when masked
       load back[64,32] using 2D token-strided DMA and token_mask when masked
       compute rotated_front = front * cos - back * sin
       compute rotated_back = front * sin + back * cos
       store rotated_front[64,32] using 2D token-strided DMA and token_mask when masked
       store rotated_back[64,32] using 2D token-strided DMA and token_mask when masked
+    }
+
+    when masked {
+      load, rotate, and store Q heads 0:4 as masked [TOKEN_BLOCK,4,32] 3D tiles
+      load, rotate, and store Q heads 4:6 as masked [TOKEN_BLOCK,2,32] 3D tiles
     }
 
     when unmasked {
@@ -88,4 +93,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: decode and mirror remain shared and unchanged. N and num_token_blocks stay runtime do_not_specialize. Ordinary prefill restores the accepted masked and unmasked load/compute/store order, grid, stages, addresses, math, and single-writer semantics.
+# Layer1 self-check: decode and mirror remain shared and unchanged. N and num_token_blocks stay runtime do_not_specialize. The unmasked path is source-identical to the accepted K+Q4 then Q2 implementation. In the masked path Q groups [0:4] and [4:6] are disjoint/exhaustive, use the same token mask and addresses as six per-head operations, and keep one writer per tail element. Grid, stages, math, and BF16 behavior are unchanged.
