@@ -340,31 +340,32 @@ def _candidate_apply_token_block_rope(
     head_dim: tl.constexpr,
     rope_dim: tl.constexpr,
 ):
+    token_count: tl.constexpr = token_offsets.shape[0]
     half_rope_dim: tl.constexpr = rope_dim // 2
-    rope_offsets = tl.arange(0, half_rope_dim)
+    rope_offsets = tl.arange(0, rope_dim)
     base = data_ptr + token_offsets[:, None] * token_stride
     mask = token_mask[:, None]
     if masked:
-        x1 = tl.load(
+        x = tl.load(
             base + rope_offsets[None, :],
             mask=mask,
             other=0.0,
             care_padding=False,
         )
-        x2 = tl.load(
-            base + half_rope_dim + rope_offsets[None, :],
-            mask=mask,
-            other=0.0,
-            care_padding=False,
-        )
     else:
-        x1 = tl.load(
-            base + rope_offsets[None, :], care_padding=False
-        )
-        x2 = tl.load(
-            base + half_rope_dim + rope_offsets[None, :],
-            care_padding=False,
-        )
+        x = tl.load(base + rope_offsets[None, :], care_padding=False)
+    x1 = tl.extra.cann.extension.extract_slice(
+        x,
+        offsets=(0, 0),
+        sizes=(token_count, half_rope_dim),
+        strides=(1, 1),
+    )
+    x2 = tl.extra.cann.extension.extract_slice(
+        x,
+        offsets=(0, half_rope_dim),
+        sizes=(token_count, half_rope_dim),
+        strides=(1, 1),
+    )
     out1 = x1 * cos - x2 * sin
     out2 = x1 * sin + x2 * cos
     if masked:
@@ -388,20 +389,29 @@ def _candidate_apply_token_head_block_rope(
     head_dim: tl.constexpr,
     rope_dim: tl.constexpr,
 ):
+    token_count: tl.constexpr = token_offsets.shape[0]
     half_rope_dim: tl.constexpr = rope_dim // 2
     head_offsets = tl.arange(0, num_heads)
-    rope_offsets = tl.arange(0, half_rope_dim)
+    rope_offsets = tl.arange(0, rope_dim)
     base = (
         data_ptr
         + token_offsets[:, None, None] * token_stride
         + head_offsets[None, :, None] * head_dim
     )
-    x1 = tl.load(
+    x = tl.load(
         base + rope_offsets[None, None, :], care_padding=False
     )
-    x2 = tl.load(
-        base + half_rope_dim + rope_offsets[None, None, :],
-        care_padding=False,
+    x1 = tl.extra.cann.extension.extract_slice(
+        x,
+        offsets=(0, 0, 0),
+        sizes=(token_count, num_heads, half_rope_dim),
+        strides=(1, 1, 1),
+    )
+    x2 = tl.extra.cann.extension.extract_slice(
+        x,
+        offsets=(0, 0, half_rope_dim),
+        sizes=(token_count, num_heads, half_rope_dim),
+        strides=(1, 1, 1),
     )
     cos = cos[:, None, :]
     sin = sin[:, None, :]
@@ -1284,10 +1294,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--capture-profile",
         choices=("auto", "on", "off"),
-        default="auto",
+        default="off",
         help=(
-            "capture candidate A5 memory/L2 profiler summaries; auto enables "
-            f"it only for the standard {AUTO_OUTPUT_CSV} run"
+            "capture candidate A5 memory/L2 profiler summaries; use on for "
+            "an explicit diagnostic run"
         ),
     )
     parser.add_argument("--output-csv", default="")
