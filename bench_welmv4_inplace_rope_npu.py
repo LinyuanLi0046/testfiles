@@ -342,18 +342,19 @@ def _candidate_apply_token_block_rope(
 ):
     token_count: tl.constexpr = token_offsets.shape[0]
     half_rope_dim: tl.constexpr = rope_dim // 2
-    rope_offsets = tl.arange(0, rope_dim)
+    rope_offsets = tl.arange(0, half_rope_dim)
+    full_rope_offsets = tl.arange(0, rope_dim)
     base = data_ptr + token_offsets[:, None] * token_stride
     mask = token_mask[:, None]
     if masked:
         x = tl.load(
-            base + rope_offsets[None, :],
+            base + full_rope_offsets[None, :],
             mask=mask,
             other=0.0,
             care_padding=False,
         )
     else:
-        x = tl.load(base + rope_offsets[None, :], care_padding=False)
+        x = tl.load(base + full_rope_offsets[None, :], care_padding=False)
     x1 = tl.extra.cann.extension.extract_slice(
         x,
         offsets=(0, 0),
@@ -392,14 +393,15 @@ def _candidate_apply_token_head_block_rope(
     token_count: tl.constexpr = token_offsets.shape[0]
     half_rope_dim: tl.constexpr = rope_dim // 2
     head_offsets = tl.arange(0, num_heads)
-    rope_offsets = tl.arange(0, rope_dim)
+    rope_offsets = tl.arange(0, half_rope_dim)
+    full_rope_offsets = tl.arange(0, rope_dim)
     base = (
         data_ptr
         + token_offsets[:, None, None] * token_stride
         + head_offsets[None, :, None] * head_dim
     )
     x = tl.load(
-        base + rope_offsets[None, None, :], care_padding=False
+        base + full_rope_offsets[None, None, :], care_padding=False
     )
     x1 = tl.extra.cann.extension.extract_slice(
         x,
