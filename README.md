@@ -66,12 +66,11 @@ The fixed production-local shape is BF16, 6 query heads, 1 KV head,
   rows while K and positions have `N` rows.
 
 The dedicated blocked kernel is selected only for the candidate's ordinary
-`prefill` phase.  For `M < 8192`, it is selected when `M >= 16` and `M` is a
-multiple of 16 (block64 is preferred, then block32, then block16).  For
-`M >= 8192`, every ordinary-prefill M is supported; a non-multiple of 64 uses
-the masked block64 path.  Decode and KV mirror never select the dedicated
-prefill kernel.  Consequently, the fixed benchmark cases start using it at
-`prefill_m128`, while the dispatcher's mathematical minimum is `M=16`.
+`prefill` phase.  Exact block64, block32, and block16 paths cover aligned M;
+the masked block64 path safely covers every other M with runtime bounds.  The
+benchmark includes aligned/non-aligned pairs from M=2048 through M=4097 plus
+larger irregular lengths to determine the lowest profitable all-M dispatch
+threshold empirically.  Decode and KV mirror never select this kernel.
 
 The `baseline` kernel is frozen.  Later optimization rounds should edit only
 the clearly marked `candidate` section in

@@ -81,7 +81,37 @@ class Case:
 DECODE_CASES = tuple(Case(f"decode_m{m}", "decode", m) for m in range(1, 129))
 PREFILL_CASES = tuple(
     Case(f"prefill_m{m}", "prefill", m)
-    for m in (128, 256, 512, 1024, 2048, 4096, 8192, 9616, 16384)
+    for m in (
+        128,
+        256,
+        512,
+        1024,
+        1536,
+        2048,
+        2049,
+        2304,
+        2305,
+        2560,
+        2561,
+        2816,
+        2817,
+        3072,
+        3073,
+        3328,
+        3329,
+        3584,
+        3585,
+        3840,
+        3841,
+        4096,
+        4097,
+        6145,
+        7169,
+        8191,
+        8192,
+        9616,
+        16384,
+    )
 )
 MIRROR_CASES = (
     Case("mirror_m8192_bs4", "prefill_mirror", 8192, 4),
@@ -639,6 +669,9 @@ class Harness:
                 and n_tokens % PREFILL_TOKEN_BLOCK_MIN == 0
             ):
                 prefill_token_block = PREFILL_TOKEN_BLOCK_MIN
+            else:
+                prefill_token_block = PREFILL_TOKEN_BLOCK
+                prefill_masked = True
         use_blocked_prefill = prefill_token_block > 0
         kernel = (
             _candidate_welmv4_inplace_rope_prefill_kernel

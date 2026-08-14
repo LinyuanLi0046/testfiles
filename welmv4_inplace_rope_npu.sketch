@@ -1,4 +1,4 @@
-# architecture_decision("freeze-best-prefill-and-stop-decode-optimization", reason="Preserve the accepted best ordinary-prefill kernel exactly and stop decode optimization. Dedicated blocked dispatch requires phase=prefill. Below M=8192 it applies to M>=16 divisible by 16, preferring block64 then block32 then block16; from M>=8192 every M is supported via exact or masked block64. The fixed benchmark's first prefill case is M=128. Decode and mirror remain on their shared kernel and mirror receives no separate kernel. N and num_token_blocks remain runtime do_not_specialize.")
+# architecture_decision("measure-all-m-prefill-dispatch-threshold", reason="Keep the accepted prefill kernel body frozen and change only host grid/path dispatch. Preserve exact block64/block32/block16 choices, but route previously uncovered non-16-aligned ordinary-prefill M through the existing masked block64 path. Sweep aligned/non-aligned pairs around M=2048..4097 and larger irregular M to identify the lowest >=3%-profitable threshold from which every M uses blocked prefill. Decode optimization remains stopped; decode and mirror keep their shared kernel. N and num_token_blocks remain runtime do_not_specialize.")
 
 sketch welmv4_inplace_rope_npu {
   symbols {
@@ -88,4 +88,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: the accepted best ordinary-prefill implementation is frozen. Its mathematical dispatch minimum is M=16 when divisible by 16, all M>=8192 are supported, and benchmark coverage starts at prefill M=128. Decode and mirror remain on their shared kernel with no mirror-only kernel. N and num_token_blocks stay runtime do_not_specialize.
+# Layer1 self-check: the accepted prefill kernel implementation is frozen; only host dispatch coverage changes. Exact aligned paths are unchanged and every other ordinary-prefill M is safely masked. Threshold-sweep M values are runtime inputs, never constexpr. Decode and mirror remain on their shared kernel with no mirror-only kernel. N and num_token_blocks stay runtime do_not_specialize.
