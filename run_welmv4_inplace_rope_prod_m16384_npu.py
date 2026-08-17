@@ -12,6 +12,7 @@ import triton.language as tl
 
 
 M = 16384
+POSITION_START = 113
 NUM_Q_HEADS = 6
 NUM_K_HEADS = 1
 HEAD_DIM = 256
@@ -105,9 +106,8 @@ def _welmv4_inplace_rope_prefill_kernel_npu(
         num_stages=num_stages,
     ):
         token_base = block_id * token_block
-        position_ids = tl.load(
-            position_ptr + token_base + token_offsets
-        ).to(tl.int32)
+        position_base = tl.load(position_ptr + token_base).to(tl.int32)
+        position_ids = position_base + token_offsets
         cos = tl.load(
             cos_sin_cache_ptr
             + position_ids[:, None] * rope_dim
@@ -180,7 +180,9 @@ def main() -> None:
     torch_npu.npu.set_device(device)
     torch.manual_seed(0)
 
-    positions = torch.arange(M, dtype=torch.int64, device=device)
+    positions = (
+        torch.arange(M, dtype=torch.int64, device=device) + POSITION_START
+    )
     query = torch.randn(
         (M, NUM_Q_HEADS, HEAD_DIM), dtype=torch.bfloat16, device=device
     )
@@ -192,7 +194,9 @@ def main() -> None:
         ROPE_BASE
         ** (torch.arange(0, ROPE_DIM, 2, dtype=torch.float32) / ROPE_DIM)
     )
-    frequencies = torch.outer(torch.arange(M, dtype=torch.float32), inv_freq)
+    frequencies = torch.outer(
+        torch.arange(M + POSITION_START, dtype=torch.float32), inv_freq
+    )
     cos_sin_cache = torch.cat(
         (frequencies.cos(), frequencies.sin()), dim=-1
     ).to(device=device)
@@ -240,6 +244,7 @@ def main() -> None:
         f"{args.iters} launches: M={M}, query={tuple(query.shape)} "
         f"{query.dtype}, key={tuple(key.shape)} {key.dtype}, "
         f"cache={cos_sin_cache.dtype}, token_block={TOKEN_BLOCK}, "
+        f"position_start={POSITION_START}, contiguous_positions=True, "
         f"q_split=2+2+2, num_stages={NUM_STAGES}, "
         f"multibuffer=True, programs={num_programs}, device={device}"
     )
