@@ -70,7 +70,7 @@ echo "Lowering $KERNEL_NAME for target $TARGET with $PRINT_FLAG"
     cd "$DUMP_DIR"
     "$BISHENGIR_BIN" \
         --target="$TARGET" \
-        --enable-auto-multi-buffer=False \
+        --enable-auto-multi-buffer=True \
         --enable-auto-bind-sub-block=True \
         --enable-hfusion-compile=true \
         --enable-hivm-compile=true \

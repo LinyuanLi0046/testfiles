@@ -140,7 +140,16 @@ def benchmark_command(device: str) -> list[str]:
         "--mode",
         "both",
         "--cases",
-        "segmented",
+        (
+            "mirror_contiguous_m8192_bs1,"
+            "mirror_contiguous_m9616_bs1,"
+            "mirror_contiguous_m16361_bs1,"
+            "mirror_contiguous_m16384_bs1,"
+            "prefill_m8192,prefill_m16384,"
+            "mirror_m8192_bs4,mirror_m16384_bs8,"
+            "segmented_m8192_b32_aligned,"
+            "segmented_m16384_b128_uneven"
+        ),
         "--scope",
         "kernel",
         "--device",
