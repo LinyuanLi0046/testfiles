@@ -1572,9 +1572,9 @@ def parse_cases(spec: str) -> list[Case]:
         return list(ALL_CASES)
     if normalized == "decode":
         return list(DECODE_CASES)
-    if normalized == "prefill":
+    if normalized == "single_prefill":
         return list(PREFILL_CASES)
-    if normalized in ("segmented", "segmented_prefill"):
+    if normalized in ("prefill", "segmented", "segmented_prefill"):
         return list(SEGMENTED_PREFILL_CASES)
     if normalized in ("mirror", "prefill_mirror"):
         return list(MIRROR_CASES)
@@ -1589,7 +1589,7 @@ def parse_cases(spec: str) -> list[Case]:
         case = by_name.get(item, by_tokens.get(item))
         if case is None:
             raise ValueError(
-                f"unknown case {raw_item!r}; use all|decode|prefill|segmented|mirror, "
+                f"unknown case {raw_item!r}; use all|single_prefill|prefill|segmented|mirror, "
                 "a case name, or a comma-separated normal-path token count"
             )
         if case not in selected:
@@ -2090,7 +2090,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--cases",
         default="all",
         help=(
-            "all|decode|prefill|segmented|mirror, a case name, or comma-separated "
+            "all|decode|single_prefill|prefill|segmented|mirror, a case name, "
+            "or comma-separated "
             "normal-path token counts"
         ),
     )

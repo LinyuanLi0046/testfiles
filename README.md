@@ -84,6 +84,9 @@ The `segmented` suite is benchmark-only and is not wired into NEWSGLANG. It
 builds compact per-request 64-token tile boundaries once before timing, then
 compares the current generic blocked-prefill gather against a segmented
 continuous-cache kernel under identical Q/K tiling and launch settings.
+For compatibility with a monitor process started before this experiment,
+`--cases prefill` is temporarily an alias of `--cases segmented`; the former
+single-request suite remains available as `--cases single_prefill`.
 
 - Decode: every concurrency/token count from `M=1` through `M=128`.
 - Prefill: dense crossover probes from `M=128` through `M=1281`, the
