@@ -145,6 +145,10 @@ def benchmark_command(device: str) -> list[str]:
         "kernel",
         "--device",
         device,
+        "--capture-ir",
+        "on",
+        "--capture-msprof-op",
+        "on",
         "--output-csv",
         OUTPUT_CSV,
     ]

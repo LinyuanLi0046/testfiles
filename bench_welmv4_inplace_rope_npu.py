@@ -60,10 +60,10 @@ AUTO_OUTPUT_CSV = "welmv4_inplace_rope_npu_all.csv"
 IR_CAPTURE_CASE = "prefill_m8192"
 PROFILE_CAPTURE_CASE = "prefill_m16384"
 MSPROF_OP_CASES = (
-    "prefill_m576",
-    "prefill_m577",
-    "prefill_m640",
-    "prefill_m641",
+    "prefill_m4096",
+    "prefill_m8192",
+    "prefill_m9616",
+    "prefill_m16384",
 )
 MSPROF_OP_WARMUP = 10
 MSPROF_OP_LAUNCH_COUNT = 5
@@ -787,9 +787,17 @@ def make_inputs(
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor | None]:
     case_seed = seed + case.n_tokens * 17 + case.batch_size * 101
     torch.manual_seed(case_seed)
-    positions = (
-        torch.arange(case.n_tokens, device=device, dtype=torch.int64) * 17 + 11
-    ) % MAX_POSITION
+    if case.phase == "prefill":
+        # Match the ordinary single-request model prefill path.  Q is already
+        # packed by the model before RoPE, and positions advance contiguously.
+        positions = torch.arange(
+            case.n_tokens, device=device, dtype=torch.int64
+        )
+    else:
+        positions = (
+            torch.arange(case.n_tokens, device=device, dtype=torch.int64) * 17
+            + 11
+        ) % MAX_POSITION
     query = torch.randn(
         (case.q_rows, NUM_Q_HEADS, HEAD_DIM), device=device, dtype=DTYPE
     )
@@ -1028,6 +1036,7 @@ def run_performance(
                     "variant": provider,
                     "status": "MEASURED",
                     "scope": scope,
+                    "timing_authority": "diagnostic_only",
                     "warmup": warmup,
                     "rounds": rounds,
                     "inner_repeat": inner_repeat,
@@ -1322,6 +1331,7 @@ def capture_msprof_op_records(
                 "record_type": "msprof_op",
                 "variant": provider,
                 "scope": "msprof_op_task_duration",
+                "timing_authority": "acceptance",
             }
             with tempfile.TemporaryDirectory(
                 prefix=f"welmv4_rope_msprof_{case_name}_{provider}_"
@@ -1623,6 +1633,7 @@ def main() -> int:
 
     records: list[dict[str, object]] = []
     failures = 0
+    msprof_failures = 0
     if args.mode in ("both", "correctness"):
         correctness_records, failures = run_correctness(harness, cases)
         records.extend(correctness_records)
@@ -1670,10 +1681,23 @@ def main() -> int:
         and args.cases.strip().lower() in ("all", "common")
     )
     if failures == 0 and capture_msprof_op:
-        records.extend(capture_msprof_op_records(harness, str(device)))
+        msprof_records = capture_msprof_op_records(harness, str(device))
+        records.extend(msprof_records)
+        measured_msprof = sum(
+            record.get("record_type") == "msprof_op"
+            and record.get("status") == "MEASURED"
+            for record in msprof_records
+        )
+        expected_msprof = len(MSPROF_OP_CASES) * len(PROVIDERS)
+        msprof_failures = expected_msprof - measured_msprof
+        print(
+            "\nmsprof-op acceptance summary: "
+            f"{'PASS' if msprof_failures == 0 else 'FAIL'}, "
+            f"measured={measured_msprof}/{expected_msprof}"
+        )
 
     write_csv(args.output_csv, records)
-    return 1 if failures else 0
+    return 1 if failures or msprof_failures else 0
 
 
 if __name__ == "__main__":

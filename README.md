@@ -23,9 +23,11 @@ has a newer commit, it fast-forwards, runs:
 ```bash
 python bench_welmv4_inplace_rope_npu.py \
   --mode both \
-  --cases all \
+  --cases prefill \
   --scope kernel \
   --device npu:5 \
+  --capture-ir on \
+  --capture-msprof-op on \
   --output-csv welmv4_inplace_rope_npu_all.csv
 ```
 
@@ -36,7 +38,7 @@ error log, commits it, and pushes.  Automatic result commits contain
 `Auto-Benchmark: true`, allowing the monitor to recover safely after a restart
 or push failure.
 
-The standard all-case run also recompiles only the candidate for a selected
+The standard remote prefill run also recompiles only the candidate for a selected
 representative case with Triton debug dumping enabled.  It lowers the adapter IR
 with `bishengir-compile` for the detected A5 target and stores gzip+base64
 TTIR, TTAdapter, and last-pass MLIR as `record_type=ir_artifact` rows in the
@@ -49,15 +51,19 @@ An explicit `--capture-profile on` run profiles the candidate at
 summaries as gzip+base64 `record_type=profile_artifact` rows. Profiling
 failures remain diagnostic rows and do not discard valid benchmark results.
 
-The standard remote run also invokes native `msprof op` for a small probe set
+The standard remote run also invokes native `msprof op` for the target large
+prefill cases
 with `--warm-up=10 --launch-count=5` and an exact `--kernel-name` for the
 selected baseline or candidate Triton kernel.  Parsed `OpBasicInfo.csv`
 `Task Duration(us)` values are stored as `record_type=msprof_op`, and the raw
 files are stored as gzip+base64 `record_type=msprof_op_artifact` rows.  These
-device task durations, rather than the approximately 30-us event submission
-floor, are authoritative for the small-M dispatch threshold.  The final
-verification probe covers M=576/577/640/641.  Use
-`--capture-msprof-op off` only for manual runs that intentionally skip them.
+device task durations are the only authoritative performance measurements for
+accepting or rejecting an optimization.  Event-based `record_type=performance`
+rows are marked `timing_authority=diagnostic_only`; msprof rows are marked
+`timing_authority=acceptance`.  The required probe covers
+M=4096/8192/9616/16384, and a missing msprof result fails the entire automatic
+run.  Use `--capture-msprof-op off` only for manual diagnostic runs that
+intentionally skip acceptance timing.
 
 Use `BENCH_PYTHON=/path/to/python` to select a different interpreter.  Use
 `--device npu:N` to select the NPU (`npu:5` by default) and `--interval
@@ -69,6 +75,8 @@ only.
 
 The fixed production-local shape uses BF16 Q/K, an FP32 cos/sin cache,
 6 query heads, 1 KV head, `head_dim=256`, and `rope_dim=64`.
+The ordinary prefill input matches the model after its unconditional Q
+`contiguous()` and uses contiguous single-request positions `0..M-1`.
 
 - Decode: every concurrency/token count from `M=1` through `M=128`.
 - Prefill: dense crossover probes from `M=128` through `M=1281`, the
