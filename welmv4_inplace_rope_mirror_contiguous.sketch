@@ -1,7 +1,8 @@
 # architecture_decision("isolate-single-request-mirror", reason="The optimized ordinary/segmented prefill and generic decode/mirror kernels are frozen regression groups. This candidate is selectable only when Q rows=BS=1, K rows=N, last_index is present, head shapes are 6/1 x 256, rope_dim=64, and the host has already proved a single non-speculative extend request with contiguous positions.")
 # optimization_point("continuous-aiv-partition-and-token-tiling", skill_point="tiling_optimization", reason="The generic mirror path launches hundreds of programs and processes K one token at a time with interleaved ownership. Partition the 64-token K tiles into at most the physical AIV count contiguous intervals, so every core issues monotonic regular 2D transfers. This is the only latency-skill optimization applied in round 1.")
 # ir_optimization("separate-full-tiles-from-runtime-tail", reason="Round-1 last-pass IR lowered every masked cache/K access to indirect_load_2d or indirect_store_2d, including exact N=16384. Keep N and NUM_TOKEN_BLOCKS runtime, but use a runtime full-tile branch with unmasked loads/stores; only the unique partial tail retains masks. This is the only change in round 2.")
-# optimization_point("balanced-contiguous-aiv-partition", skill_point="tiling_optimization", reason="The ceil-div interval formula in round 2 launched 56 AIVs but activated only 43 for N=8192 and 52 for N=16384. Use quotient/remainder intervals so all 56 AIVs own either floor(B/56) or ceil(B/56) consecutive tiles, without changing DMA, arithmetic, masking, or UB tile size. This is the only change in round 3.")
+# rejected_experiment("balanced-contiguous-aiv-partition", reason="Although quotient/remainder partitioning activated all 56 AIVs, it did not lower the maximum full-tile count and put the slow masked tail behind 2-4 preceding tiles. Authoritative msprof changed 8192 6.463->6.143 us, but regressed 9616 11.979->13.275 us, 16361 14.180->17.853 us, and 16384 9.282->9.881 us, so it was removed.")
+# optimization_point("move-single-q-to-idle-aiv", skill_point="tiling_optimization", reason="The retained ceil-div K partition leaves the last launched AIV idle for all four target large-N shapes. Move the unique six-head Q row from program 0, which owns a maximum-size K interval, to that idle AIV so Q and the K critical path execute in parallel. This is the only retained change in round 3.")
 
 sketch welmv4_inplace_rope_contiguous_mirror {
   symbols {
@@ -38,16 +39,13 @@ sketch welmv4_inplace_rope_contiguous_mirror {
 
   partition k_tiles_contiguously {
     grid = min(NUM_TOKEN_BLOCKS, AIV)
-    BASE_BLOCKS = floor_div(NUM_TOKEN_BLOCKS, grid)
-    EXTRA_PROGRAMS = NUM_TOKEN_BLOCKS mod grid
-    program_block_begin = program_id(0) * BASE_BLOCKS
-      + min(program_id(0), EXTRA_PROGRAMS)
-    PROGRAM_BLOCKS = BASE_BLOCKS
-      + select(program_id(0) < EXTRA_PROGRAMS, 1, 0)
-    program_block_end = program_block_begin + PROGRAM_BLOCKS
+    BLOCKS_PER_PROGRAM = ceil_div(NUM_TOKEN_BLOCKS, grid)
+    program_block_begin = program_id(0) * BLOCKS_PER_PROGRAM
+    program_block_end = min(program_block_begin + BLOCKS_PER_PROGRAM,
+                            NUM_TOKEN_BLOCKS)
   }
 
-  once when program_id(0) == 0 {
+  once when program_id(0) == grid - 1 {
     load q_source_i64 = last_index[0]
     cast q_source = int32(q_source_i64)
     load q_position_i64 = positions[q_source]
@@ -89,4 +87,4 @@ sketch welmv4_inplace_rope_contiguous_mirror {
   }
 }
 
-# Layer1 self-check: Q and K use the same FP32 cos/sin arithmetic and BF16 stores as the frozen reference. Only program 0 writes Q, each K token belongs to exactly one consecutive program interval, and only the final N=16361 tile is masked. Full tiles use the same addresses and math with boundary checks removed. N and ceil_div(N,64) are runtime do-not-specialize values. The host must never select this kernel for BS!=1, discontinuous positions, speculative/decode, or multi-request mirror.
+# Layer1 self-check: Q and K use the same FP32 cos/sin arithmetic and BF16 stores as the frozen reference. Only the final launched program writes Q, each K token belongs to exactly one consecutive program interval, and only the final partial tile is masked. Full tiles use the same addresses and math with boundary checks removed. N and ceil_div(N,64) are runtime do-not-specialize values. The host must never select this kernel for BS!=1, discontinuous positions, speculative/decode, or multi-request mirror.
