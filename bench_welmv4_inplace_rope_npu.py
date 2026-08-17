@@ -589,35 +589,26 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
                 + head_dim
                 - rope_dim
             )
-            # Keep each Q tile small enough that A5 auto-multibuffer can
-            # overlap FP32 cache loads with vector compute without UB overflow.
+            # The indirect cache loads leave enough A5 UB headroom for two
+            # three-head groups.  This removes one full Q load/compute/store
+            # phase while retaining FP32 cache arithmetic and multibuffering.
             _candidate_apply_token_head_block_rope(
                 q_data,
                 token_offsets,
                 q_token_stride,
                 cos,
                 sin,
-                2,
+                3,
                 head_dim,
                 rope_dim,
             )
             _candidate_apply_token_head_block_rope(
-                q_data + 2 * head_dim,
+                q_data + 3 * head_dim,
                 token_offsets,
                 q_token_stride,
                 cos,
                 sin,
-                2,
-                head_dim,
-                rope_dim,
-            )
-            _candidate_apply_token_head_block_rope(
-                q_data + 4 * head_dim,
-                token_offsets,
-                q_token_stride,
-                cos,
-                sin,
-                2,
+                3,
                 head_dim,
                 rope_dim,
             )
