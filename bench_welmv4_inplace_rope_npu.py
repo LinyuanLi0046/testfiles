@@ -510,31 +510,24 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
                 position_ptr + token_base + token_offsets
             ).to(tl.int32)
 
-        # Keep the random row index in UB and use the Ascend SIMD gather API
-        # directly.  This avoids both the scalarized 64-row DMA loop and the
-        # MIX SIMD/SIMT mode selected by mayDiscretememaccess compile hints.
-        cache_row_indices = tl.broadcast_to(
-            position_ids[:, None], (token_block, half_rope_dim)
-        )
-        cos = al.gather_out_to_ub(
-            src=cos_sin_cache_ptr,
-            index=cache_row_indices,
-            index_boundary=cache_rows,
+        # Select random cache rows with the documented SIMD API.  Unlike
+        # gather_out_to_ub, index_select_simd accepts a runtime source shape,
+        # so cache_rows remains do-not-specialize and cannot cause recompiles.
+        cos = al.index_select_simd(
+            cos_sin_cache_ptr,
             dim=0,
-            src_stride=(rope_dim, 1),
-            end_offset=(token_block, half_rope_dim),
-            start_offset=(0, 0),
-            other=0.0,
+            index=position_ids,
+            src_shape=[cache_rows, rope_dim],
+            src_offset=[-1, 0],
+            read_shape=[-1, half_rope_dim],
         )
-        sin = al.gather_out_to_ub(
-            src=cos_sin_cache_ptr,
-            index=cache_row_indices,
-            index_boundary=cache_rows,
+        sin = al.index_select_simd(
+            cos_sin_cache_ptr,
             dim=0,
-            src_stride=(rope_dim, 1),
-            end_offset=(token_block, rope_dim),
-            start_offset=(0, half_rope_dim),
-            other=0.0,
+            index=position_ids,
+            src_shape=[cache_rows, rope_dim],
+            src_offset=[-1, half_rope_dim],
+            read_shape=[-1, half_rope_dim],
         )
 
         k_data = (
