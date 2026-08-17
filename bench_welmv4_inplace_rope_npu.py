@@ -58,13 +58,13 @@ ATOL = 2.0e-2
 RTOL = 2.0e-2
 IR_CAPTURE_SCRIPT = "capture_welmv4_rope_ir.sh"
 AUTO_OUTPUT_CSV = "welmv4_inplace_rope_npu_all.csv"
-IR_CAPTURE_CASE = "prefill_m8192"
+IR_CAPTURE_CASE = "segmented_m8192_b32_aligned"
 PROFILE_CAPTURE_CASE = "prefill_m16384"
 MSPROF_OP_CASES = (
-    "prefill_m4096",
-    "prefill_m8192",
-    "prefill_m9616",
-    "prefill_m16384",
+    "segmented_m4096_b8_aligned",
+    "segmented_m8192_b32_aligned",
+    "segmented_m16384_b8_uneven",
+    "segmented_m16384_b128_uneven",
 )
 MSPROF_OP_WARMUP = 10
 MSPROF_OP_LAUNCH_COUNT = 5
@@ -76,14 +76,33 @@ class Case:
     phase: str
     n_tokens: int
     batch_size: int = 0
+    segment_lens: tuple[int, ...] = ()
 
     @property
     def is_mirror(self) -> bool:
-        return self.batch_size > 0
+        return self.phase == "prefill_mirror"
+
+    @property
+    def is_segmented(self) -> bool:
+        return bool(self.segment_lens)
+
+    @property
+    def request_count(self) -> int:
+        return len(self.segment_lens)
 
     @property
     def q_rows(self) -> int:
         return self.batch_size if self.is_mirror else self.n_tokens
+
+
+def make_uneven_segment_lens(total: int, batch_size: int) -> tuple[int, ...]:
+    """Build positive, non-64-aligned request lengths with an exact total."""
+    pattern = (-31, -17, -9, -1, 1, 9, 17, 31)
+    base = total // batch_size
+    lengths = [base + pattern[index % len(pattern)] for index in range(batch_size)]
+    lengths[-1] += total - sum(lengths)
+    assert min(lengths) > 0 and sum(lengths) == total
+    return tuple(lengths)
 
 
 # Decode latency is launch-bound and can vary at every batch size.  Keep the
@@ -144,7 +163,45 @@ MIRROR_CASES = (
     Case("mirror_m8192_bs4", "prefill_mirror", 8192, 4),
     Case("mirror_m16384_bs8", "prefill_mirror", 16384, 8),
 )
-ALL_CASES = DECODE_CASES + PREFILL_CASES + MIRROR_CASES
+SEGMENTED_PREFILL_CASES = (
+    Case(
+        "segmented_m4096_b8_aligned",
+        "segmented_prefill",
+        4096,
+        segment_lens=(512,) * 8,
+    ),
+    Case(
+        "segmented_m8192_b32_aligned",
+        "segmented_prefill",
+        8192,
+        segment_lens=(256,) * 32,
+    ),
+    Case(
+        "segmented_m9616_b8_uneven",
+        "segmented_prefill",
+        9616,
+        segment_lens=(1025, 1151, 1183, 1201, 1217, 1231, 1267, 1341),
+    ),
+    Case(
+        "segmented_m16384_b8_uneven",
+        "segmented_prefill",
+        16384,
+        segment_lens=(1025, 1537, 1793, 2047, 2113, 2305, 2559, 3005),
+    ),
+    Case(
+        "segmented_m16384_b64_aligned",
+        "segmented_prefill",
+        16384,
+        segment_lens=(256,) * 64,
+    ),
+    Case(
+        "segmented_m16384_b128_uneven",
+        "segmented_prefill",
+        16384,
+        segment_lens=make_uneven_segment_lens(16384, 128),
+    ),
+)
+ALL_CASES = DECODE_CASES + PREFILL_CASES + MIRROR_CASES + SEGMENTED_PREFILL_CASES
 
 
 # ---------------------------------------------------------------------------
@@ -470,6 +527,52 @@ def _candidate_apply_token_head_block_rope(
     )
 
 
+@triton.jit
+def _candidate_apply_masked_token_head_block_rope(
+    data_ptr: tl.tensor,
+    token_offsets: tl.tensor,
+    token_stride: tl.constexpr,
+    cos: tl.tensor,
+    sin: tl.tensor,
+    token_mask: tl.tensor,
+    num_heads: tl.constexpr,
+    head_dim: tl.constexpr,
+    rope_dim: tl.constexpr,
+):
+    """Apply RoPE to a 2-head Q tile without losing segment-tail masking."""
+    half_rope_dim: tl.constexpr = rope_dim // 2
+    head_offsets = tl.arange(0, num_heads)
+    rope_offsets = tl.arange(0, half_rope_dim)
+    base = (
+        data_ptr
+        + token_offsets[:, None, None] * token_stride
+        + head_offsets[None, :, None] * head_dim
+    )
+    mask = token_mask[:, None, None]
+    x1 = tl.load(
+        base + rope_offsets[None, None, :],
+        mask=mask,
+        other=0.0,
+        care_padding=False,
+    )
+    x2 = tl.load(
+        base + half_rope_dim + rope_offsets[None, None, :],
+        mask=mask,
+        other=0.0,
+        care_padding=False,
+    )
+    cos = cos[:, None, :]
+    sin = sin[:, None, :]
+    out1 = x1 * cos - x2 * sin
+    out2 = x1 * sin + x2 * cos
+    tl.store(base + rope_offsets[None, None, :], out1, mask=mask)
+    tl.store(
+        base + half_rope_dim + rope_offsets[None, None, :],
+        out2,
+        mask=mask,
+    )
+
+
 @triton.jit(do_not_specialize=["num_token_blocks", "N"])
 def _candidate_welmv4_inplace_rope_prefill_kernel(
     q_ptr: tl.tensor,
@@ -613,10 +716,306 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
                 rope_dim,
             )
 
+
+@triton.jit(do_not_specialize=["num_token_blocks", "N"])
+def _generic_welmv4_inplace_rope_prefill_kernel(
+    q_ptr: tl.tensor,
+    k_ptr: tl.tensor,
+    position_ptr: tl.tensor,
+    cos_sin_cache_ptr: tl.tensor,
+    num_token_blocks: int,
+    N: int,
+    q_token_stride: tl.constexpr,
+    k_token_stride: tl.constexpr,
+    head_dim: tl.constexpr,
+    rope_dim: tl.constexpr,
+    token_block: tl.constexpr,
+    masked: tl.constexpr,
+    num_stages: tl.constexpr,
+    num_q_heads: tl.constexpr,
+):
+    """Frozen comparison path: current generic blocked-prefill gather."""
+    half_rope_dim: tl.constexpr = rope_dim // 2
+    token_offsets = tl.arange(0, token_block)
+    cos_offsets = tl.arange(0, half_rope_dim)
+    sin_offsets = tl.arange(half_rope_dim, rope_dim)
+    for block_id in tl.range(
+        tl.program_id(0),
+        num_token_blocks,
+        tl.num_programs(0),
+        num_stages=num_stages,
+    ):
+        token_base = block_id * token_block
+        token_mask = token_base + token_offsets < N
+        if masked:
+            position_ids = tl.load(
+                position_ptr + token_base + token_offsets,
+                mask=token_mask,
+                other=0,
+            ).to(tl.int32)
+            cos = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + cos_offsets[None, :],
+                mask=token_mask[:, None],
+                other=0.0,
+                care_padding=False,
+            )
+            sin = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + sin_offsets[None, :],
+                mask=token_mask[:, None],
+                other=0.0,
+                care_padding=False,
+            )
+        else:
+            position_ids = tl.load(
+                position_ptr + token_base + token_offsets
+            ).to(tl.int32)
+            cos = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + cos_offsets[None, :],
+                care_padding=False,
+            )
+            sin = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + sin_offsets[None, :],
+                care_padding=False,
+            )
+            tl.extra.cann.extension.compile_hint(cos, "mayDiscretememaccess")
+            tl.extra.cann.extension.compile_hint(sin, "mayDiscretememaccess")
+
+        k_data = k_ptr + token_base * k_token_stride + head_dim - rope_dim
+        _candidate_apply_token_block_rope(
+            k_data,
+            token_offsets,
+            k_token_stride,
+            cos,
+            sin,
+            token_mask,
+            masked,
+            head_dim,
+            rope_dim,
+        )
+        if masked:
+            for head_id in tl.static_range(0, num_q_heads):
+                q_data = (
+                    q_ptr
+                    + token_base * q_token_stride
+                    + head_id * head_dim
+                    + head_dim
+                    - rope_dim
+                )
+                _candidate_apply_token_block_rope(
+                    q_data,
+                    token_offsets,
+                    q_token_stride,
+                    cos,
+                    sin,
+                    token_mask,
+                    masked,
+                    head_dim,
+                    rope_dim,
+                )
+        else:
+            q_data = q_ptr + token_base * q_token_stride + head_dim - rope_dim
+            _candidate_apply_token_head_block_rope(
+                q_data,
+                token_offsets,
+                q_token_stride,
+                cos,
+                sin,
+                2,
+                head_dim,
+                rope_dim,
+            )
+            _candidate_apply_token_head_block_rope(
+                q_data + 2 * head_dim,
+                token_offsets,
+                q_token_stride,
+                cos,
+                sin,
+                2,
+                head_dim,
+                rope_dim,
+            )
+            _candidate_apply_token_head_block_rope(
+                q_data + 4 * head_dim,
+                token_offsets,
+                q_token_stride,
+                cos,
+                sin,
+                2,
+                head_dim,
+                rope_dim,
+            )
+
+
+@triton.jit(do_not_specialize=["num_segment_tiles", "N"])
+def _candidate_welmv4_inplace_rope_segmented_prefill_kernel(
+    q_ptr: tl.tensor,
+    k_ptr: tl.tensor,
+    position_ptr: tl.tensor,
+    cos_sin_cache_ptr: tl.tensor,
+    segment_tile_starts_ptr: tl.tensor,
+    num_segment_tiles: int,
+    N: int,
+    q_token_stride: tl.constexpr,
+    k_token_stride: tl.constexpr,
+    head_dim: tl.constexpr,
+    rope_dim: tl.constexpr,
+    token_block: tl.constexpr,
+    masked: tl.constexpr,
+    num_stages: tl.constexpr,
+):
+    """Experimental multi-request prefill path; benchmark-only, not framework code."""
+    half_rope_dim: tl.constexpr = rope_dim // 2
+    token_offsets = tl.arange(0, token_block)
+    cos_offsets = tl.arange(0, half_rope_dim)
+    sin_offsets = tl.arange(half_rope_dim, rope_dim)
+    for tile_id in tl.range(
+        tl.program_id(0),
+        num_segment_tiles,
+        tl.num_programs(0),
+        num_stages=num_stages,
+    ):
+        token_base = tl.load(segment_tile_starts_ptr + tile_id).to(tl.int32)
+        if masked:
+            token_end = tl.load(
+                segment_tile_starts_ptr + tile_id + 1
+            ).to(tl.int32)
+            token_mask = token_offsets < token_end - token_base
+        else:
+            token_mask = token_offsets < token_block
+
+        position_base = tl.load(position_ptr + token_base).to(tl.int32)
+        position_ids = position_base + token_offsets
+        if masked:
+            cos = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + cos_offsets[None, :],
+                mask=token_mask[:, None],
+                other=0.0,
+                care_padding=False,
+            )
+            sin = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + sin_offsets[None, :],
+                mask=token_mask[:, None],
+                other=0.0,
+                care_padding=False,
+            )
+        else:
+            cos = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + cos_offsets[None, :],
+                care_padding=False,
+            )
+            sin = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + sin_offsets[None, :],
+                care_padding=False,
+            )
+
+        k_data = k_ptr + token_base * k_token_stride + head_dim - rope_dim
+        _candidate_apply_token_block_rope(
+            k_data,
+            token_offsets,
+            k_token_stride,
+            cos,
+            sin,
+            token_mask,
+            masked,
+            head_dim,
+            rope_dim,
+        )
+        q_data = q_ptr + token_base * q_token_stride + head_dim - rope_dim
+        if masked:
+            _candidate_apply_masked_token_head_block_rope(
+                q_data,
+                token_offsets,
+                q_token_stride,
+                cos,
+                sin,
+                token_mask,
+                2,
+                head_dim,
+                rope_dim,
+            )
+            _candidate_apply_masked_token_head_block_rope(
+                q_data + 2 * head_dim,
+                token_offsets,
+                q_token_stride,
+                cos,
+                sin,
+                token_mask,
+                2,
+                head_dim,
+                rope_dim,
+            )
+            _candidate_apply_masked_token_head_block_rope(
+                q_data + 4 * head_dim,
+                token_offsets,
+                q_token_stride,
+                cos,
+                sin,
+                token_mask,
+                2,
+                head_dim,
+                rope_dim,
+            )
+        else:
+            _candidate_apply_token_head_block_rope(
+                q_data,
+                token_offsets,
+                q_token_stride,
+                cos,
+                sin,
+                2,
+                head_dim,
+                rope_dim,
+            )
+            _candidate_apply_token_head_block_rope(
+                q_data + 2 * head_dim,
+                token_offsets,
+                q_token_stride,
+                cos,
+                sin,
+                2,
+                head_dim,
+                rope_dim,
+            )
+            _candidate_apply_token_head_block_rope(
+                q_data + 4 * head_dim,
+                token_offsets,
+                q_token_stride,
+                cos,
+                sin,
+                2,
+                head_dim,
+                rope_dim,
+            )
+
 PROVIDERS = {
     "baseline": _baseline_welmv4_inplace_rope_kernel,
     "candidate": _candidate_welmv4_inplace_rope_kernel,
+    "generic_prefill": _generic_welmv4_inplace_rope_prefill_kernel,
+    "segmented_prefill": _candidate_welmv4_inplace_rope_segmented_prefill_kernel,
 }
+
+DEFAULT_PROVIDERS = ("baseline", "candidate")
+SEGMENTED_PROVIDERS = ("generic_prefill", "segmented_prefill")
+
+
+def providers_for_case(case: Case) -> tuple[str, ...]:
+    return SEGMENTED_PROVIDERS if case.is_segmented else DEFAULT_PROVIDERS
 
 
 # ---------------------------------------------------------------------------
@@ -683,9 +1082,75 @@ class Harness:
         key: torch.Tensor,
         positions: torch.Tensor,
         last_index: torch.Tensor | None,
+        segment_tile_starts: torch.Tensor | None,
     ) -> Callable[[], object]:
         n_tokens = int(positions.shape[0])
         batch_size = int(last_index.numel()) if last_index is not None else 0
+        if case.is_segmented:
+            if segment_tile_starts is None:
+                raise ValueError("segmented prefill requires segment_tile_starts")
+            if provider not in SEGMENTED_PROVIDERS:
+                raise ValueError(f"unsupported segmented provider: {provider}")
+            segment_tiles = int(segment_tile_starts.numel()) - 1
+            segment_masked = any(
+                length % PREFILL_TOKEN_BLOCK != 0 for length in case.segment_lens
+            )
+            segment_programs = min(
+                segment_tiles,
+                self.num_vector_cores * PROGRAMS_PER_VECTOR_CORE,
+            )
+            q_stride = int(query.stride(0))
+            k_stride = int(key.stride(0))
+
+            def launch_segmented_comparison() -> object:
+                if provider == "generic_prefill":
+                    generic_blocks = triton.cdiv(n_tokens, PREFILL_TOKEN_BLOCK)
+                    generic_masked = n_tokens % PREFILL_TOKEN_BLOCK != 0
+                    generic_programs = min(
+                        generic_blocks,
+                        self.num_vector_cores * PROGRAMS_PER_VECTOR_CORE,
+                    )
+                    return _generic_welmv4_inplace_rope_prefill_kernel[
+                        (generic_programs,)
+                    ](
+                        query,
+                        key,
+                        positions,
+                        self.cache,
+                        generic_blocks,
+                        n_tokens,
+                        q_stride,
+                        k_stride,
+                        HEAD_DIM,
+                        ROPE_DIM,
+                        PREFILL_TOKEN_BLOCK,
+                        generic_masked,
+                        PREFILL_NUM_STAGES,
+                        NUM_Q_HEADS,
+                        multibuffer=True,
+                    )
+                return _candidate_welmv4_inplace_rope_segmented_prefill_kernel[
+                    (segment_programs,)
+                ](
+                    query,
+                    key,
+                    positions,
+                    self.cache,
+                    segment_tile_starts,
+                    segment_tiles,
+                    n_tokens,
+                    q_stride,
+                    k_stride,
+                    HEAD_DIM,
+                    ROPE_DIM,
+                    PREFILL_TOKEN_BLOCK,
+                    segment_masked,
+                    PREFILL_NUM_STAGES,
+                    multibuffer=True,
+                )
+
+            return launch_segmented_comparison
+
         prefill_token_block = 0
         prefill_masked = False
         if provider == "candidate" and case.phase == "prefill":
@@ -783,10 +1248,40 @@ def make_last_index(case: Case, device: torch.device) -> torch.Tensor | None:
 
 def make_inputs(
     case: Case, device: torch.device, seed: int
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor | None]:
+) -> tuple[
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor | None,
+    torch.Tensor | None,
+]:
     case_seed = seed + case.n_tokens * 17 + case.batch_size * 101
     torch.manual_seed(case_seed)
-    if case.phase == "prefill":
+    segment_tile_starts = None
+    if case.is_segmented:
+        position_chunks = []
+        tile_starts = []
+        token_start = 0
+        for request_id, seq_len in enumerate(case.segment_lens):
+            tile_starts.extend(
+                range(token_start, token_start + seq_len, PREFILL_TOKEN_BLOCK)
+            )
+            position_start = PREFILL_POSITION_START + request_id * 97
+            position_chunks.append(
+                torch.arange(seq_len, device=device, dtype=torch.int64)
+                + position_start
+            )
+            token_start += seq_len
+        if token_start != case.n_tokens:
+            raise ValueError(
+                f"segment lengths sum to {token_start}, expected {case.n_tokens}"
+            )
+        tile_starts.append(token_start)
+        positions = torch.cat(position_chunks)
+        segment_tile_starts = torch.tensor(
+            tile_starts, device=device, dtype=torch.int32
+        )
+    elif case.phase == "prefill":
         # Match the ordinary single-request model prefill path.  Q is already
         # packed by the model before RoPE, and positions advance contiguously
         # from a runtime prefix offset (not necessarily zero).
@@ -804,7 +1299,13 @@ def make_inputs(
     key = torch.randn(
         (case.n_tokens, NUM_K_HEADS, HEAD_DIM), device=device, dtype=DTYPE
     )
-    return query, key, positions, make_last_index(case, device)
+    return (
+        query,
+        key,
+        positions,
+        make_last_index(case, device),
+        segment_tile_starts,
+    )
 
 
 def apply_reference(
@@ -855,6 +1356,8 @@ def case_fields(case: Case) -> dict[str, object]:
         "n_tokens": case.n_tokens,
         "q_rows": case.q_rows,
         "batch_size": case.batch_size,
+        "request_count": case.request_count,
+        "segment_lens": "|".join(str(length) for length in case.segment_lens),
     }
 
 
@@ -865,17 +1368,23 @@ def run_correctness(
     failures = 0
     print("\nCorrectness (BF16 tail-RoPE reference):")
     for case in cases:
-        query, key, positions, last_index = make_inputs(
+        query, key, positions, last_index, segment_tile_starts = make_inputs(
             case, harness.device, harness.seed
         )
         query_ref, key_ref = reference_outputs(
             query, key, positions, last_index, harness.cache
         )
-        for provider in PROVIDERS:
+        for provider in providers_for_case(case):
             query_out = query.clone()
             key_out = key.clone()
             launch = harness.bind(
-                provider, case, query_out, key_out, positions, last_index
+                provider,
+                case,
+                query_out,
+                key_out,
+                positions,
+                last_index,
+                segment_tile_starts,
             )
             launch()
             torch_npu.npu.synchronize()
@@ -970,11 +1479,12 @@ def run_performance(
         f"physical_AIV={harness.num_vector_cores}"
     )
     for case in cases:
-        query, key, positions, last_index = make_inputs(
+        query, key, positions, last_index, segment_tile_starts = make_inputs(
             case, harness.device, harness.seed
         )
         launches: dict[str, Callable[[], object]] = {}
-        for provider in PROVIDERS:
+        case_providers = providers_for_case(case)
+        for provider in case_providers:
             launches[provider] = harness.bind(
                 provider,
                 case,
@@ -982,9 +1492,10 @@ def run_performance(
                 key.clone(),
                 positions,
                 last_index,
+                segment_tile_starts,
             )
 
-        for provider in PROVIDERS:
+        for provider in case_providers:
             for _ in range(warmup):
                 launches[provider]()
         torch_npu.npu.synchronize()
@@ -994,8 +1505,8 @@ def run_performance(
             if inner_repeat_override > 0
             else automatic_inner_repeat(case.n_tokens)
         )
-        samples = {provider: [] for provider in PROVIDERS}
-        providers = tuple(PROVIDERS)
+        samples = {provider: [] for provider in case_providers}
+        providers = case_providers
         for round_index in range(rounds):
             order: Iterable[str] = (
                 providers if round_index % 2 == 0 else reversed(providers)
@@ -1014,13 +1525,16 @@ def run_performance(
                 "mean_us": statistics.fmean(values),
             }
 
-        baseline_p50 = stats["baseline"]["p50_us"]
+        baseline_provider = (
+            "generic_prefill" if case.is_segmented else "baseline"
+        )
+        baseline_p50 = stats[baseline_provider]["p50_us"]
         print(
             f"\n  {case.name}: N={case.n_tokens}, Q_rows={case.q_rows}, "
             f"BS={case.batch_size}, inner_repeat={inner_repeat}"
         )
         print("    variant      p20(us)   p50(us)   p80(us)   speedup/R0")
-        for provider in PROVIDERS:
+        for provider in case_providers:
             current = stats[provider]
             speedup = baseline_p50 / current["p50_us"]
             print(
@@ -1060,6 +1574,8 @@ def parse_cases(spec: str) -> list[Case]:
         return list(DECODE_CASES)
     if normalized == "prefill":
         return list(PREFILL_CASES)
+    if normalized in ("segmented", "segmented_prefill"):
+        return list(SEGMENTED_PREFILL_CASES)
     if normalized in ("mirror", "prefill_mirror"):
         return list(MIRROR_CASES)
 
@@ -1073,7 +1589,7 @@ def parse_cases(spec: str) -> list[Case]:
         case = by_name.get(item, by_tokens.get(item))
         if case is None:
             raise ValueError(
-                f"unknown case {raw_item!r}; use all|decode|prefill|mirror, "
+                f"unknown case {raw_item!r}; use all|decode|prefill|segmented|mirror, "
                 "a case name, or a comma-separated normal-path token count"
             )
         if case not in selected:
@@ -1087,10 +1603,18 @@ def run_compile_only(
     harness: Harness, case: Case, provider: str
 ) -> None:
     """Compile and launch one provider once for the external IR extractor."""
-    query, key, positions, last_index = make_inputs(
+    query, key, positions, last_index, segment_tile_starts = make_inputs(
         case, harness.device, harness.seed
     )
-    launch = harness.bind(provider, case, query, key, positions, last_index)
+    launch = harness.bind(
+        provider,
+        case,
+        query,
+        key,
+        positions,
+        last_index,
+        segment_tile_starts,
+    )
     launch()
     torch_npu.npu.synchronize()
     print(f"IR compile-only launch completed: {provider}, {case.name}")
@@ -1106,7 +1630,7 @@ def capture_ir_records(
         **harness.metadata(),
         **case_fields(case),
         "record_type": "ir_artifact",
-        "variant": "candidate",
+        "variant": "segmented_prefill",
         "scope": "compiler_ir",
     }
     if not script.is_file():
@@ -1126,7 +1650,7 @@ def capture_ir_records(
             str(script),
             str(Path(__file__).resolve()),
             "--compile-only-provider",
-            "candidate",
+            "segmented_prefill",
             "--cases",
             case.name,
             "--device",
@@ -1194,11 +1718,17 @@ def capture_profile_records(harness: Harness) -> list[dict[str, object]]:
         "variant": "candidate",
         "scope": "npu_memory_l2_profile",
     }
-    query, key, positions, last_index = make_inputs(
+    query, key, positions, last_index, segment_tile_starts = make_inputs(
         case, harness.device, harness.seed
     )
     launch = harness.bind(
-        "candidate", case, query, key, positions, last_index
+        "candidate",
+        case,
+        query,
+        key,
+        positions,
+        last_index,
+        segment_tile_starts,
     )
     for _ in range(5):
         launch()
@@ -1305,7 +1835,7 @@ def capture_msprof_op_records(
 
     for case_name in MSPROF_OP_CASES:
         case = cases_by_name[case_name]
-        for provider in PROVIDERS:
+        for provider in providers_for_case(case):
             candidate_blocked = (
                 provider == "candidate"
                 and case.phase == "prefill"
@@ -1317,7 +1847,13 @@ def capture_msprof_op_records(
                     )
                 )
             )
-            if provider == "baseline":
+            if provider == "generic_prefill":
+                kernel_name = "_generic_welmv4_inplace_rope_prefill_kernel"
+            elif provider == "segmented_prefill":
+                kernel_name = (
+                    "_candidate_welmv4_inplace_rope_segmented_prefill_kernel"
+                )
+            elif provider == "baseline":
                 kernel_name = "_baseline_welmv4_inplace_rope_kernel"
             elif candidate_blocked:
                 kernel_name = (
@@ -1512,8 +2048,15 @@ def capture_msprof_op_records(
     }
     for record in summary_records:
         case_name = str(record["case"])
-        baseline = medians.get((case_name, "baseline"))
-        candidate = medians.get((case_name, "candidate"))
+        case = cases_by_name[case_name]
+        baseline_variant = (
+            "generic_prefill" if case.is_segmented else "baseline"
+        )
+        candidate_variant = (
+            "segmented_prefill" if case.is_segmented else "candidate"
+        )
+        baseline = medians.get((case_name, baseline_variant))
+        candidate = medians.get((case_name, candidate_variant))
         if baseline and candidate:
             record["msprof_speedup_vs_baseline"] = baseline / candidate
     return summary_records + records
@@ -1547,7 +2090,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--cases",
         default="all",
         help=(
-            "all|decode|prefill|mirror, a case name, or comma-separated "
+            "all|decode|prefill|segmented|mirror, a case name, or comma-separated "
             "normal-path token counts"
         ),
     )
@@ -1688,7 +2231,10 @@ def main() -> int:
             and record.get("status") == "MEASURED"
             for record in msprof_records
         )
-        expected_msprof = len(MSPROF_OP_CASES) * len(PROVIDERS)
+        expected_msprof = sum(
+            len(providers_for_case(next(case for case in ALL_CASES if case.name == name)))
+            for name in MSPROF_OP_CASES
+        )
         msprof_failures = expected_msprof - measured_msprof
         print(
             "\nmsprof-op acceptance summary: "
