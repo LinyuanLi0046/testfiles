@@ -23,7 +23,7 @@ has a newer commit, it fast-forwards, runs:
 ```bash
 python bench_welmv4_inplace_rope_npu.py \
   --mode both \
-  --cases mirror_contiguous_m8192_bs1,mirror_contiguous_m9616_bs1,mirror_contiguous_m16361_bs1,mirror_contiguous_m16384_bs1,prefill_m8192,prefill_m16384,mirror_m8192_bs4,mirror_m16384_bs8,segmented_m8192_b32_aligned,segmented_m16384_b128_uneven \
+  --cases mirror_contiguous_m8192_bs1,mirror_contiguous_m9616_bs1,mirror_contiguous_m16361_bs1,mirror_contiguous_m16384_bs1,mirror_segmented_m8192_b2_aligned,mirror_segmented_m8192_b4_aligned,mirror_segmented_m9616_b8_uneven,mirror_segmented_m8192_b16_aligned,mirror_segmented_m16384_b32_aligned,mirror_segmented_m16384_b64_aligned,mirror_segmented_m16384_b128_uneven,prefill_m8192,prefill_m16384,mirror_m8192_bs4,mirror_m16384_bs8,segmented_m8192_b32_aligned,segmented_m16384_b128_uneven \
   --scope kernel \
   --device npu:5 \
   --capture-ir on \
@@ -38,8 +38,8 @@ error log, commits it, and pushes.  Automatic result commits contain
 `Auto-Benchmark: true`, allowing the monitor to recover safely after a restart
 or push failure.
 
-The standard remote run recompiles only the experimental contiguous BS=1
-mirror candidate at `N=16361` with Triton debug dumping enabled.
+The standard remote run recompiles the experimental segmented multi-BS mirror
+candidate at `N=16384, BS=128` with Triton debug dumping enabled.
 It lowers the adapter IR
 with `bishengir-compile` for the detected A5 target and stores gzip+base64
 TTIR, TTAdapter, and last-pass MLIR as `record_type=ir_artifact` rows in the
@@ -53,7 +53,7 @@ summaries as gzip+base64 `record_type=profile_artifact` rows. Profiling
 failures remain diagnostic rows and do not discard valid benchmark results.
 
 The standard remote run also invokes native `msprof op` for paired frozen
-`baseline` and experimental `mirror_contiguous` kernels
+`baseline` and experimental `mirror_segmented` kernels
 with `--warm-up=10 --launch-count=5` and an exact `--kernel-name` for the
 selected Triton kernel. Parsed `OpBasicInfo.csv`
 `Task Duration(us)` values are stored as `record_type=msprof_op`, and the raw
@@ -62,8 +62,9 @@ device task durations are the only authoritative performance measurements for
 accepting or rejecting an optimization. Event-based `record_type=performance`
 rows are marked `timing_authority=diagnostic_only`; msprof rows are marked
 `timing_authority=acceptance`. A missing msprof result fails the entire
-automatic run. The required probes cover `N=8192,9616,16361,16384` with
-`Q_rows=BS=1`. Use `--capture-msprof-op off`
+automatic run. The required probes cover aligned and uneven request segments
+at `BS=2,8,32,128`; correctness additionally covers `BS=4,16,64`. Use
+`--capture-msprof-op off`
 only for manual diagnostic runs that
 intentionally skip acceptance timing.
 
@@ -85,8 +86,9 @@ builds compact per-request 64-token tile boundaries once before timing, then
 compares the current generic blocked-prefill gather against a segmented
 continuous-cache kernel under identical Q/K tiling and launch settings.
 For compatibility with a monitor process started before this experiment, the
-legacy `--cases segmented` command is temporarily routed to the active BS=1
-mirror suite plus frozen regressions. The segmented-only suite remains
+legacy `--cases segmented` command is temporarily routed to the active
+multi-BS mirror suite plus frozen BS=1 and ordinary-prefill regressions. The
+segmented-only suite remains
 available as `--cases segmented_prefill`; the former single-request suite
 remains available as `--cases single_prefill`.
 
@@ -98,6 +100,9 @@ remains available as `--cases single_prefill`.
 - Single-request contiguous KV mirror: `Q=[1,6,256]`,
   `K=[N,1,256]` for `N=8192,9616,16361,16384`. This benchmark-only candidate
   is isolated from the existing kernels until its NPU results are accepted.
+- Segmented multi-request KV mirror: `Q=[BS,6,256]`, `K=[N,1,256]`, with
+  `BS=2,4,8,16,32,64,128`. Its 64-token tiles never cross request boundaries;
+  it is benchmark-only and is not wired into NEWSGLANG.
 
 The dedicated blocked kernel is selected only for the candidate's ordinary
 `prefill` phase. Native msprof-op establishes the all-M threshold at `M=640`:

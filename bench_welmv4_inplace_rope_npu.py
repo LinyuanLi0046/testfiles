@@ -58,13 +58,13 @@ ATOL = 2.0e-2
 RTOL = 2.0e-2
 IR_CAPTURE_SCRIPT = "capture_welmv4_rope_ir.sh"
 AUTO_OUTPUT_CSV = "welmv4_inplace_rope_npu_all.csv"
-IR_CAPTURE_CASE = "mirror_contiguous_m16361_bs1"
+IR_CAPTURE_CASE = "mirror_segmented_m16384_b128_uneven"
 PROFILE_CAPTURE_CASE = "prefill_m16384"
 MSPROF_OP_CASES = (
-    "mirror_contiguous_m8192_bs1",
-    "mirror_contiguous_m9616_bs1",
-    "mirror_contiguous_m16361_bs1",
-    "mirror_contiguous_m16384_bs1",
+    "mirror_segmented_m8192_b2_aligned",
+    "mirror_segmented_m9616_b8_uneven",
+    "mirror_segmented_m16384_b32_aligned",
+    "mirror_segmented_m16384_b128_uneven",
 )
 MSPROF_OP_WARMUP = 10
 MSPROF_OP_LAUNCH_COUNT = 5
@@ -80,11 +80,19 @@ class Case:
 
     @property
     def is_mirror(self) -> bool:
-        return self.phase in ("prefill_mirror", "prefill_mirror_contiguous")
+        return self.phase in (
+            "prefill_mirror",
+            "prefill_mirror_contiguous",
+            "prefill_mirror_segmented",
+        )
 
     @property
     def is_contiguous_mirror(self) -> bool:
         return self.phase == "prefill_mirror_contiguous"
+
+    @property
+    def is_segmented_mirror(self) -> bool:
+        return self.phase == "prefill_mirror_segmented"
 
     @property
     def is_segmented(self) -> bool:
@@ -176,6 +184,57 @@ CONTIGUOUS_MIRROR_CASES = tuple(
     )
     for m in (8192, 9616, 16361, 16384)
 )
+SEGMENTED_MIRROR_CASES = (
+    Case(
+        "mirror_segmented_m8192_b2_aligned",
+        "prefill_mirror_segmented",
+        8192,
+        2,
+        (4096,) * 2,
+    ),
+    Case(
+        "mirror_segmented_m8192_b4_aligned",
+        "prefill_mirror_segmented",
+        8192,
+        4,
+        (2048,) * 4,
+    ),
+    Case(
+        "mirror_segmented_m9616_b8_uneven",
+        "prefill_mirror_segmented",
+        9616,
+        8,
+        (1025, 1151, 1183, 1201, 1217, 1231, 1267, 1341),
+    ),
+    Case(
+        "mirror_segmented_m8192_b16_aligned",
+        "prefill_mirror_segmented",
+        8192,
+        16,
+        (512,) * 16,
+    ),
+    Case(
+        "mirror_segmented_m16384_b32_aligned",
+        "prefill_mirror_segmented",
+        16384,
+        32,
+        (512,) * 32,
+    ),
+    Case(
+        "mirror_segmented_m16384_b64_aligned",
+        "prefill_mirror_segmented",
+        16384,
+        64,
+        (256,) * 64,
+    ),
+    Case(
+        "mirror_segmented_m16384_b128_uneven",
+        "prefill_mirror_segmented",
+        16384,
+        128,
+        make_uneven_segment_lens(16384, 128),
+    ),
+)
 SEGMENTED_PREFILL_CASES = (
     Case(
         "segmented_m4096_b8_aligned",
@@ -219,6 +278,7 @@ ALL_CASES = (
     + PREFILL_CASES
     + MIRROR_CASES
     + CONTIGUOUS_MIRROR_CASES
+    + SEGMENTED_MIRROR_CASES
     + SEGMENTED_PREFILL_CASES
 )
 
@@ -1147,20 +1207,159 @@ def _candidate_welmv4_inplace_rope_contiguous_mirror_kernel(
                 rope_dim,
             )
 
+
+@triton.jit(do_not_specialize=["num_segment_tiles", "BS"])
+def _candidate_welmv4_inplace_rope_segmented_mirror_kernel(
+    q_ptr: tl.tensor,
+    k_ptr: tl.tensor,
+    position_ptr: tl.tensor,
+    cos_sin_cache_ptr: tl.tensor,
+    last_index_ptr: tl.tensor,
+    segment_tile_starts_ptr: tl.tensor,
+    num_segment_tiles: int,
+    BS: int,
+    q_token_stride: tl.constexpr,
+    k_token_stride: tl.constexpr,
+    head_dim: tl.constexpr,
+    rope_dim: tl.constexpr,
+    token_block: tl.constexpr,
+    num_stages: tl.constexpr,
+    num_q_heads: tl.constexpr,
+    num_q_heads_blocked: tl.constexpr,
+):
+    """Multi-request mirror RoPE with request-local contiguous K tiles."""
+    half_rope_dim: tl.constexpr = rope_dim // 2
+    token_offsets = tl.arange(0, token_block)
+    cos_offsets = tl.arange(0, half_rope_dim)
+    sin_offsets = tl.arange(half_rope_dim, rope_dim)
+    program_id = tl.program_id(0)
+    num_programs = tl.num_programs(0)
+
+    # Q contains one row per request.  Give each AIV one consecutive request
+    # interval, and recover that row's position through the model's last_index.
+    requests_per_program = tl.cdiv(BS, num_programs)
+    request_start = program_id * requests_per_program
+    request_end = tl.minimum(request_start + requests_per_program, BS)
+    for request_id in tl.range(request_start, request_end, num_stages=1):
+        q_source_token = tl.load(last_index_ptr + request_id).to(tl.int32)
+        q_position = tl.load(position_ptr + q_source_token).to(tl.int32)
+        q_cos = tl.load(
+            cos_sin_cache_ptr + q_position * rope_dim + cos_offsets,
+            care_padding=False,
+        )
+        q_sin = tl.load(
+            cos_sin_cache_ptr + q_position * rope_dim + sin_offsets,
+            care_padding=False,
+        )
+        q_data = (
+            q_ptr
+            + request_id * q_token_stride
+            + head_dim
+            - rope_dim
+        )
+        _candidate_apply_tail_rope(
+            q_data,
+            q_cos,
+            q_sin,
+            num_q_heads,
+            num_q_heads_blocked,
+            head_dim,
+            rope_dim,
+        )
+
+    # segment_tile_starts is built from each request independently, so no tile
+    # crosses a request boundary.  Consecutive tile IDs also mean monotonic K
+    # and cache traffic within every AIV's interval.
+    tiles_per_program = tl.cdiv(num_segment_tiles, num_programs)
+    tile_start_id = program_id * tiles_per_program
+    tile_end_id = tl.minimum(
+        tile_start_id + tiles_per_program, num_segment_tiles
+    )
+    for tile_id in tl.range(
+        tile_start_id,
+        tile_end_id,
+        num_stages=num_stages,
+    ):
+        token_base = tl.load(segment_tile_starts_ptr + tile_id).to(tl.int32)
+        token_end = tl.load(segment_tile_starts_ptr + tile_id + 1).to(tl.int32)
+        token_count = token_end - token_base
+        position_base = tl.load(position_ptr + token_base).to(tl.int32)
+        position_ids = position_base + token_offsets
+        k_data = k_ptr + token_base * k_token_stride + head_dim - rope_dim
+
+        if token_count.to(tl.float32) >= token_block:
+            cos = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + cos_offsets[None, :],
+                care_padding=False,
+            )
+            sin = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + sin_offsets[None, :],
+                care_padding=False,
+            )
+            _candidate_apply_token_block_rope(
+                k_data,
+                token_offsets,
+                k_token_stride,
+                cos,
+                sin,
+                token_offsets == token_offsets,
+                False,
+                head_dim,
+                rope_dim,
+            )
+        else:
+            token_mask = token_offsets.to(tl.float32) < token_count.to(tl.float32)
+            cos = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + cos_offsets[None, :],
+                mask=token_mask[:, None],
+                other=0.0,
+                care_padding=False,
+            )
+            sin = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + sin_offsets[None, :],
+                mask=token_mask[:, None],
+                other=0.0,
+                care_padding=False,
+            )
+            _candidate_apply_token_block_rope(
+                k_data,
+                token_offsets,
+                k_token_stride,
+                cos,
+                sin,
+                token_mask,
+                True,
+                head_dim,
+                rope_dim,
+            )
+
+
 PROVIDERS = {
     "baseline": _baseline_welmv4_inplace_rope_kernel,
     "candidate": _candidate_welmv4_inplace_rope_kernel,
     "generic_prefill": _generic_welmv4_inplace_rope_prefill_kernel,
     "segmented_prefill": _candidate_welmv4_inplace_rope_segmented_prefill_kernel,
     "mirror_contiguous": _candidate_welmv4_inplace_rope_contiguous_mirror_kernel,
+    "mirror_segmented": _candidate_welmv4_inplace_rope_segmented_mirror_kernel,
 }
 
 DEFAULT_PROVIDERS = ("baseline", "candidate")
 SEGMENTED_PROVIDERS = ("generic_prefill", "segmented_prefill")
 CONTIGUOUS_MIRROR_PROVIDERS = ("baseline", "mirror_contiguous")
+SEGMENTED_MIRROR_PROVIDERS = ("baseline", "mirror_segmented")
 
 
 def providers_for_case(case: Case) -> tuple[str, ...]:
+    if case.is_segmented_mirror:
+        return SEGMENTED_MIRROR_PROVIDERS
     if case.is_segmented:
         return SEGMENTED_PROVIDERS
     if case.is_contiguous_mirror:
@@ -1269,6 +1468,70 @@ class Harness:
                 )
 
             return launch_contiguous_mirror
+
+        if case.is_segmented_mirror:
+            if segment_tile_starts is None or last_index is None:
+                raise ValueError(
+                    "segmented mirror requires last_index and segment_tile_starts"
+                )
+            if provider not in SEGMENTED_MIRROR_PROVIDERS:
+                raise ValueError(f"unsupported segmented mirror provider: {provider}")
+            segment_tiles = int(segment_tile_starts.numel()) - 1
+            segment_programs = min(
+                max(segment_tiles, batch_size), self.num_vector_cores
+            )
+            q_stride = int(query.stride(0))
+            k_stride = int(key.stride(0))
+
+            def launch_segmented_mirror_comparison() -> object:
+                if provider == "baseline":
+                    baseline_programs = min(
+                        n_tokens,
+                        self.num_vector_cores * PROGRAMS_PER_VECTOR_CORE,
+                    )
+                    return _baseline_welmv4_inplace_rope_kernel[
+                        (baseline_programs,)
+                    ](
+                        query,
+                        key,
+                        positions,
+                        self.cache,
+                        last_index,
+                        n_tokens,
+                        batch_size,
+                        q_stride,
+                        k_stride,
+                        HEAD_DIM,
+                        ROPE_DIM,
+                        NUM_STAGES,
+                        NUM_Q_HEADS,
+                        NUM_K_HEADS,
+                        triton.next_power_of_2(NUM_Q_HEADS),
+                        triton.next_power_of_2(NUM_K_HEADS),
+                    )
+                return _candidate_welmv4_inplace_rope_segmented_mirror_kernel[
+                    (segment_programs,)
+                ](
+                    query,
+                    key,
+                    positions,
+                    self.cache,
+                    last_index,
+                    segment_tile_starts,
+                    segment_tiles,
+                    batch_size,
+                    q_stride,
+                    k_stride,
+                    HEAD_DIM,
+                    ROPE_DIM,
+                    PREFILL_TOKEN_BLOCK,
+                    PREFILL_NUM_STAGES,
+                    NUM_Q_HEADS,
+                    triton.next_power_of_2(NUM_Q_HEADS),
+                    multibuffer=True,
+                )
+
+            return launch_segmented_mirror_comparison
 
         if case.is_segmented:
             if segment_tile_starts is None:
@@ -1423,10 +1686,25 @@ def make_cos_sin_cache(device: torch.device) -> torch.Tensor:
 def make_last_index(case: Case, device: torch.device) -> torch.Tensor | None:
     if not case.is_mirror:
         return None
-    values = [
-        max(0, min(case.n_tokens - 1, (i + 1) * case.n_tokens // case.batch_size - 1))
-        for i in range(case.batch_size)
-    ]
+    if case.is_segmented_mirror:
+        token_end = 0
+        values = []
+        for seq_len in case.segment_lens:
+            token_end += seq_len
+            values.append(token_end - 1)
+        if token_end != case.n_tokens or len(values) != case.batch_size:
+            raise ValueError("segmented mirror metadata is inconsistent")
+    else:
+        values = [
+            max(
+                0,
+                min(
+                    case.n_tokens - 1,
+                    (i + 1) * case.n_tokens // case.batch_size - 1,
+                ),
+            )
+            for i in range(case.batch_size)
+        ]
     return torch.tensor(values, device=device, dtype=torch.int64)
 
 
@@ -1711,7 +1989,9 @@ def run_performance(
             }
 
         baseline_provider = (
-            "generic_prefill" if case.is_segmented else "baseline"
+            "generic_prefill"
+            if case.is_segmented and not case.is_segmented_mirror
+            else "baseline"
         )
         baseline_p50 = stats[baseline_provider]["p50_us"]
         print(
@@ -1769,6 +2049,13 @@ def parse_cases(spec: str) -> list[Case]:
             "mirror_contiguous_m9616_bs1",
             "mirror_contiguous_m16361_bs1",
             "mirror_contiguous_m16384_bs1",
+            "mirror_segmented_m8192_b2_aligned",
+            "mirror_segmented_m8192_b4_aligned",
+            "mirror_segmented_m9616_b8_uneven",
+            "mirror_segmented_m8192_b16_aligned",
+            "mirror_segmented_m16384_b32_aligned",
+            "mirror_segmented_m16384_b64_aligned",
+            "mirror_segmented_m16384_b128_uneven",
             "prefill_m8192",
             "prefill_m16384",
             "mirror_m8192_bs4",
@@ -1781,9 +2068,13 @@ def parse_cases(spec: str) -> list[Case]:
     if normalized in ("prefill", "segmented_prefill"):
         return list(SEGMENTED_PREFILL_CASES)
     if normalized in ("mirror", "prefill_mirror"):
-        return list(MIRROR_CASES + CONTIGUOUS_MIRROR_CASES)
+        return list(
+            MIRROR_CASES + CONTIGUOUS_MIRROR_CASES + SEGMENTED_MIRROR_CASES
+        )
     if normalized in ("mirror_contiguous", "prefill_mirror_contiguous"):
         return list(CONTIGUOUS_MIRROR_CASES)
+    if normalized in ("mirror_segmented", "prefill_mirror_segmented"):
+        return list(SEGMENTED_MIRROR_CASES)
 
     by_name = {case.name: case for case in ALL_CASES}
     by_tokens = {
@@ -1836,7 +2127,7 @@ def capture_ir_records(
         **harness.metadata(),
         **case_fields(case),
         "record_type": "ir_artifact",
-        "variant": "mirror_contiguous",
+        "variant": "mirror_segmented",
         "scope": "compiler_ir",
     }
     if not script.is_file():
@@ -1856,7 +2147,7 @@ def capture_ir_records(
             str(script),
             str(Path(__file__).resolve()),
             "--compile-only-provider",
-            "mirror_contiguous",
+            "mirror_segmented",
             "--cases",
             case.name,
             "--device",
@@ -2063,6 +2354,10 @@ def capture_msprof_op_records(
                 kernel_name = (
                     "_candidate_welmv4_inplace_rope_contiguous_mirror_kernel"
                 )
+            elif provider == "mirror_segmented":
+                kernel_name = (
+                    "_candidate_welmv4_inplace_rope_segmented_mirror_kernel"
+                )
             elif provider == "baseline":
                 kernel_name = "_baseline_welmv4_inplace_rope_kernel"
             elif candidate_blocked:
@@ -2260,10 +2555,14 @@ def capture_msprof_op_records(
         case_name = str(record["case"])
         case = cases_by_name[case_name]
         baseline_variant = (
-            "generic_prefill" if case.is_segmented else "baseline"
+            "generic_prefill"
+            if case.is_segmented and not case.is_segmented_mirror
+            else "baseline"
         )
         candidate_variant = (
-            "segmented_prefill"
+            "mirror_segmented"
+            if case.is_segmented_mirror
+            else "segmented_prefill"
             if case.is_segmented
             else "mirror_contiguous"
             if case.is_contiguous_mirror
