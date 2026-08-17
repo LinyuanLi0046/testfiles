@@ -1048,12 +1048,9 @@ def _candidate_welmv4_inplace_rope_contiguous_mirror_kernel(
     sin_offsets = tl.arange(half_rope_dim, rope_dim)
     program_id = tl.program_id(0)
 
-    # Q has exactly one packed row in this semantic group.  Put it on the last
-    # launched AIV: for the target large-N ceil-div K partition this AIV is
-    # otherwise idle, so the six Q heads no longer extend program 0's critical
-    # K path.  If a future smaller shape gives the last AIV K work, ownership
-    # is still unique and correctness is unchanged.
-    if program_id == tl.num_programs(0) - 1:
+    # Q has exactly one packed row in this semantic group.  Only one program
+    # touches it; all other programs are dedicated to the large K tensor.
+    if program_id == 0:
         q_source_token = tl.load(last_index_ptr).to(tl.int32)
         q_position = tl.load(position_ptr + q_source_token).to(tl.int32)
         q_cos = tl.load(

@@ -2,7 +2,7 @@
 # optimization_point("continuous-aiv-partition-and-token-tiling", skill_point="tiling_optimization", reason="The generic mirror path launches hundreds of programs and processes K one token at a time with interleaved ownership. Partition the 64-token K tiles into at most the physical AIV count contiguous intervals, so every core issues monotonic regular 2D transfers. This is the only latency-skill optimization applied in round 1.")
 # ir_optimization("separate-full-tiles-from-runtime-tail", reason="Round-1 last-pass IR lowered every masked cache/K access to indirect_load_2d or indirect_store_2d, including exact N=16384. Keep N and NUM_TOKEN_BLOCKS runtime, but use a runtime full-tile branch with unmasked loads/stores; only the unique partial tail retains masks. This is the only change in round 2.")
 # rejected_experiment("balanced-contiguous-aiv-partition", reason="Although quotient/remainder partitioning activated all 56 AIVs, it did not lower the maximum full-tile count and put the slow masked tail behind 2-4 preceding tiles. Authoritative msprof changed 8192 6.463->6.143 us, but regressed 9616 11.979->13.275 us, 16361 14.180->17.853 us, and 16384 9.282->9.881 us, so it was removed.")
-# optimization_point("move-single-q-to-idle-aiv", skill_point="tiling_optimization", reason="The retained ceil-div K partition leaves the last launched AIV idle for all four target large-N shapes. Move the unique six-head Q row from program 0, which owns a maximum-size K interval, to that idle AIV so Q and the K critical path execute in parallel. This is the only retained change in round 3.")
+# rejected_experiment("move-single-q-to-idle-aiv", reason="Moving Q from program 0 to an otherwise idle final AIV did not produce a stable >=3% gain. Relative to the accepted round-2 kernel, authoritative msprof changed 8192 6.463->6.356 us, 9616 11.979->12.084 us, 16361 14.180->13.800 us, and 16384 9.282->9.498 us, so program-0 ownership was restored.")
 
 sketch welmv4_inplace_rope_contiguous_mirror {
   symbols {
@@ -45,7 +45,7 @@ sketch welmv4_inplace_rope_contiguous_mirror {
                             NUM_TOKEN_BLOCKS)
   }
 
-  once when program_id(0) == grid - 1 {
+  once when program_id(0) == 0 {
     load q_source_i64 = last_index[0]
     cast q_source = int32(q_source_i64)
     load q_position_i64 = positions[q_source]
@@ -87,4 +87,4 @@ sketch welmv4_inplace_rope_contiguous_mirror {
   }
 }
 
-# Layer1 self-check: Q and K use the same FP32 cos/sin arithmetic and BF16 stores as the frozen reference. Only the final launched program writes Q, each K token belongs to exactly one consecutive program interval, and only the final partial tile is masked. Full tiles use the same addresses and math with boundary checks removed. N and ceil_div(N,64) are runtime do-not-specialize values. The host must never select this kernel for BS!=1, discontinuous positions, speculative/decode, or multi-request mirror.
+# Layer1 self-check: Q and K use the same FP32 cos/sin arithmetic and BF16 stores as the frozen reference. Only program 0 writes Q, each K token belongs to exactly one consecutive program interval, and only the final partial tile is masked. Full tiles use the same addresses and math with boundary checks removed. N and ceil_div(N,64) are runtime do-not-specialize values. The host must never select this kernel for BS!=1, discontinuous positions, speculative/decode, or multi-request mirror.
