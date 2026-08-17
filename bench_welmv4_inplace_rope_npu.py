@@ -1660,7 +1660,7 @@ def main() -> int:
         args.capture_ir == "auto"
         and Path(args.output_csv).name == AUTO_OUTPUT_CSV
         and args.mode == "both"
-        and args.cases.strip().lower() in ("all", "common")
+        and args.cases.strip().lower() in ("all", "common", "prefill")
     )
     if failures == 0 and capture_ir:
         records.extend(capture_ir_records(harness, str(device)))
@@ -1678,7 +1678,7 @@ def main() -> int:
         args.capture_msprof_op == "auto"
         and Path(args.output_csv).name == AUTO_OUTPUT_CSV
         and args.mode == "both"
-        and args.cases.strip().lower() in ("all", "common")
+        and args.cases.strip().lower() in ("all", "common", "prefill")
     )
     if failures == 0 and capture_msprof_op:
         msprof_records = capture_msprof_op_records(harness, str(device))
