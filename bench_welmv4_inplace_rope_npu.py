@@ -37,6 +37,7 @@ import torch
 import torch_npu
 import triton
 import triton.language as tl
+import triton.language.extra.cann.extension as al
 
 
 HEAD_DIM = 256
@@ -469,7 +470,7 @@ def _candidate_apply_token_head_block_rope(
     )
 
 
-@triton.jit(do_not_specialize=["num_token_blocks", "N"])
+@triton.jit(do_not_specialize=["num_token_blocks", "N", "cache_rows"])
 def _candidate_welmv4_inplace_rope_prefill_kernel(
     q_ptr: tl.tensor,
     k_ptr: tl.tensor,
@@ -477,6 +478,7 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
     cos_sin_cache_ptr: tl.tensor,
     num_token_blocks: int,
     N: int,
+    cache_rows: int,
     q_token_stride: tl.constexpr,
     k_token_stride: tl.constexpr,
     head_dim: tl.constexpr,
@@ -489,7 +491,6 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
     half_rope_dim: tl.constexpr = rope_dim // 2
     token_offsets = tl.arange(0, token_block)
     cos_offsets = tl.arange(0, half_rope_dim)
-    sin_offsets = tl.arange(half_rope_dim, rope_dim)
     for block_id in tl.range(
         tl.program_id(0),
         num_token_blocks,
@@ -504,46 +505,37 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
                 mask=token_mask,
                 other=0,
             ).to(tl.int32)
-            cos = tl.load(
-                cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
-                + cos_offsets[None, :],
-                mask=token_mask[:, None],
-                other=0.0,
-                care_padding=False,
-            )
-            sin = tl.load(
-                cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
-                + sin_offsets[None, :],
-                mask=token_mask[:, None],
-                other=0.0,
-                care_padding=False,
-            )
-            # position_ids is loaded at runtime, so both cache reads are true
-            # discrete GM accesses.  Tell the Ascend backend to select its
-            # discrete-memory path instead of scalarizing the 64 rows into
-            # serial GM-to-UB copies.
-            tl.extra.cann.extension.compile_hint(cos, "mayDiscretememaccess")
-            tl.extra.cann.extension.compile_hint(sin, "mayDiscretememaccess")
         else:
             position_ids = tl.load(
                 position_ptr + token_base + token_offsets
             ).to(tl.int32)
-            cos = tl.load(
-                cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
-                + cos_offsets[None, :],
-                care_padding=False,
-            )
-            sin = tl.load(
-                cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
-                + sin_offsets[None, :],
-                care_padding=False,
-            )
-            tl.extra.cann.extension.compile_hint(cos, "mayDiscretememaccess")
-            tl.extra.cann.extension.compile_hint(sin, "mayDiscretememaccess")
+
+        # Keep the random row index in UB and use the Ascend SIMD gather API
+        # directly.  This avoids both the scalarized 64-row DMA loop and the
+        # MIX SIMD/SIMT mode selected by mayDiscretememaccess compile hints.
+        cache_row_indices = tl.broadcast_to(
+            position_ids[:, None], (token_block, half_rope_dim)
+        )
+        cos = al.gather_out_to_ub(
+            src=cos_sin_cache_ptr,
+            index=cache_row_indices,
+            index_boundary=cache_rows,
+            dim=0,
+            src_stride=(rope_dim, 1),
+            end_offset=(token_block, half_rope_dim),
+            start_offset=(0, 0),
+            other=0.0,
+        )
+        sin = al.gather_out_to_ub(
+            src=cos_sin_cache_ptr,
+            index=cache_row_indices,
+            index_boundary=cache_rows,
+            dim=0,
+            src_stride=(rope_dim, 1),
+            end_offset=(token_block, rope_dim),
+            start_offset=(0, half_rope_dim),
+            other=0.0,
+        )
 
         k_data = (
             k_ptr
@@ -589,17 +581,25 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
                 + head_dim
                 - rope_dim
             )
-            # The indirect cache path frees enough UB to re-evaluate the
-            # power-of-two 4+2 grouping that was fast before FP32 cache
-            # multibuffering overflowed.  Unlike 3+3, both tiles stay aligned
-            # to the backend's efficient head-vector grouping.
+            # Keep each Q tile small enough that A5 auto-multibuffer can
+            # overlap FP32 cache loads with vector compute without UB overflow.
             _candidate_apply_token_head_block_rope(
                 q_data,
                 token_offsets,
                 q_token_stride,
                 cos,
                 sin,
-                4,
+                2,
+                head_dim,
+                rope_dim,
+            )
+            _candidate_apply_token_head_block_rope(
+                q_data + 2 * head_dim,
+                token_offsets,
+                q_token_stride,
+                cos,
+                sin,
+                2,
                 head_dim,
                 rope_dim,
             )
@@ -717,6 +717,7 @@ class Harness:
         )
         q_stride = int(query.stride(0))
         k_stride = int(key.stride(0))
+        cache_rows = int(self.cache.shape[0])
         q_heads_blocked = triton.next_power_of_2(NUM_Q_HEADS)
         k_heads_blocked = triton.next_power_of_2(NUM_K_HEADS)
 
@@ -729,6 +730,7 @@ class Harness:
                     self.cache,
                     work_items,
                     n_tokens,
+                    cache_rows,
                     q_stride,
                     k_stride,
                     HEAD_DIM,

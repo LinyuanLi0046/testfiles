@@ -1,4 +1,5 @@
-# architecture_decision("retry-exact-prefill-q-as-four-plus-two-after-indirect-gather", reason="The historical FP32 4+2 path overflowed UB before cache gathers used the A5 indirect path. The new MIX SIMD/SIMT IR lowers the highest planned UB start offset by about 13.5KB. Re-evaluate the power-of-two 4+2 grouping to remove one Q phase without the vector inefficiency measured for 3+3; keep masked Q unchanged.")
+# architecture_decision("use-explicit-simd-gather-for-prefill-cache", reason="mayDiscretememaccess removes the 64x2 serial row-copy loops and improves M16384 by 3.19%, but it changes the whole kernel to MIX SIMD/SIMT and reserves 32KB DCache from UB. Replace the hints with gather_out_to_ub, passing cache_rows as a runtime do-not-specialize value, to request the same two 2D gathers through the documented SIMD API without changing FP32 values or dynamic shape semantics.")
+# rejected_experiment("retry-exact-prefill-q-as-four-plus-two-after-indirect-gather", reason="The MIX SIMD/SIMT compile still fails: 4+2 requires 2115584 bits (264448B) while only 1769472 bits (221184B) remain after the A5 DCache reservation, exceeding available UB by 43264B. Retain 2+2+2 and do not retry any Q tile wider than two heads under multibuffering.")
 # rejected_experiment("merge-exact-prefill-q-as-three-plus-three", reason="It fits UB and reduces 3D Q DMA calls from 6 to 4 and barriers from 5 to 4, but msprof regresses M8192 from 33.472us to 36.068us and M16384 from 56.017us to 59.215us. Three-head tiles have worse vector efficiency than the aligned two-head grouping; retain 2+2+2.")
 # architecture_decision("mark-prefill-cache-reads-as-discrete", reason="The A5 last-pass IR scalarizes each [64,32] runtime-position cache gather into 64 serial GM-to-UB row copies, twice per tile for cos and sin. Preserve the FP32 cache, TOKEN_BLOCK=64, Q 2+2+2 split, grid, and runtime shape semantics; mark only these two genuine gather loads with mayDiscretememaccess so the backend can select its discrete-memory path.")
 # architecture_decision("restore-a5-prefill-multibuffer-with-smaller-live-q-tiles", reason="Production cos/sin cache is FP32. Disabling A5 auto-multibuffer avoids UB overflow but loses GM-to-UB/Vector overlap and raises M=16384 latency to 62us. Preserve FP32 arithmetic, keep TOKEN_BLOCK=64, split the unmasked Q tile from 4+2 heads to 2+2+2 heads, and explicitly enable multibuffer so each ping-pong stage fits the 248KB A5 UB.")
@@ -14,6 +15,7 @@ sketch welmv4_inplace_rope_npu {
     ROPE_DIM: constexpr = 64
     HALF_ROPE: constexpr = 32
     PREFILL_TOKEN_BLOCK: constexpr = 64
+    CACHE_ROWS: runtime_do_not_specialize
   }
 
   tensors {
@@ -42,8 +44,8 @@ sketch welmv4_inplace_rope_npu {
     vector token_mask = token_ids < N when masked
     load pos_i64[64] = positions[token_ids]
     cast pos[64] = int32(pos_i64)
-    load cos[64,32] = cos_sin_cache[pos, 0:HALF_ROPE] with compile_hint("mayDiscretememaccess")
-    load sin[64,32] = cos_sin_cache[pos, HALF_ROPE:ROPE_DIM] with compile_hint("mayDiscretememaccess")
+    gather_out_to_ub cos[64,32] = cos_sin_cache[pos, 0:HALF_ROPE] with index_boundary=CACHE_ROWS and SIMD
+    gather_out_to_ub sin[64,32] = cos_sin_cache[pos, HALF_ROPE:ROPE_DIM] with index_boundary=CACHE_ROWS and SIMD
 
     for K head 0 and each Q head separately when masked {
       load front[64,32] using 2D token-strided DMA and token_mask when masked
@@ -56,9 +58,10 @@ sketch welmv4_inplace_rope_npu {
 
     when unmasked {
       load and rotate K head 0 as [TOKEN_BLOCK,32] 2D tiles
-      load and rotate Q heads 0:4 as [TOKEN_BLOCK,4,32] 3D tiles
+      load and rotate Q heads 0:2 as [TOKEN_BLOCK,2,32] 3D tiles
+      load and rotate Q heads 2:4 as [TOKEN_BLOCK,2,32] 3D tiles
       load and rotate Q heads 4:6 as [TOKEN_BLOCK,2,32] 3D tiles
-      store both power-of-two exact head groups without padding or masks
+      store all three exact head groups without padding or masks
     }
   }
 
@@ -91,4 +94,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: FP32 cos/sin semantics are preserved; compile hints change lowering only, not values. The exact path tests the power-of-two 4+2 Q-head split against the accepted 2+2+2 path; masked Q remains per-head. Every ordinary-prefill M>=640 uses exact64 or masked64; M=576 exact64 remains the sole lower fast path. M and derived quantities remain runtime values, never constexpr. Decode and mirror remain on their shared kernel with no mirror-only kernel.
+# Layer1 self-check: FP32 cos/sin semantics are preserved; explicit gather changes data movement only. CACHE_ROWS, M, and all sequence-derived quantities remain runtime do-not-specialize values. The exact path retains its measured-best 2+2+2 Q-head split; masked Q remains per-head. Every ordinary-prefill M>=640 uses exact64 or masked64; M=576 exact64 remains the sole lower fast path. Decode and mirror remain on their shared kernel with no mirror-only kernel.
