@@ -1,4 +1,5 @@
-# architecture_decision("use-dynamic-index-select-simd-for-prefill-cache", reason="mayDiscretememaccess removes the 64x2 serial row-copy loops and improves M16384 by 3.19%, but changes the whole kernel to MIX SIMD/SIMT and reserves 32KB DCache from UB. index_select_simd accepts cache_rows in runtime src_shape, consumes the already-1D position_ids, and directly returns each [64,32] cache tile in UB; valid model positions make its documented unchecked-index contract safe.")
+# architecture_decision("split-single-request-contiguous-prefill-cache-path", reason="The real large ordinary-prefill target is one non-speculative extend request, whose positions advance contiguously from an arbitrary prefix offset. Give that semantic group a dedicated kernel: load one runtime position_base per tile, form position_base + token_offsets, and let the backend lower cos/sin as regular 2D GM-to-UB transfers. Keep the measured-best discrete-hint kernel as the generic multi-request fallback. N and all sequence-derived sizes remain runtime do-not-specialize.")
+# rejected_experiment("use-dynamic-index-select-simd-for-prefill-cache", reason="It compiles to pure SIMD with two load_gm_to_ubuf_1d_float calls, but msprof M16384 is 57.188us versus 56.017us for the accepted indirect-load hint path, a 2.09% regression. M4096 and M8192 also regress. Do not retain it.")
 # rejected_experiment("use-explicit-gather-out-to-ub-for-prefill-cache", reason="The compiler requires gather_out_to_ub index_boundary to be tl.constexpr. cache_rows is deliberately runtime do-not-specialize because cache/sequence-derived dimensions vary in real serving; specializing it would violate the no-recompile requirement. Use index_select_simd, whose documented src_shape supports runtime tensors, instead.")
 # rejected_experiment("retry-exact-prefill-q-as-four-plus-two-after-indirect-gather", reason="The MIX SIMD/SIMT compile still fails: 4+2 requires 2115584 bits (264448B) while only 1769472 bits (221184B) remain after the A5 DCache reservation, exceeding available UB by 43264B. Retain 2+2+2 and do not retry any Q tile wider than two heads under multibuffering.")
 # rejected_experiment("merge-exact-prefill-q-as-three-plus-three", reason="It fits UB and reduces 3D Q DMA calls from 6 to 4 and barriers from 5 to 4, but msprof regresses M8192 from 33.472us to 36.068us and M16384 from 56.017us to 59.215us. Three-head tiles have worse vector efficiency than the aligned two-head grouping; retain 2+2+2.")
@@ -16,7 +17,6 @@ sketch welmv4_inplace_rope_npu {
     ROPE_DIM: constexpr = 64
     HALF_ROPE: constexpr = 32
     PREFILL_TOKEN_BLOCK: constexpr = 64
-    CACHE_ROWS: runtime_do_not_specialize
   }
 
   tensors {
@@ -43,10 +43,18 @@ sketch welmv4_inplace_rope_npu {
   pipeline each block_id in range(block_start, N / PREFILL_TOKEN_BLOCK, block_step) stages 1 auto_multibuffer {
     vector token_ids = block_id * PREFILL_TOKEN_BLOCK + arange(0, PREFILL_TOKEN_BLOCK)
     vector token_mask = token_ids < N when masked
-    load pos_i64[64] = positions[token_ids]
-    cast pos[64] = int32(pos_i64)
-    index_select_simd cos[64,32] = cos_sin_cache[pos, 0:HALF_ROPE] with src_shape=[CACHE_ROWS,ROPE_DIM]
-    index_select_simd sin[64,32] = cos_sin_cache[pos, HALF_ROPE:ROPE_DIM] with src_shape=[CACHE_ROWS,ROPE_DIM]
+    when single_request_non_speculative_extend {
+      load position_base_i64 = positions[block_id * PREFILL_TOKEN_BLOCK]
+      cast position_base = int32(position_base_i64)
+      vector pos[64] = position_base + arange(0, PREFILL_TOKEN_BLOCK)
+      load cos[64,32] = cos_sin_cache[pos, 0:HALF_ROPE] as regular 2D DMA
+      load sin[64,32] = cos_sin_cache[pos, HALF_ROPE:ROPE_DIM] as regular 2D DMA
+    }
+    otherwise generic_prefill {
+      load pos_i64[64] = positions[token_ids]
+      cast pos[64] = int32(pos_i64)
+      load cos[64,32], sin[64,32] with mayDiscretememaccess
+    }
 
     for K head 0 and each Q head separately when masked {
       load front[64,32] using 2D token-strided DMA and token_mask when masked
@@ -95,4 +103,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: FP32 cos/sin semantics are preserved; index_select_simd changes data movement only and all model positions are valid cache row indices. CACHE_ROWS, M, and all sequence-derived quantities remain runtime do-not-specialize values. The exact path retains its measured-best 2+2+2 Q-head split; masked Q remains per-head. Every ordinary-prefill M>=640 uses exact64 or masked64; M=576 exact64 remains the sole lower fast path. Decode and mirror remain on their shared kernel with no mirror-only kernel.
+# Layer1 self-check: FP32 cos/sin semantics are preserved. The contiguous position formula is selected only from the host's single-request non-speculative-extend fact; generic and multi-request prefill retain explicit position loads and discrete hints. M and all sequence-derived quantities remain runtime do-not-specialize values. The exact path retains its measured-best 2+2+2 Q-head split; masked Q remains per-head. Decode and mirror remain on their shared kernel with no mirror-only kernel.
