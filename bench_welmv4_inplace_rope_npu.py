@@ -1075,9 +1075,22 @@ def _candidate_welmv4_inplace_rope_contiguous_mirror_kernel(
     # Give every physical AIV one consecutive block interval.  This removes
     # the generic token-strided schedule and keeps each core's K/cache traffic
     # monotonic, while N and the derived block count remain runtime values.
-    blocks_per_program = tl.cdiv(num_token_blocks, tl.num_programs(0))
-    block_start = program_id * blocks_per_program
-    block_end = tl.minimum(block_start + blocks_per_program, num_token_blocks)
+    # Quotient/remainder partitioning keeps all launched AIVs busy.  The
+    # previous ceil-div intervals left the final AIVs empty (for example only
+    # 43/56 active at N=8192 and 52/56 at N=16384), even though the grid had
+    # already reserved all 56 physical vector cores.
+    num_programs = tl.num_programs(0)
+    base_blocks = num_token_blocks // num_programs
+    extra_programs = num_token_blocks % num_programs
+    block_start = (
+        program_id * base_blocks + tl.minimum(program_id, extra_programs)
+    )
+    program_blocks = base_blocks + tl.where(
+        program_id < extra_programs,
+        1,
+        0,
+    )
+    block_end = block_start + program_blocks
     for block_id in tl.range(
         block_start,
         block_end,
