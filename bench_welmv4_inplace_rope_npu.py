@@ -2093,6 +2093,31 @@ def parse_cases(spec: str) -> list[Case]:
             selected.append(case)
     if not selected:
         raise ValueError("no benchmark cases were selected")
+
+    # The already-running remote monitor retains the explicit case string
+    # created by its pre-experiment Python process.  Once it pulls this source,
+    # recognize that frozen suite and append the new multi-BS correctness
+    # probes without requiring a monitor restart.  This affects test selection
+    # only; no provider or kernel dispatch changes here.
+    selected_names = {case.name for case in selected}
+    legacy_auto_signature = {
+        "mirror_contiguous_m8192_bs1",
+        "mirror_contiguous_m9616_bs1",
+        "mirror_contiguous_m16361_bs1",
+        "mirror_contiguous_m16384_bs1",
+        "prefill_m8192",
+        "prefill_m16384",
+        "mirror_m8192_bs4",
+        "mirror_m16384_bs8",
+        "segmented_m8192_b32_aligned",
+        "segmented_m16384_b128_uneven",
+    }
+    if legacy_auto_signature.issubset(selected_names):
+        selected.extend(
+            case
+            for case in SEGMENTED_MIRROR_CASES
+            if case.name not in selected_names
+        )
     return selected
 
 
