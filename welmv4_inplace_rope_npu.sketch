@@ -1,3 +1,4 @@
+# architecture_decision("mark-prefill-cache-reads-as-discrete", reason="The A5 last-pass IR scalarizes each [64,32] runtime-position cache gather into 64 serial GM-to-UB row copies, twice per tile for cos and sin. Preserve the FP32 cache, TOKEN_BLOCK=64, Q 2+2+2 split, grid, and runtime shape semantics; mark only these two genuine gather loads with mayDiscretememaccess so the backend can select its discrete-memory path.")
 # architecture_decision("restore-a5-prefill-multibuffer-with-smaller-live-q-tiles", reason="Production cos/sin cache is FP32. Disabling A5 auto-multibuffer avoids UB overflow but loses GM-to-UB/Vector overlap and raises M=16384 latency to 62us. Preserve FP32 arithmetic, keep TOKEN_BLOCK=64, split the unmasked Q tile from 4+2 heads to 2+2+2 heads, and explicitly enable multibuffer so each ping-pong stage fits the 248KB A5 UB.")
 
 sketch welmv4_inplace_rope_npu {
@@ -39,8 +40,8 @@ sketch welmv4_inplace_rope_npu {
     vector token_mask = token_ids < N when masked
     load pos_i64[64] = positions[token_ids]
     cast pos[64] = int32(pos_i64)
-    load cos[64,32] = cos_sin_cache[pos, 0:HALF_ROPE]
-    load sin[64,32] = cos_sin_cache[pos, HALF_ROPE:ROPE_DIM]
+    load cos[64,32] = cos_sin_cache[pos, 0:HALF_ROPE] with compile_hint("mayDiscretememaccess")
+    load sin[64,32] = cos_sin_cache[pos, HALF_ROPE:ROPE_DIM] with compile_hint("mayDiscretememaccess")
 
     for K head 0 and each Q head separately when masked {
       load front[64,32] using 2D token-strided DMA and token_mask when masked
@@ -89,4 +90,4 @@ sketch welmv4_inplace_rope_npu {
   }
 }
 
-# Layer1 self-check: FP32 cos/sin semantics are preserved. The 2+2+2 Q-head split reduces per-stage UB liveness enough to re-enable A5 ping-pong multibuffering. Every ordinary-prefill M>=640 uses exact64 or masked64; M=576 exact64 remains the sole lower fast path. M and derived quantities remain runtime values, never constexpr. Decode and mirror remain on their shared kernel with no mirror-only kernel.
+# Layer1 self-check: FP32 cos/sin semantics are preserved; compile hints change lowering only, not values. The 2+2+2 Q-head split reduces per-stage UB liveness enough to re-enable A5 ping-pong multibuffering. Every ordinary-prefill M>=640 uses exact64 or masked64; M=576 exact64 remains the sole lower fast path. M and derived quantities remain runtime values, never constexpr. Decode and mirror remain on their shared kernel with no mirror-only kernel.

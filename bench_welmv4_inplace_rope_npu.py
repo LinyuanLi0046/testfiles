@@ -520,6 +520,12 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
                 other=0.0,
                 care_padding=False,
             )
+            # position_ids is loaded at runtime, so both cache reads are true
+            # discrete GM accesses.  Tell the Ascend backend to select its
+            # discrete-memory path instead of scalarizing the 64 rows into
+            # serial GM-to-UB copies.
+            tl.extra.cann.extension.compile_hint(cos, "mayDiscretememaccess")
+            tl.extra.cann.extension.compile_hint(sin, "mayDiscretememaccess")
         else:
             position_ids = tl.load(
                 position_ptr + token_base + token_offsets
@@ -536,6 +542,8 @@ def _candidate_welmv4_inplace_rope_prefill_kernel(
                 + sin_offsets[None, :],
                 care_padding=False,
             )
+            tl.extra.cann.extension.compile_hint(cos, "mayDiscretememaccess")
+            tl.extra.cann.extension.compile_hint(sin, "mayDiscretememaccess")
 
         k_data = (
             k_ptr
