@@ -1085,41 +1085,67 @@ def _candidate_welmv4_inplace_rope_contiguous_mirror_kernel(
     ):
         token_base = block_id * token_block
         token_ids = token_base + token_offsets
-        token_mask = token_ids.to(tl.float32) < N.to(tl.float32)
 
         # The framework establishes this property only for a single ordinary
         # non-speculative extend request.  One runtime base load therefore
         # replaces 64 independent position loads without specializing on N.
         position_base = tl.load(position_ptr + token_base).to(tl.int32)
         position_ids = position_base + token_offsets
-        cos = tl.load(
-            cos_sin_cache_ptr
-            + position_ids[:, None] * rope_dim
-            + cos_offsets[None, :],
-            mask=token_mask[:, None],
-            other=0.0,
-            care_padding=False,
-        )
-        sin = tl.load(
-            cos_sin_cache_ptr
-            + position_ids[:, None] * rope_dim
-            + sin_offsets[None, :],
-            mask=token_mask[:, None],
-            other=0.0,
-            care_padding=False,
-        )
         k_data = k_ptr + token_base * k_token_stride + head_dim - rope_dim
-        _candidate_apply_token_block_rope(
-            k_data,
-            token_offsets,
-            k_token_stride,
-            cos,
-            sin,
-            token_mask,
-            True,
-            head_dim,
-            rope_dim,
-        )
+        block_end_token = token_base + token_block
+        if block_end_token.to(tl.float32) <= N.to(tl.float32):
+            cos = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + cos_offsets[None, :],
+                care_padding=False,
+            )
+            sin = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + sin_offsets[None, :],
+                care_padding=False,
+            )
+            _candidate_apply_token_block_rope(
+                k_data,
+                token_offsets,
+                k_token_stride,
+                cos,
+                sin,
+                token_offsets == token_offsets,
+                False,
+                head_dim,
+                rope_dim,
+            )
+        else:
+            token_mask = token_ids.to(tl.float32) < N.to(tl.float32)
+            cos = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + cos_offsets[None, :],
+                mask=token_mask[:, None],
+                other=0.0,
+                care_padding=False,
+            )
+            sin = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + sin_offsets[None, :],
+                mask=token_mask[:, None],
+                other=0.0,
+                care_padding=False,
+            )
+            _candidate_apply_token_block_rope(
+                k_data,
+                token_offsets,
+                k_token_stride,
+                cos,
+                sin,
+                token_mask,
+                True,
+                head_dim,
+                rope_dim,
+            )
 
 PROVIDERS = {
     "baseline": _baseline_welmv4_inplace_rope_kernel,

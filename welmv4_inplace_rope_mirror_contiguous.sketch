@@ -1,5 +1,6 @@
 # architecture_decision("isolate-single-request-mirror", reason="The optimized ordinary/segmented prefill and generic decode/mirror kernels are frozen regression groups. This candidate is selectable only when Q rows=BS=1, K rows=N, last_index is present, head shapes are 6/1 x 256, rope_dim=64, and the host has already proved a single non-speculative extend request with contiguous positions.")
 # optimization_point("continuous-aiv-partition-and-token-tiling", skill_point="tiling_optimization", reason="The generic mirror path launches hundreds of programs and processes K one token at a time with interleaved ownership. Partition the 64-token K tiles into at most the physical AIV count contiguous intervals, so every core issues monotonic regular 2D transfers. This is the only latency-skill optimization applied in round 1.")
+# ir_optimization("separate-full-tiles-from-runtime-tail", reason="Round-1 last-pass IR lowered every masked cache/K access to indirect_load_2d or indirect_store_2d, including exact N=16384. Keep N and NUM_TOKEN_BLOCKS runtime, but use a runtime full-tile branch with unmasked loads/stores; only the unique partial tail retains masks. This is the only change in round 2.")
 
 sketch welmv4_inplace_rope_contiguous_mirror {
   symbols {
@@ -61,24 +62,27 @@ sketch welmv4_inplace_rope_contiguous_mirror {
     token_base = block_id * TOKEN_BLOCK
     vector token_offsets = arange(0, TOKEN_BLOCK)
     vector token_ids = token_base + token_offsets
-    vector token_mask = fp32(token_ids) < fp32(N)
+    full_tile = fp32(token_base + TOKEN_BLOCK) <= fp32(N)
 
     load position_base_i64 = positions[token_base]
     cast position_base = int32(position_base_i64)
     vector position_ids = position_base + token_offsets
-    load cos[64,32] = cos_sin_cache[position_ids, 0:HALF_ROPE]
-      mask token_mask as regular contiguous 2D transfer
-    load sin[64,32] = cos_sin_cache[position_ids, HALF_ROPE:ROPE_DIM]
-      mask token_mask as regular contiguous 2D transfer
-
-    load k_front[64,32] = k[token_ids, 0, HEAD_DIM-ROPE_DIM:HEAD_DIM-HALF_ROPE]
-      mask token_mask
-    load k_back[64,32] = k[token_ids, 0, HEAD_DIM-HALF_ROPE:HEAD_DIM]
-      mask token_mask
-    compute k_rotated_front = k_front * cos - k_back * sin
-    compute k_rotated_back = k_front * sin + k_back * cos
-    store k tail in place with token_mask; preserve k[..., 0:HEAD_DIM-ROPE_DIM]
+    when full_tile {
+      load cos[64,32], sin[64,32] without mask as regular contiguous 2D DMA
+      load k_front[64,32], k_back[64,32] without mask as regular 2D DMA
+      compute k_rotated_front = k_front * cos - k_back * sin
+      compute k_rotated_back = k_front * sin + k_back * cos
+      store both rotated K halves without mask
+    } otherwise partial_tail {
+      vector token_mask = fp32(token_ids) < fp32(N)
+      load cos[64,32], sin[64,32] with token_mask
+      load k_front[64,32], k_back[64,32] with token_mask
+      compute k_rotated_front = k_front * cos - k_back * sin
+      compute k_rotated_back = k_front * sin + k_back * cos
+      store both rotated K halves with token_mask
+    }
+    preserve k[..., 0:HEAD_DIM-ROPE_DIM]
   }
 }
 
-# Layer1 self-check: Q and K use the same FP32 cos/sin arithmetic and BF16 stores as the frozen reference. Only program 0 writes Q, each K token belongs to exactly one consecutive program interval, and the final N=16361 tile is masked. N and ceil_div(N,64) are runtime do-not-specialize values. The host must never select this kernel for BS!=1, discontinuous positions, speculative/decode, or multi-request mirror.
+# Layer1 self-check: Q and K use the same FP32 cos/sin arithmetic and BF16 stores as the frozen reference. Only program 0 writes Q, each K token belongs to exactly one consecutive program interval, and only the final N=16361 tile is masked. Full tiles use the same addresses and math with boundary checks removed. N and ceil_div(N,64) are runtime do-not-specialize values. The host must never select this kernel for BS!=1, discontinuous positions, speculative/decode, or multi-request mirror.
