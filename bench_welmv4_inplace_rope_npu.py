@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 """Standalone Ascend benchmark for ``welmv4_inplace_rope_npu``.
 
-The file intentionally contains two independent Triton implementations:
+The file intentionally contains a frozen reference plus two formal Prefill
+candidate JIT kernels:
 
 * ``baseline`` is a frozen copy of the current NEWSGLANG NPU implementation.
-* ``candidate`` is the only section that should change during optimization.
+* ordinary Prefill uses one JIT for contiguous and segmented positions.
+* mirror Prefill uses one JIT for BS=1 and segmented multi-request positions.
+
+Every runtime-varying scalar in those two candidates is listed in
+``do_not_specialize``. Kernel latency acceptance uses only native ``msprof op``
+Task Duration, never NPU event elapsed time.
 
 The benchmark does not import NEWSGLANG, so the remote NPU worker only needs
 this small Git repository plus its normal torch/torch_npu/Triton environment.
@@ -18,11 +24,11 @@ head_dim=256, rope_dim=64, BF16.
 from __future__ import annotations
 
 import argparse
+import ast
 import base64
 import csv
 import gzip
 import hashlib
-import math
 import os
 import platform
 import statistics
@@ -31,7 +37,7 @@ import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable, Sequence
+from typing import Callable, Sequence
 
 import torch
 import torch_npu
@@ -48,7 +54,6 @@ MAX_POSITION = 32768
 PREFILL_POSITION_START = 113
 ROPE_BASE = 100000.0
 NUM_STAGES = 4
-PREFILL_NUM_STAGES = 1
 PROGRAMS_PER_VECTOR_CORE = 8
 PREFILL_TOKEN_BLOCK = 64
 PREFILL_EXACT64_THRESHOLD = 576
@@ -61,9 +66,9 @@ AUTO_OUTPUT_CSV = "welmv4_inplace_rope_npu_all.csv"
 IR_CAPTURE_CASE = "mirror_segmented_m16384_b128_uneven"
 PROFILE_CAPTURE_CASE = "prefill_m16384"
 MSPROF_OP_CASES = (
-    "mirror_segmented_m8192_b2_aligned",
-    "mirror_segmented_m9616_b8_uneven",
-    "mirror_segmented_m16384_b32_aligned",
+    "prefill_m16384",
+    "segmented_m16384_b128_uneven",
+    "mirror_contiguous_m16384_bs1",
     "mirror_segmented_m16384_b128_uneven",
 )
 MSPROF_OP_WARMUP = 10
@@ -521,15 +526,38 @@ def _candidate_welmv4_inplace_rope_kernel(
             )
 
 
-@triton.jit
+@triton.jit(do_not_specialize=["token_stride"])
 def _candidate_apply_token_block_rope(
     data_ptr: tl.tensor,
     token_offsets: tl.tensor,
-    token_stride: tl.constexpr,
+    token_stride: int,
+    cos: tl.tensor,
+    sin: tl.tensor,
+    head_dim: tl.constexpr,
+    rope_dim: tl.constexpr,
+):
+    half_rope_dim: tl.constexpr = rope_dim // 2
+    rope_offsets = tl.arange(0, half_rope_dim)
+    base = data_ptr + token_offsets[:, None] * token_stride
+    x1 = tl.load(base + rope_offsets[None, :], care_padding=False)
+    x2 = tl.load(
+        base + half_rope_dim + rope_offsets[None, :],
+        care_padding=False,
+    )
+    out1 = x1 * cos - x2 * sin
+    out2 = x1 * sin + x2 * cos
+    tl.store(base + rope_offsets[None, :], out1)
+    tl.store(base + half_rope_dim + rope_offsets[None, :], out2)
+
+
+@triton.jit(do_not_specialize=["token_stride"])
+def _candidate_apply_masked_token_block_rope(
+    data_ptr: tl.tensor,
+    token_offsets: tl.tensor,
+    token_stride: int,
     cos: tl.tensor,
     sin: tl.tensor,
     token_mask: tl.tensor,
-    masked: tl.constexpr,
     head_dim: tl.constexpr,
     rope_dim: tl.constexpr,
 ):
@@ -537,44 +565,31 @@ def _candidate_apply_token_block_rope(
     rope_offsets = tl.arange(0, half_rope_dim)
     base = data_ptr + token_offsets[:, None] * token_stride
     mask = token_mask[:, None]
-    if masked:
-        x1 = tl.load(
-            base + rope_offsets[None, :],
-            mask=mask,
-            other=0.0,
-            care_padding=False,
-        )
-        x2 = tl.load(
-            base + half_rope_dim + rope_offsets[None, :],
-            mask=mask,
-            other=0.0,
-            care_padding=False,
-        )
-    else:
-        x1 = tl.load(
-            base + rope_offsets[None, :], care_padding=False
-        )
-        x2 = tl.load(
-            base + half_rope_dim + rope_offsets[None, :],
-            care_padding=False,
-        )
+    x1 = tl.load(
+        base + rope_offsets[None, :],
+        mask=mask,
+        other=0.0,
+        care_padding=False,
+    )
+    x2 = tl.load(
+        base + half_rope_dim + rope_offsets[None, :],
+        mask=mask,
+        other=0.0,
+        care_padding=False,
+    )
     out1 = x1 * cos - x2 * sin
     out2 = x1 * sin + x2 * cos
-    if masked:
-        tl.store(base + rope_offsets[None, :], out1, mask=mask)
-        tl.store(
-            base + half_rope_dim + rope_offsets[None, :], out2, mask=mask
-        )
-    else:
-        tl.store(base + rope_offsets[None, :], out1)
-        tl.store(base + half_rope_dim + rope_offsets[None, :], out2)
+    tl.store(base + rope_offsets[None, :], out1, mask=mask)
+    tl.store(
+        base + half_rope_dim + rope_offsets[None, :], out2, mask=mask
+    )
 
 
-@triton.jit
+@triton.jit(do_not_specialize=["token_stride"])
 def _candidate_apply_token_head_block_rope(
     data_ptr: tl.tensor,
     token_offsets: tl.tensor,
-    token_stride: tl.constexpr,
+    token_stride: int,
     cos: tl.tensor,
     sin: tl.tensor,
     num_heads: tl.constexpr,
@@ -606,11 +621,11 @@ def _candidate_apply_token_head_block_rope(
     )
 
 
-@triton.jit
+@triton.jit(do_not_specialize=["token_stride"])
 def _candidate_apply_masked_token_head_block_rope(
     data_ptr: tl.tensor,
     token_offsets: tl.tensor,
-    token_stride: tl.constexpr,
+    token_stride: int,
     cos: tl.tensor,
     sin: tl.tensor,
     token_mask: tl.tensor,
@@ -652,371 +667,109 @@ def _candidate_apply_masked_token_head_block_rope(
     )
 
 
-@triton.jit(do_not_specialize=["num_token_blocks", "N"])
+@triton.jit(
+    do_not_specialize=[
+        "num_work_tiles",
+        "N",
+        "q_token_stride",
+        "k_token_stride",
+        "has_segments",
+    ]
+)
 def _candidate_welmv4_inplace_rope_prefill_kernel(
     q_ptr: tl.tensor,
     k_ptr: tl.tensor,
     position_ptr: tl.tensor,
     cos_sin_cache_ptr: tl.tensor,
-    num_token_blocks: int,
-    N: int,
-    q_token_stride: tl.constexpr,
-    k_token_stride: tl.constexpr,
-    head_dim: tl.constexpr,
-    rope_dim: tl.constexpr,
-    token_block: tl.constexpr,
-    masked: tl.constexpr,
-    num_stages: tl.constexpr,
-    num_q_heads: tl.constexpr,
-):
-    half_rope_dim: tl.constexpr = rope_dim // 2
-    token_offsets = tl.arange(0, token_block)
-    cos_offsets = tl.arange(0, half_rope_dim)
-    sin_offsets = tl.arange(half_rope_dim, rope_dim)
-    for block_id in tl.range(
-        tl.program_id(0),
-        num_token_blocks,
-        tl.num_programs(0),
-        num_stages=num_stages,
-    ):
-        token_base = block_id * token_block
-        token_mask = token_base + token_offsets < N
-        # This benchmark candidate models the real single-request ordinary
-        # prefill dispatch: positions advance contiguously from an arbitrary
-        # prefix offset.  The production integration keeps the generic
-        # discrete-position kernel for multi-request and other paths.
-        position_base = tl.load(position_ptr + token_base).to(tl.int32)
-        position_ids = position_base + token_offsets
-        if masked:
-            cos = tl.load(
-                cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
-                + cos_offsets[None, :],
-                mask=token_mask[:, None],
-                other=0.0,
-                care_padding=False,
-            )
-            sin = tl.load(
-                cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
-                + sin_offsets[None, :],
-                mask=token_mask[:, None],
-                other=0.0,
-                care_padding=False,
-            )
-        else:
-            cos = tl.load(
-                cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
-                + cos_offsets[None, :],
-                care_padding=False,
-            )
-            sin = tl.load(
-                cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
-                + sin_offsets[None, :],
-                care_padding=False,
-            )
-
-        k_data = (
-            k_ptr
-            + token_base * k_token_stride
-            + head_dim
-            - rope_dim
-        )
-        _candidate_apply_token_block_rope(
-            k_data,
-            token_offsets,
-            k_token_stride,
-            cos,
-            sin,
-            token_mask,
-            masked,
-            head_dim,
-            rope_dim,
-        )
-        if masked:
-            for head_id in tl.static_range(0, num_q_heads):
-                q_data = (
-                    q_ptr
-                    + token_base * q_token_stride
-                    + head_id * head_dim
-                    + head_dim
-                    - rope_dim
-                )
-                _candidate_apply_token_block_rope(
-                    q_data,
-                    token_offsets,
-                    q_token_stride,
-                    cos,
-                    sin,
-                    token_mask,
-                    masked,
-                    head_dim,
-                    rope_dim,
-                )
-        else:
-            q_data = (
-                q_ptr
-                + token_base * q_token_stride
-                + head_dim
-                - rope_dim
-            )
-            # Keep each Q tile small enough that A5 auto-multibuffer can
-            # overlap FP32 cache loads with vector compute without UB overflow.
-            _candidate_apply_token_head_block_rope(
-                q_data,
-                token_offsets,
-                q_token_stride,
-                cos,
-                sin,
-                2,
-                head_dim,
-                rope_dim,
-            )
-            _candidate_apply_token_head_block_rope(
-                q_data + 2 * head_dim,
-                token_offsets,
-                q_token_stride,
-                cos,
-                sin,
-                2,
-                head_dim,
-                rope_dim,
-            )
-            _candidate_apply_token_head_block_rope(
-                q_data + 4 * head_dim,
-                token_offsets,
-                q_token_stride,
-                cos,
-                sin,
-                2,
-                head_dim,
-                rope_dim,
-            )
-
-
-@triton.jit(do_not_specialize=["num_token_blocks", "N"])
-def _generic_welmv4_inplace_rope_prefill_kernel(
-    q_ptr: tl.tensor,
-    k_ptr: tl.tensor,
-    position_ptr: tl.tensor,
-    cos_sin_cache_ptr: tl.tensor,
-    num_token_blocks: int,
-    N: int,
-    q_token_stride: tl.constexpr,
-    k_token_stride: tl.constexpr,
-    head_dim: tl.constexpr,
-    rope_dim: tl.constexpr,
-    token_block: tl.constexpr,
-    masked: tl.constexpr,
-    num_stages: tl.constexpr,
-    num_q_heads: tl.constexpr,
-):
-    """Frozen comparison path: current generic blocked-prefill gather."""
-    half_rope_dim: tl.constexpr = rope_dim // 2
-    token_offsets = tl.arange(0, token_block)
-    cos_offsets = tl.arange(0, half_rope_dim)
-    sin_offsets = tl.arange(half_rope_dim, rope_dim)
-    for block_id in tl.range(
-        tl.program_id(0),
-        num_token_blocks,
-        tl.num_programs(0),
-        num_stages=num_stages,
-    ):
-        token_base = block_id * token_block
-        token_mask = token_base + token_offsets < N
-        if masked:
-            position_ids = tl.load(
-                position_ptr + token_base + token_offsets,
-                mask=token_mask,
-                other=0,
-            ).to(tl.int32)
-            cos = tl.load(
-                cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
-                + cos_offsets[None, :],
-                mask=token_mask[:, None],
-                other=0.0,
-                care_padding=False,
-            )
-            sin = tl.load(
-                cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
-                + sin_offsets[None, :],
-                mask=token_mask[:, None],
-                other=0.0,
-                care_padding=False,
-            )
-        else:
-            position_ids = tl.load(
-                position_ptr + token_base + token_offsets
-            ).to(tl.int32)
-            cos = tl.load(
-                cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
-                + cos_offsets[None, :],
-                care_padding=False,
-            )
-            sin = tl.load(
-                cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
-                + sin_offsets[None, :],
-                care_padding=False,
-            )
-            tl.extra.cann.extension.compile_hint(cos, "mayDiscretememaccess")
-            tl.extra.cann.extension.compile_hint(sin, "mayDiscretememaccess")
-
-        k_data = k_ptr + token_base * k_token_stride + head_dim - rope_dim
-        _candidate_apply_token_block_rope(
-            k_data,
-            token_offsets,
-            k_token_stride,
-            cos,
-            sin,
-            token_mask,
-            masked,
-            head_dim,
-            rope_dim,
-        )
-        if masked:
-            for head_id in tl.static_range(0, num_q_heads):
-                q_data = (
-                    q_ptr
-                    + token_base * q_token_stride
-                    + head_id * head_dim
-                    + head_dim
-                    - rope_dim
-                )
-                _candidate_apply_token_block_rope(
-                    q_data,
-                    token_offsets,
-                    q_token_stride,
-                    cos,
-                    sin,
-                    token_mask,
-                    masked,
-                    head_dim,
-                    rope_dim,
-                )
-        else:
-            q_data = q_ptr + token_base * q_token_stride + head_dim - rope_dim
-            _candidate_apply_token_head_block_rope(
-                q_data,
-                token_offsets,
-                q_token_stride,
-                cos,
-                sin,
-                2,
-                head_dim,
-                rope_dim,
-            )
-            _candidate_apply_token_head_block_rope(
-                q_data + 2 * head_dim,
-                token_offsets,
-                q_token_stride,
-                cos,
-                sin,
-                2,
-                head_dim,
-                rope_dim,
-            )
-            _candidate_apply_token_head_block_rope(
-                q_data + 4 * head_dim,
-                token_offsets,
-                q_token_stride,
-                cos,
-                sin,
-                2,
-                head_dim,
-                rope_dim,
-            )
-
-
-@triton.jit(do_not_specialize=["num_segment_tiles", "N"])
-def _candidate_welmv4_inplace_rope_segmented_prefill_kernel(
-    q_ptr: tl.tensor,
-    k_ptr: tl.tensor,
-    position_ptr: tl.tensor,
-    cos_sin_cache_ptr: tl.tensor,
     segment_tile_starts_ptr: tl.tensor,
-    num_segment_tiles: int,
+    num_work_tiles: int,
     N: int,
-    q_token_stride: tl.constexpr,
-    k_token_stride: tl.constexpr,
-    head_dim: tl.constexpr,
-    rope_dim: tl.constexpr,
-    token_block: tl.constexpr,
-    masked: tl.constexpr,
-    num_stages: tl.constexpr,
+    q_token_stride: int,
+    k_token_stride: int,
+    has_segments: int,
 ):
-    """Experimental multi-request prefill path; benchmark-only, not framework code."""
-    half_rope_dim: tl.constexpr = rope_dim // 2
-    token_offsets = tl.arange(0, token_block)
-    cos_offsets = tl.arange(0, half_rope_dim)
-    sin_offsets = tl.arange(half_rope_dim, rope_dim)
-    for tile_id in tl.range(
-        tl.program_id(0),
-        num_segment_tiles,
-        tl.num_programs(0),
-        num_stages=num_stages,
-    ):
-        token_base = tl.load(segment_tile_starts_ptr + tile_id).to(tl.int32)
-        if masked:
+    """One cache-stable candidate for contiguous and segmented Prefill."""
+    token_offsets = tl.arange(0, 64)
+    cos_offsets = tl.arange(0, 32)
+    sin_offsets = tl.arange(32, 64)
+    program_id = tl.program_id(0)
+    num_programs = tl.num_programs(0)
+    tiles_per_program = tl.cdiv(num_work_tiles, num_programs)
+    tile_start_id = program_id * tiles_per_program
+    tile_end_id = tl.minimum(tile_start_id + tiles_per_program, num_work_tiles)
+    for tile_id in tl.range(tile_start_id, tile_end_id, num_stages=1):
+        if has_segments.to(tl.float32) > 0.0:
+            token_base = tl.load(
+                segment_tile_starts_ptr + tile_id
+            ).to(tl.int32)
             token_end = tl.load(
                 segment_tile_starts_ptr + tile_id + 1
             ).to(tl.int32)
-            token_mask = token_offsets < token_end - token_base
         else:
-            token_mask = token_offsets < token_block
+            token_base = tile_id * 64
+            token_end = tl.minimum(token_base + 64, N)
 
+        token_count = token_end - token_base
+        token_mask = token_offsets.to(tl.float32) < token_count.to(tl.float32)
         position_base = tl.load(position_ptr + token_base).to(tl.int32)
         position_ids = position_base + token_offsets
-        if masked:
+        k_data = k_ptr + token_base * k_token_stride + 192
+        q_data = q_ptr + token_base * q_token_stride + 192
+
+        if token_count.to(tl.float32) >= 64.0:
             cos = tl.load(
                 cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
+                + position_ids[:, None] * 64
                 + cos_offsets[None, :],
-                mask=token_mask[:, None],
-                other=0.0,
                 care_padding=False,
             )
             sin = tl.load(
                 cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
+                + position_ids[:, None] * 64
                 + sin_offsets[None, :],
-                mask=token_mask[:, None],
-                other=0.0,
                 care_padding=False,
+            )
+            _candidate_apply_token_block_rope(
+                k_data, token_offsets, k_token_stride, cos, sin, 256, 64
+            )
+            _candidate_apply_token_head_block_rope(
+                q_data, token_offsets, q_token_stride, cos, sin, 2, 256, 64
+            )
+            _candidate_apply_token_head_block_rope(
+                q_data + 512,
+                token_offsets, q_token_stride, cos, sin, 2, 256, 64
+            )
+            _candidate_apply_token_head_block_rope(
+                q_data + 1024,
+                token_offsets, q_token_stride, cos, sin, 2, 256, 64
             )
         else:
             cos = tl.load(
                 cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
+                + position_ids[:, None] * 64
                 + cos_offsets[None, :],
+                mask=token_mask[:, None],
+                other=0.0,
                 care_padding=False,
             )
             sin = tl.load(
                 cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
+                + position_ids[:, None] * 64
                 + sin_offsets[None, :],
+                mask=token_mask[:, None],
+                other=0.0,
                 care_padding=False,
             )
-
-        k_data = k_ptr + token_base * k_token_stride + head_dim - rope_dim
-        _candidate_apply_token_block_rope(
-            k_data,
-            token_offsets,
-            k_token_stride,
-            cos,
-            sin,
-            token_mask,
-            masked,
-            head_dim,
-            rope_dim,
-        )
-        q_data = q_ptr + token_base * q_token_stride + head_dim - rope_dim
-        if masked:
+            _candidate_apply_masked_token_block_rope(
+                k_data,
+                token_offsets,
+                k_token_stride,
+                cos,
+                sin,
+                token_mask,
+                256,
+                64,
+            )
             _candidate_apply_masked_token_head_block_rope(
                 q_data,
                 token_offsets,
@@ -1025,218 +778,64 @@ def _candidate_welmv4_inplace_rope_segmented_prefill_kernel(
                 sin,
                 token_mask,
                 2,
-                head_dim,
-                rope_dim,
+                256,
+                64,
             )
             _candidate_apply_masked_token_head_block_rope(
-                q_data + 2 * head_dim,
+                q_data + 512,
                 token_offsets,
                 q_token_stride,
                 cos,
                 sin,
                 token_mask,
                 2,
-                head_dim,
-                rope_dim,
+                256,
+                64,
             )
             _candidate_apply_masked_token_head_block_rope(
-                q_data + 4 * head_dim,
+                q_data + 1024,
                 token_offsets,
                 q_token_stride,
                 cos,
                 sin,
                 token_mask,
                 2,
-                head_dim,
-                rope_dim,
-            )
-        else:
-            _candidate_apply_token_head_block_rope(
-                q_data,
-                token_offsets,
-                q_token_stride,
-                cos,
-                sin,
-                2,
-                head_dim,
-                rope_dim,
-            )
-            _candidate_apply_token_head_block_rope(
-                q_data + 2 * head_dim,
-                token_offsets,
-                q_token_stride,
-                cos,
-                sin,
-                2,
-                head_dim,
-                rope_dim,
-            )
-            _candidate_apply_token_head_block_rope(
-                q_data + 4 * head_dim,
-                token_offsets,
-                q_token_stride,
-                cos,
-                sin,
-                2,
-                head_dim,
-                rope_dim,
+                256,
+                64,
             )
 
 
-@triton.jit(do_not_specialize=["num_token_blocks", "N"])
-def _candidate_welmv4_inplace_rope_contiguous_mirror_kernel(
-    q_ptr: tl.tensor,
-    k_ptr: tl.tensor,
-    position_ptr: tl.tensor,
-    cos_sin_cache_ptr: tl.tensor,
-    last_index_ptr: tl.tensor,
-    num_token_blocks: int,
-    N: int,
-    q_token_stride: tl.constexpr,
-    k_token_stride: tl.constexpr,
-    head_dim: tl.constexpr,
-    rope_dim: tl.constexpr,
-    token_block: tl.constexpr,
-    num_stages: tl.constexpr,
-    num_q_heads: tl.constexpr,
-    num_q_heads_blocked: tl.constexpr,
-):
-    """BS=1 mirror: rotate one Q row and a long contiguous K sequence."""
-    half_rope_dim: tl.constexpr = rope_dim // 2
-    token_offsets = tl.arange(0, token_block)
-    cos_offsets = tl.arange(0, half_rope_dim)
-    sin_offsets = tl.arange(half_rope_dim, rope_dim)
-    program_id = tl.program_id(0)
-
-    # Q has exactly one packed row in this semantic group.  Only one program
-    # touches it; all other programs are dedicated to the large K tensor.
-    if program_id == 0:
-        q_source_token = tl.load(last_index_ptr).to(tl.int32)
-        q_position = tl.load(position_ptr + q_source_token).to(tl.int32)
-        q_cos = tl.load(
-            cos_sin_cache_ptr + q_position * rope_dim + cos_offsets,
-            care_padding=False,
-        )
-        q_sin = tl.load(
-            cos_sin_cache_ptr + q_position * rope_dim + sin_offsets,
-            care_padding=False,
-        )
-        q_data = q_ptr + head_dim - rope_dim
-        _candidate_apply_tail_rope(
-            q_data,
-            q_cos,
-            q_sin,
-            num_q_heads,
-            num_q_heads_blocked,
-            head_dim,
-            rope_dim,
-        )
-
-    # Give every physical AIV one consecutive block interval.  This removes
-    # the generic token-strided schedule and keeps each core's K/cache traffic
-    # monotonic, while N and the derived block count remain runtime values.
-    blocks_per_program = tl.cdiv(num_token_blocks, tl.num_programs(0))
-    block_start = program_id * blocks_per_program
-    block_end = tl.minimum(block_start + blocks_per_program, num_token_blocks)
-    for block_id in tl.range(
-        block_start,
-        block_end,
-        num_stages=num_stages,
-    ):
-        token_base = block_id * token_block
-        token_ids = token_base + token_offsets
-
-        # The framework establishes this property only for a single ordinary
-        # non-speculative extend request.  One runtime base load therefore
-        # replaces 64 independent position loads without specializing on N.
-        position_base = tl.load(position_ptr + token_base).to(tl.int32)
-        position_ids = position_base + token_offsets
-        k_data = k_ptr + token_base * k_token_stride + head_dim - rope_dim
-        block_end_token = token_base + token_block
-        if block_end_token.to(tl.float32) <= N.to(tl.float32):
-            cos = tl.load(
-                cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
-                + cos_offsets[None, :],
-                care_padding=False,
-            )
-            sin = tl.load(
-                cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
-                + sin_offsets[None, :],
-                care_padding=False,
-            )
-            _candidate_apply_token_block_rope(
-                k_data,
-                token_offsets,
-                k_token_stride,
-                cos,
-                sin,
-                token_offsets == token_offsets,
-                False,
-                head_dim,
-                rope_dim,
-            )
-        else:
-            token_mask = token_ids.to(tl.float32) < N.to(tl.float32)
-            cos = tl.load(
-                cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
-                + cos_offsets[None, :],
-                mask=token_mask[:, None],
-                other=0.0,
-                care_padding=False,
-            )
-            sin = tl.load(
-                cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
-                + sin_offsets[None, :],
-                mask=token_mask[:, None],
-                other=0.0,
-                care_padding=False,
-            )
-            _candidate_apply_token_block_rope(
-                k_data,
-                token_offsets,
-                k_token_stride,
-                cos,
-                sin,
-                token_mask,
-                True,
-                head_dim,
-                rope_dim,
-            )
-
-
-@triton.jit(do_not_specialize=["num_segment_tiles", "BS"])
-def _candidate_welmv4_inplace_rope_segmented_mirror_kernel(
+@triton.jit(
+    do_not_specialize=[
+        "num_work_tiles",
+        "N",
+        "BS",
+        "q_token_stride",
+        "k_token_stride",
+        "has_segments",
+    ]
+)
+def _candidate_welmv4_inplace_rope_mirror_prefill_kernel(
     q_ptr: tl.tensor,
     k_ptr: tl.tensor,
     position_ptr: tl.tensor,
     cos_sin_cache_ptr: tl.tensor,
     last_index_ptr: tl.tensor,
     segment_tile_starts_ptr: tl.tensor,
-    num_segment_tiles: int,
+    num_work_tiles: int,
+    N: int,
     BS: int,
-    q_token_stride: tl.constexpr,
-    k_token_stride: tl.constexpr,
-    head_dim: tl.constexpr,
-    rope_dim: tl.constexpr,
-    token_block: tl.constexpr,
-    num_stages: tl.constexpr,
-    num_q_heads: tl.constexpr,
-    num_q_heads_blocked: tl.constexpr,
+    q_token_stride: int,
+    k_token_stride: int,
+    has_segments: int,
 ):
-    """Multi-request mirror RoPE with request-local contiguous K tiles."""
-    half_rope_dim: tl.constexpr = rope_dim // 2
-    token_offsets = tl.arange(0, token_block)
-    cos_offsets = tl.arange(0, half_rope_dim)
-    sin_offsets = tl.arange(half_rope_dim, rope_dim)
+    """One cache-stable candidate for BS=1 and segmented mirror Prefill."""
+    token_offsets = tl.arange(0, 64)
+    cos_offsets = tl.arange(0, 32)
+    sin_offsets = tl.arange(32, 64)
     program_id = tl.program_id(0)
     num_programs = tl.num_programs(0)
 
-    # Q contains one row per request.  Give each AIV one consecutive request
-    # interval, and recover that row's position through the model's last_index.
     requests_per_program = tl.cdiv(BS, num_programs)
     request_start = program_id * requests_per_program
     request_end = tl.minimum(request_start + requests_per_program, BS)
@@ -1244,78 +843,57 @@ def _candidate_welmv4_inplace_rope_segmented_mirror_kernel(
         q_source_token = tl.load(last_index_ptr + request_id).to(tl.int32)
         q_position = tl.load(position_ptr + q_source_token).to(tl.int32)
         q_cos = tl.load(
-            cos_sin_cache_ptr + q_position * rope_dim + cos_offsets,
+            cos_sin_cache_ptr + q_position * 64 + cos_offsets,
             care_padding=False,
         )
         q_sin = tl.load(
-            cos_sin_cache_ptr + q_position * rope_dim + sin_offsets,
+            cos_sin_cache_ptr + q_position * 64 + sin_offsets,
             care_padding=False,
         )
-        q_data = (
-            q_ptr
-            + request_id * q_token_stride
-            + head_dim
-            - rope_dim
-        )
-        _candidate_apply_tail_rope(
-            q_data,
-            q_cos,
-            q_sin,
-            num_q_heads,
-            num_q_heads_blocked,
-            head_dim,
-            rope_dim,
-        )
+        q_data = q_ptr + request_id * q_token_stride + 192
+        _candidate_apply_tail_rope(q_data, q_cos, q_sin, 6, 8, 256, 64)
 
-    # segment_tile_starts is built from each request independently, so no tile
-    # crosses a request boundary.  Consecutive tile IDs also mean monotonic K
-    # and cache traffic within every AIV's interval.
-    tiles_per_program = tl.cdiv(num_segment_tiles, num_programs)
+    tiles_per_program = tl.cdiv(num_work_tiles, num_programs)
     tile_start_id = program_id * tiles_per_program
-    tile_end_id = tl.minimum(
-        tile_start_id + tiles_per_program, num_segment_tiles
-    )
-    for tile_id in tl.range(
-        tile_start_id,
-        tile_end_id,
-        num_stages=num_stages,
-    ):
-        token_base = tl.load(segment_tile_starts_ptr + tile_id).to(tl.int32)
-        token_end = tl.load(segment_tile_starts_ptr + tile_id + 1).to(tl.int32)
+    tile_end_id = tl.minimum(tile_start_id + tiles_per_program, num_work_tiles)
+    for tile_id in tl.range(tile_start_id, tile_end_id, num_stages=1):
+        if has_segments.to(tl.float32) > 0.0:
+            token_base = tl.load(
+                segment_tile_starts_ptr + tile_id
+            ).to(tl.int32)
+            token_end = tl.load(
+                segment_tile_starts_ptr + tile_id + 1
+            ).to(tl.int32)
+        else:
+            token_base = tile_id * 64
+            token_end = tl.minimum(token_base + 64, N)
+
         token_count = token_end - token_base
+        token_mask = token_offsets.to(tl.float32) < token_count.to(tl.float32)
         position_base = tl.load(position_ptr + token_base).to(tl.int32)
         position_ids = position_base + token_offsets
-        k_data = k_ptr + token_base * k_token_stride + head_dim - rope_dim
+        k_data = k_ptr + token_base * k_token_stride + 192
 
-        if token_count.to(tl.float32) >= token_block:
+        if token_count.to(tl.float32) >= 64.0:
             cos = tl.load(
                 cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
+                + position_ids[:, None] * 64
                 + cos_offsets[None, :],
                 care_padding=False,
             )
             sin = tl.load(
                 cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
+                + position_ids[:, None] * 64
                 + sin_offsets[None, :],
                 care_padding=False,
             )
             _candidate_apply_token_block_rope(
-                k_data,
-                token_offsets,
-                k_token_stride,
-                cos,
-                sin,
-                token_offsets == token_offsets,
-                False,
-                head_dim,
-                rope_dim,
+                k_data, token_offsets, k_token_stride, cos, sin, 256, 64
             )
         else:
-            token_mask = token_offsets.to(tl.float32) < token_count.to(tl.float32)
             cos = tl.load(
                 cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
+                + position_ids[:, None] * 64
                 + cos_offsets[None, :],
                 mask=token_mask[:, None],
                 other=0.0,
@@ -1323,38 +901,188 @@ def _candidate_welmv4_inplace_rope_segmented_mirror_kernel(
             )
             sin = tl.load(
                 cos_sin_cache_ptr
-                + position_ids[:, None] * rope_dim
+                + position_ids[:, None] * 64
                 + sin_offsets[None, :],
                 mask=token_mask[:, None],
                 other=0.0,
                 care_padding=False,
             )
-            _candidate_apply_token_block_rope(
+            _candidate_apply_masked_token_block_rope(
                 k_data,
                 token_offsets,
                 k_token_stride,
                 cos,
                 sin,
                 token_mask,
-                True,
-                head_dim,
-                rope_dim,
+                256,
+                64,
             )
 
 
 PROVIDERS = {
     "baseline": _baseline_welmv4_inplace_rope_kernel,
     "candidate": _candidate_welmv4_inplace_rope_kernel,
-    "generic_prefill": _generic_welmv4_inplace_rope_prefill_kernel,
-    "segmented_prefill": _candidate_welmv4_inplace_rope_segmented_prefill_kernel,
-    "mirror_contiguous": _candidate_welmv4_inplace_rope_contiguous_mirror_kernel,
-    "mirror_segmented": _candidate_welmv4_inplace_rope_segmented_mirror_kernel,
+    "generic_prefill": _baseline_welmv4_inplace_rope_kernel,
+    "segmented_prefill": _candidate_welmv4_inplace_rope_prefill_kernel,
+    "mirror_contiguous": _candidate_welmv4_inplace_rope_mirror_prefill_kernel,
+    "mirror_segmented": _candidate_welmv4_inplace_rope_mirror_prefill_kernel,
 }
 
 DEFAULT_PROVIDERS = ("baseline", "candidate")
 SEGMENTED_PROVIDERS = ("generic_prefill", "segmented_prefill")
 CONTIGUOUS_MIRROR_PROVIDERS = ("baseline", "mirror_contiguous")
 SEGMENTED_MIRROR_PROVIDERS = ("baseline", "mirror_segmented")
+LEGACY_MIRROR_PROVIDERS = ("baseline",)
+
+CANDIDATE_PREFILL_JIT_CONTRACT = {
+    "_candidate_welmv4_inplace_rope_prefill_kernel": {
+        "num_work_tiles",
+        "N",
+        "q_token_stride",
+        "k_token_stride",
+        "has_segments",
+    },
+    "_candidate_welmv4_inplace_rope_mirror_prefill_kernel": {
+        "num_work_tiles",
+        "N",
+        "BS",
+        "q_token_stride",
+        "k_token_stride",
+        "has_segments",
+    },
+}
+
+
+def audit_candidate_prefill_jit_contract() -> None:
+    """Fail locally/remotely if the formal candidates regain cache variants."""
+    source = Path(__file__).read_text(encoding="utf-8")
+    module = ast.parse(source, filename=__file__)
+    functions = {
+        node.name: node
+        for node in module.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name.startswith("_candidate_welmv4_inplace_rope_")
+        and node.name.endswith("prefill_kernel")
+    }
+    if set(functions) != set(CANDIDATE_PREFILL_JIT_CONTRACT):
+        raise RuntimeError(
+            "candidate Prefill JIT surface must contain exactly two kernels; "
+            f"found={sorted(functions)}"
+        )
+
+    for name, expected_runtime_scalars in CANDIDATE_PREFILL_JIT_CONTRACT.items():
+        node = functions[name]
+        constexpr_args = {
+            arg.arg
+            for arg in node.args.args
+            if isinstance(arg.annotation, ast.Attribute)
+            and isinstance(arg.annotation.value, ast.Name)
+            and arg.annotation.value.id == "tl"
+            and arg.annotation.attr == "constexpr"
+        }
+        if constexpr_args:
+            raise RuntimeError(
+                f"{name} must not expose tl.constexpr arguments: "
+                f"{sorted(constexpr_args)}"
+            )
+        runtime_scalars = {
+            arg.arg
+            for arg in node.args.args
+            if isinstance(arg.annotation, ast.Name)
+            and arg.annotation.id == "int"
+        }
+        if runtime_scalars != expected_runtime_scalars:
+            raise RuntimeError(
+                f"{name} runtime scalar contract mismatch: "
+                f"expected={sorted(expected_runtime_scalars)}, "
+                f"found={sorted(runtime_scalars)}"
+            )
+
+        jit_call = next(
+            (
+                decorator
+                for decorator in node.decorator_list
+                if isinstance(decorator, ast.Call)
+                and isinstance(decorator.func, ast.Attribute)
+                and isinstance(decorator.func.value, ast.Name)
+                and decorator.func.value.id == "triton"
+                and decorator.func.attr == "jit"
+            ),
+            None,
+        )
+        if jit_call is None:
+            raise RuntimeError(f"{name} is not decorated with @triton.jit(...)")
+        keyword = next(
+            (item for item in jit_call.keywords if item.arg == "do_not_specialize"),
+            None,
+        )
+        dns_names = (
+            {
+                item.value
+                for item in keyword.value.elts
+                if isinstance(item, ast.Constant) and isinstance(item.value, str)
+            }
+            if keyword is not None
+            and isinstance(keyword.value, (ast.List, ast.Tuple, ast.Set))
+            else set()
+        )
+        if dns_names != expected_runtime_scalars:
+            raise RuntimeError(
+                f"{name} do_not_specialize mismatch: "
+                f"expected={sorted(expected_runtime_scalars)}, "
+                f"found={sorted(dns_names)}"
+            )
+
+    for node in module.body:
+        if not isinstance(node, ast.FunctionDef) or not node.name.startswith(
+            "_candidate_apply_"
+        ):
+            continue
+        runtime_scalars = {
+            arg.arg
+            for arg in node.args.args
+            if isinstance(arg.annotation, ast.Name)
+            and arg.annotation.id == "int"
+        }
+        if not runtime_scalars:
+            continue
+        jit_call = next(
+            (
+                decorator
+                for decorator in node.decorator_list
+                if isinstance(decorator, ast.Call)
+                and isinstance(decorator.func, ast.Attribute)
+                and decorator.func.attr == "jit"
+            ),
+            None,
+        )
+        keyword = (
+            next(
+                (
+                    item
+                    for item in jit_call.keywords
+                    if item.arg == "do_not_specialize"
+                ),
+                None,
+            )
+            if jit_call is not None
+            else None
+        )
+        dns_names = (
+            {
+                item.value
+                for item in keyword.value.elts
+                if isinstance(item, ast.Constant) and isinstance(item.value, str)
+            }
+            if keyword is not None
+            and isinstance(keyword.value, (ast.List, ast.Tuple, ast.Set))
+            else set()
+        )
+        if dns_names != runtime_scalars:
+            raise RuntimeError(
+                f"{node.name} helper do_not_specialize mismatch: "
+                f"runtime={sorted(runtime_scalars)}, found={sorted(dns_names)}"
+            )
 
 
 def providers_for_case(case: Case) -> tuple[str, ...]:
@@ -1364,6 +1092,11 @@ def providers_for_case(case: Case) -> tuple[str, ...]:
         return SEGMENTED_PROVIDERS
     if case.is_contiguous_mirror:
         return CONTIGUOUS_MIRROR_PROVIDERS
+    if case.phase == "prefill_mirror":
+        # Compatibility for an already-running old monitor command. These
+        # artificial discrete-position cases do not satisfy either formal
+        # Prefill candidate's contiguous-position contract.
+        return LEGACY_MIRROR_PROVIDERS
     return DEFAULT_PROVIDERS
 
 
@@ -1400,6 +1133,11 @@ class Harness:
             raise RuntimeError("could not determine the visible NPU vector-core count")
         self.device_name = str(torch_npu.npu.get_device_name(self.device_index))
         self.cache = make_cos_sin_cache(device)
+        # The two formal candidates always take the same pointer signature.
+        # Non-segmented launches pass this stable, never-dereferenced pointer.
+        self.segment_placeholder = torch.zeros(
+            (2,), device=device, dtype=torch.int32
+        )
         self.commit = repository_head()
 
     def metadata(self) -> dict[str, object]:
@@ -1446,7 +1184,7 @@ class Harness:
             k_stride = int(key.stride(0))
 
             def launch_contiguous_mirror() -> object:
-                return _candidate_welmv4_inplace_rope_contiguous_mirror_kernel[
+                return _candidate_welmv4_inplace_rope_mirror_prefill_kernel[
                     (mirror_programs,)
                 ](
                     query,
@@ -1454,16 +1192,13 @@ class Harness:
                     positions,
                     self.cache,
                     last_index,
+                    self.segment_placeholder,
                     mirror_blocks,
                     n_tokens,
+                    batch_size,
                     q_stride,
                     k_stride,
-                    HEAD_DIM,
-                    ROPE_DIM,
-                    PREFILL_TOKEN_BLOCK,
-                    PREFILL_NUM_STAGES,
-                    NUM_Q_HEADS,
-                    triton.next_power_of_2(NUM_Q_HEADS),
+                    0,
                     multibuffer=True,
                 )
 
@@ -1509,7 +1244,7 @@ class Harness:
                         triton.next_power_of_2(NUM_Q_HEADS),
                         triton.next_power_of_2(NUM_K_HEADS),
                     )
-                return _candidate_welmv4_inplace_rope_segmented_mirror_kernel[
+                return _candidate_welmv4_inplace_rope_mirror_prefill_kernel[
                     (segment_programs,)
                 ](
                     query,
@@ -1519,15 +1254,11 @@ class Harness:
                     last_index,
                     segment_tile_starts,
                     segment_tiles,
+                    n_tokens,
                     batch_size,
                     q_stride,
                     k_stride,
-                    HEAD_DIM,
-                    ROPE_DIM,
-                    PREFILL_TOKEN_BLOCK,
-                    PREFILL_NUM_STAGES,
-                    NUM_Q_HEADS,
-                    triton.next_power_of_2(NUM_Q_HEADS),
+                    1,
                     multibuffer=True,
                 )
 
@@ -1539,44 +1270,40 @@ class Harness:
             if provider not in SEGMENTED_PROVIDERS:
                 raise ValueError(f"unsupported segmented provider: {provider}")
             segment_tiles = int(segment_tile_starts.numel()) - 1
-            segment_masked = any(
-                length % PREFILL_TOKEN_BLOCK != 0 for length in case.segment_lens
-            )
             segment_programs = min(
                 segment_tiles,
-                self.num_vector_cores * PROGRAMS_PER_VECTOR_CORE,
+                self.num_vector_cores,
             )
             q_stride = int(query.stride(0))
             k_stride = int(key.stride(0))
 
             def launch_segmented_comparison() -> object:
                 if provider == "generic_prefill":
-                    generic_blocks = triton.cdiv(n_tokens, PREFILL_TOKEN_BLOCK)
-                    generic_masked = n_tokens % PREFILL_TOKEN_BLOCK != 0
-                    generic_programs = min(
-                        generic_blocks,
+                    baseline_programs = min(
+                        n_tokens,
                         self.num_vector_cores * PROGRAMS_PER_VECTOR_CORE,
                     )
-                    return _generic_welmv4_inplace_rope_prefill_kernel[
-                        (generic_programs,)
+                    return _baseline_welmv4_inplace_rope_kernel[
+                        (baseline_programs,)
                     ](
                         query,
                         key,
                         positions,
                         self.cache,
-                        generic_blocks,
+                        None,
                         n_tokens,
+                        0,
                         q_stride,
                         k_stride,
                         HEAD_DIM,
                         ROPE_DIM,
-                        PREFILL_TOKEN_BLOCK,
-                        generic_masked,
-                        PREFILL_NUM_STAGES,
+                        NUM_STAGES,
                         NUM_Q_HEADS,
-                        multibuffer=True,
+                        NUM_K_HEADS,
+                        triton.next_power_of_2(NUM_Q_HEADS),
+                        triton.next_power_of_2(NUM_K_HEADS),
                     )
-                return _candidate_welmv4_inplace_rope_segmented_prefill_kernel[
+                return _candidate_welmv4_inplace_rope_prefill_kernel[
                     (segment_programs,)
                 ](
                     query,
@@ -1588,22 +1315,16 @@ class Harness:
                     n_tokens,
                     q_stride,
                     k_stride,
-                    HEAD_DIM,
-                    ROPE_DIM,
-                    PREFILL_TOKEN_BLOCK,
-                    segment_masked,
-                    PREFILL_NUM_STAGES,
+                    1,
                     multibuffer=True,
                 )
 
             return launch_segmented_comparison
 
         prefill_token_block = 0
-        prefill_masked = False
         if provider == "candidate" and case.phase == "prefill":
             if n_tokens >= PREFILL_ALL_M_THRESHOLD:
                 prefill_token_block = PREFILL_TOKEN_BLOCK
-                prefill_masked = n_tokens % PREFILL_TOKEN_BLOCK != 0
             elif (
                 n_tokens >= PREFILL_EXACT64_THRESHOLD
                 and n_tokens % PREFILL_TOKEN_BLOCK == 0
@@ -1616,16 +1337,15 @@ class Harness:
             else PROVIDERS[provider]
         )
         if use_blocked_prefill:
-            work_items = (
-                triton.cdiv(n_tokens, prefill_token_block)
-                if prefill_masked
-                else n_tokens // prefill_token_block
-            )
+            work_items = triton.cdiv(n_tokens, prefill_token_block)
         else:
             work_items = n_tokens
-        num_programs = min(
-            work_items, self.num_vector_cores * PROGRAMS_PER_VECTOR_CORE
+        program_limit = (
+            self.num_vector_cores
+            if use_blocked_prefill
+            else self.num_vector_cores * PROGRAMS_PER_VECTOR_CORE
         )
+        num_programs = min(work_items, program_limit)
         q_stride = int(query.stride(0))
         k_stride = int(key.stride(0))
         q_heads_blocked = triton.next_power_of_2(NUM_Q_HEADS)
@@ -1638,16 +1358,12 @@ class Harness:
                     key,
                     positions,
                     self.cache,
+                    self.segment_placeholder,
                     work_items,
                     n_tokens,
                     q_stride,
                     k_stride,
-                    HEAD_DIM,
-                    ROPE_DIM,
-                    prefill_token_block,
-                    prefill_masked,
-                    PREFILL_NUM_STAGES,
-                    NUM_Q_HEADS,
+                    0,
                     multibuffer=True,
                 )
             return kernel[(num_programs,)](
@@ -1889,141 +1605,6 @@ def run_correctness(
                 }
             )
     return records, failures
-
-
-def percentile(values: Sequence[float], quantile: float) -> float:
-    ordered = sorted(values)
-    if len(ordered) == 1:
-        return ordered[0]
-    position = (len(ordered) - 1) * quantile
-    low = math.floor(position)
-    high = math.ceil(position)
-    if low == high:
-        return ordered[low]
-    fraction = position - low
-    return ordered[low] * (1.0 - fraction) + ordered[high] * fraction
-
-
-def automatic_inner_repeat(n_tokens: int) -> int:
-    if n_tokens <= 64:
-        return 200
-    if n_tokens <= 512:
-        return 100
-    if n_tokens <= 2048:
-        return 50
-    if n_tokens <= 9616:
-        return 10
-    return 5
-
-
-def event_sample_us(launch: Callable[[], object], inner_repeat: int) -> float:
-    start = torch_npu.npu.Event(enable_timing=True)
-    end = torch_npu.npu.Event(enable_timing=True)
-    start.record()
-    for _ in range(inner_repeat):
-        launch()
-    end.record()
-    torch_npu.npu.synchronize()
-    return float(start.elapsed_time(end)) * 1000.0 / inner_repeat
-
-
-def run_performance(
-    harness: Harness,
-    cases: Sequence[Case],
-    *,
-    scope: str,
-    warmup: int,
-    rounds: int,
-    inner_repeat_override: int,
-) -> list[dict[str, object]]:
-    records: list[dict[str, object]] = []
-    print(
-        f"\nPerformance: scope={scope}, warmup={warmup}, rounds={rounds}, "
-        f"physical_AIV={harness.num_vector_cores}"
-    )
-    for case in cases:
-        query, key, positions, last_index, segment_tile_starts = make_inputs(
-            case, harness.device, harness.seed
-        )
-        launches: dict[str, Callable[[], object]] = {}
-        case_providers = providers_for_case(case)
-        for provider in case_providers:
-            launches[provider] = harness.bind(
-                provider,
-                case,
-                query.clone(),
-                key.clone(),
-                positions,
-                last_index,
-                segment_tile_starts,
-            )
-
-        for provider in case_providers:
-            for _ in range(warmup):
-                launches[provider]()
-        torch_npu.npu.synchronize()
-
-        inner_repeat = (
-            inner_repeat_override
-            if inner_repeat_override > 0
-            else automatic_inner_repeat(case.n_tokens)
-        )
-        samples = {provider: [] for provider in case_providers}
-        providers = case_providers
-        for round_index in range(rounds):
-            order: Iterable[str] = (
-                providers if round_index % 2 == 0 else reversed(providers)
-            )
-            for provider in order:
-                samples[provider].append(
-                    event_sample_us(launches[provider], inner_repeat)
-                )
-
-        stats: dict[str, dict[str, float]] = {}
-        for provider, values in samples.items():
-            stats[provider] = {
-                "p20_us": percentile(values, 0.20),
-                "p50_us": statistics.median(values),
-                "p80_us": percentile(values, 0.80),
-                "mean_us": statistics.fmean(values),
-            }
-
-        baseline_provider = (
-            "generic_prefill"
-            if case.is_segmented and not case.is_segmented_mirror
-            else "baseline"
-        )
-        baseline_p50 = stats[baseline_provider]["p50_us"]
-        print(
-            f"\n  {case.name}: N={case.n_tokens}, Q_rows={case.q_rows}, "
-            f"BS={case.batch_size}, inner_repeat={inner_repeat}"
-        )
-        print("    variant      p20(us)   p50(us)   p80(us)   speedup/R0")
-        for provider in case_providers:
-            current = stats[provider]
-            speedup = baseline_p50 / current["p50_us"]
-            print(
-                f"    {provider:<10} {current['p20_us']:>9.3f} "
-                f"{current['p50_us']:>9.3f} {current['p80_us']:>9.3f} "
-                f"{speedup:>10.4f}x"
-            )
-            records.append(
-                {
-                    **harness.metadata(),
-                    **case_fields(case),
-                    "record_type": "performance",
-                    "variant": provider,
-                    "status": "MEASURED",
-                    "scope": scope,
-                    "timing_authority": "diagnostic_only",
-                    "warmup": warmup,
-                    "rounds": rounds,
-                    "inner_repeat": inner_repeat,
-                    **current,
-                    "speedup_vs_baseline": speedup,
-                }
-            )
-    return records
 
 
 # ---------------------------------------------------------------------------
@@ -2370,18 +1951,12 @@ def capture_msprof_op_records(
                 )
             )
             if provider == "generic_prefill":
-                kernel_name = "_generic_welmv4_inplace_rope_prefill_kernel"
+                kernel_name = "_baseline_welmv4_inplace_rope_kernel"
             elif provider == "segmented_prefill":
+                kernel_name = "_candidate_welmv4_inplace_rope_prefill_kernel"
+            elif provider in ("mirror_contiguous", "mirror_segmented"):
                 kernel_name = (
-                    "_candidate_welmv4_inplace_rope_segmented_prefill_kernel"
-                )
-            elif provider == "mirror_contiguous":
-                kernel_name = (
-                    "_candidate_welmv4_inplace_rope_contiguous_mirror_kernel"
-                )
-            elif provider == "mirror_segmented":
-                kernel_name = (
-                    "_candidate_welmv4_inplace_rope_segmented_mirror_kernel"
+                    "_candidate_welmv4_inplace_rope_mirror_prefill_kernel"
                 )
             elif provider == "baseline":
                 kernel_name = "_baseline_welmv4_inplace_rope_kernel"
@@ -2641,14 +2216,6 @@ def build_parser() -> argparse.ArgumentParser:
         default="kernel",
         help="time only pre-bound Triton kernel launches on the NPU timeline",
     )
-    parser.add_argument("--warmup", type=int, default=5)
-    parser.add_argument("--rounds", type=int, default=9)
-    parser.add_argument(
-        "--inner-repeat",
-        type=int,
-        default=0,
-        help="0 selects an N-dependent repeat count; positive forces one value",
-    )
     parser.add_argument(
         "--compile-only-provider",
         choices=tuple(PROVIDERS),
@@ -2688,8 +2255,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = build_parser().parse_args()
-    if args.warmup < 1 or args.rounds < 1 or args.inner_repeat < 0:
-        raise ValueError("warmup/rounds must be positive; inner-repeat must be >= 0")
+    audit_candidate_prefill_jit_contract()
+    print(
+        "Candidate Prefill JIT cache contract: PASS "
+        "(2 kernels; every runtime scalar is do_not_specialize)"
+    )
     device = torch.device(args.device)
     if device.type != "npu":
         raise ValueError(f"--device must select an NPU, got: {device}")
@@ -2727,15 +2297,9 @@ def main() -> int:
     if failures:
         print("Performance skipped because correctness failed.")
     elif args.mode in ("both", "performance"):
-        records.extend(
-            run_performance(
-                harness,
-                cases,
-                scope=args.scope,
-                warmup=args.warmup,
-                rounds=args.rounds,
-                inner_repeat_override=args.inner_repeat,
-            )
+        print(
+            "Event timing is disabled for acceptance; kernel latency is "
+            "measured only by msprof op --kernel-name."
         )
 
     capture_ir = args.capture_ir == "on" or (

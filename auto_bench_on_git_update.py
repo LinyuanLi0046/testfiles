@@ -152,8 +152,7 @@ def benchmark_command(device: str) -> list[str]:
             "mirror_segmented_m16384_b32_aligned,"
             "mirror_segmented_m16384_b64_aligned,"
             "mirror_segmented_m16384_b128_uneven,"
-            "prefill_m8192,prefill_m16384,"
-            "mirror_m8192_bs4,mirror_m16384_bs8,"
+            "prefill_m8191,prefill_m8192,prefill_m16384,"
             "segmented_m8192_b32_aligned,"
             "segmented_m16384_b128_uneven"
         ),

@@ -23,7 +23,7 @@ has a newer commit, it fast-forwards, runs:
 ```bash
 python bench_welmv4_inplace_rope_npu.py \
   --mode both \
-  --cases mirror_contiguous_m8192_bs1,mirror_contiguous_m9616_bs1,mirror_contiguous_m16361_bs1,mirror_contiguous_m16384_bs1,mirror_segmented_m8192_b2_aligned,mirror_segmented_m8192_b4_aligned,mirror_segmented_m9616_b8_uneven,mirror_segmented_m8192_b16_aligned,mirror_segmented_m16384_b32_aligned,mirror_segmented_m16384_b64_aligned,mirror_segmented_m16384_b128_uneven,prefill_m8192,prefill_m16384,mirror_m8192_bs4,mirror_m16384_bs8,segmented_m8192_b32_aligned,segmented_m16384_b128_uneven \
+  --cases mirror_contiguous_m8192_bs1,mirror_contiguous_m9616_bs1,mirror_contiguous_m16361_bs1,mirror_contiguous_m16384_bs1,mirror_segmented_m8192_b2_aligned,mirror_segmented_m8192_b4_aligned,mirror_segmented_m9616_b8_uneven,mirror_segmented_m8192_b16_aligned,mirror_segmented_m16384_b32_aligned,mirror_segmented_m16384_b64_aligned,mirror_segmented_m16384_b128_uneven,prefill_m8191,prefill_m8192,prefill_m16384,segmented_m8192_b32_aligned,segmented_m16384_b128_uneven \
   --scope kernel \
   --device npu:5 \
   --capture-ir on \
@@ -52,19 +52,17 @@ An explicit `--capture-profile on` run profiles the candidate at
 summaries as gzip+base64 `record_type=profile_artifact` rows. Profiling
 failures remain diagnostic rows and do not discard valid benchmark results.
 
-The standard remote run also invokes native `msprof op` for paired frozen
-`baseline` and experimental `mirror_segmented` kernels
-with `--warm-up=10 --launch-count=5` and an exact `--kernel-name` for the
-selected Triton kernel. Parsed `OpBasicInfo.csv`
+The standard remote run invokes native `msprof op` for paired frozen-reference
+and candidate kernels with `--warm-up=10 --launch-count=5` and an exact
+`--kernel-name`. The four acceptance probes cover ordinary contiguous,
+ordinary segmented, BS=1 mirror, and multi-BS segmented mirror Prefill at
+`M/N=16384`. Parsed `OpBasicInfo.csv`
 `Task Duration(us)` values are stored as `record_type=msprof_op`, and the raw
 files are stored as gzip+base64 `record_type=msprof_op_artifact` rows.  These
 device task durations are the only authoritative performance measurements for
-accepting or rejecting an optimization. Event-based `record_type=performance`
-rows are marked `timing_authority=diagnostic_only`; msprof rows are marked
-`timing_authority=acceptance`. A missing msprof result fails the entire
-automatic run. The required probes cover aligned and uneven request segments
-at `BS=2,8,32,128`; correctness additionally covers `BS=4,16,64`. Use
-`--capture-msprof-op off`
+accepting or rejecting an optimization; the benchmark no longer runs event
+timing. A missing msprof result fails the entire automatic run. Correctness
+still covers all listed aligned and uneven shapes. Use `--capture-msprof-op off`
 only for manual diagnostic runs that
 intentionally skip acceptance timing.
 
@@ -82,9 +80,9 @@ The ordinary prefill input matches the model after its unconditional Q
 `contiguous()` and uses contiguous single-request positions `0..M-1`.
 
 The `segmented_prefill` suite is benchmark-only and is not wired into NEWSGLANG. It
-builds compact per-request 64-token tile boundaries once before timing, then
-compares the current generic blocked-prefill gather against a segmented
-continuous-cache kernel under identical Q/K tiling and launch settings.
+builds compact per-request 64-token tile boundaries once before the launch,
+then compares the frozen per-token reference against the formal ordinary
+Prefill candidate.
 For compatibility with a monitor process started before this experiment, the
 legacy `--cases segmented` command is temporarily routed to the active
 multi-BS mirror suite plus frozen BS=1 and ordinary-prefill regressions. The
@@ -104,14 +102,25 @@ remains available as `--cases single_prefill`.
   `BS=2,4,8,16,32,64,128`. Its 64-token tiles never cross request boundaries;
   it is benchmark-only and is not wired into NEWSGLANG.
 
-The dedicated blocked kernel is selected only for the candidate's ordinary
+Exactly two candidate Prefill JIT functions exist: one ordinary and one
+mirror kernel. Runtime `N`, `BS`, work-tile count, Q/K token strides, and the
+contiguous-versus-segmented selector are ordinary integer arguments and are all
+listed in `do_not_specialize`; neither function exposes a `tl.constexpr`
+argument. Full-versus-tail masking is also selected at runtime inside each
+kernel. The fixed model contract (`head_dim=256`, `rope_dim=64`, six Q heads,
+one K head, 64-token tiles, one pipeline stage) remains literal code, not a
+shape-derived launch argument. A source-level audit runs before every remote
+benchmark and fails if this two-kernel/cache-key contract changes.
+
+The dedicated blocked path is selected only for the candidate's ordinary
 `prefill` phase. Native msprof-op establishes the all-M threshold at `M=640`:
 M=640 exact64 improves 15.65% and M=641 masked64 improves 8.32%.  M=576 exact64
 improves 6.23% and is retained as an aligned fast path, but M=577 masked64
 regresses 1.8%, so other M below 640 use the shared kernel. The new
 `mirror_contiguous` provider is benchmark-only and selected solely for its four
-BS=1 cases; decode, ordinary prefill, segmented prefill, and legacy mirror keep
-their previously measured kernels unchanged.
+BS=1 cases. It and `mirror_segmented` now launch the same mirror Prefill JIT;
+only their runtime metadata differs. Ordinary contiguous and segmented cases
+likewise launch the same ordinary Prefill JIT.
 
 The `baseline` kernel is frozen.  Later optimization rounds should edit only
 the clearly marked `candidate` section in
