@@ -822,6 +822,244 @@ def paged_prefill_small_q_grouped_kernel(
             )
 
 
+@triton.jit
+def paged_prefill_mid_q_grouped_kernel(
+    q_ptr,
+    key_cache_ptr,
+    value_cache_ptr,
+    o_ptr,
+    cu_q_lens_ptr,
+    seqlens_kv_ptr,
+    block_tables_ptr,
+    sinks_ptr,
+    batch_size,
+    stride_qt,
+    stride_qh,
+    stride_qd,
+    stride_k_block,
+    stride_k_blksz,
+    stride_k_dim,
+    stride_v_block,
+    stride_v_blksz,
+    stride_v_dim,
+    stride_ot,
+    stride_oh,
+    stride_od,
+    stride_bt_batch,
+    stride_bt_block,
+    stride_sink_head,
+    softmax_scale,
+    NUM_Q_HEADS: tl.constexpr,
+    HEADS_PER_GROUP: tl.constexpr,
+    NUM_HEAD_GROUPS: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    PAGE_SIZE: tl.constexpr,
+    BLOCK_SIZE_M: tl.constexpr,
+    BLOCK_SIZE_D: tl.constexpr,
+    BLOCK_SIZE_N: tl.constexpr,
+    Q_BUCKET: tl.constexpr,
+    SINK_ENABLED: tl.constexpr,
+):
+    """Run one of three fixed M5-M64 buckets with grouped GQA heads."""
+    tl.static_assert(
+        NUM_Q_HEADS == 6,
+        "mid-Q WeLM prefill requires six local Q heads",
+    )
+    tl.static_assert(
+        HEADS_PER_GROUP * NUM_HEAD_GROUPS == NUM_Q_HEADS,
+        "mid-Q head groups must cover all local Q heads",
+    )
+    GROUPED_ROWS: tl.constexpr = Q_BUCKET * HEADS_PER_GROUP
+    tl.static_assert(
+        GROUPED_ROWS <= BLOCK_SIZE_M,
+        "mid-Q grouped rows must fit the fixed M tile",
+    )
+    tl.static_assert(
+        GROUPED_ROWS == 48 or GROUPED_ROWS == 64,
+        "mid-Q buckets use 48 or 64 logical rows",
+    )
+    tl.static_assert(
+        BLOCK_SIZE_M == 64,
+        "mid-Q WeLM prefill uses one M64 Cube tile",
+    )
+    tl.static_assert(
+        PAGE_SIZE == BLOCK_SIZE_N,
+        "mid-Q WeLM prefill uses one page per KV tile",
+    )
+
+    pid = tl.program_id(0)
+    n_programs = tl.num_programs(0)
+    num_tasks = batch_size * NUM_HEAD_GROUPS
+    task_begin = pid * num_tasks // n_programs
+    task_end = (pid + 1) * num_tasks // n_programs
+
+    for task_id in range(task_begin, task_end):
+        b_id = task_id // NUM_HEAD_GROUPS
+        head_group_id = task_id - b_id * NUM_HEAD_GROUPS
+        head_base = head_group_id * HEADS_PER_GROUP
+        q_start = tl.load(cu_q_lens_ptr + b_id).to(tl.int32)
+        q_end = tl.load(cu_q_lens_ptr + b_id + 1).to(tl.int32)
+        q_seq_len = q_end - q_start
+        if q_seq_len.to(tl.float32) > 0.0:
+            row_ids = tl.arange(0, BLOCK_SIZE_M)
+            row_tokens = row_ids // HEADS_PER_GROUP
+            local_heads = row_ids - row_tokens * HEADS_PER_GROUP
+            q_head_ids = head_base + local_heads
+            valid_rows = (
+                row_ids.to(tl.float32) < GROUPED_ROWS
+            ) & (
+                row_tokens.to(tl.float32) < q_seq_len.to(tl.float32)
+            )
+            dim_offsets = tl.arange(0, BLOCK_SIZE_D)
+            q_ptrs = (
+                q_ptr
+                + (q_start + row_tokens[:, None]) * stride_qt
+                + q_head_ids[:, None] * stride_qh
+                + dim_offsets[None, :] * stride_qd
+            )
+            q = tl.load(q_ptrs, mask=valid_rows[:, None], other=0.0)
+
+            if SINK_ENABLED:
+                sink0 = tl.load(sinks_ptr).to(tl.float32)
+                sink1 = tl.load(sinks_ptr + stride_sink_head).to(tl.float32)
+                sink2 = tl.load(
+                    sinks_ptr + 2 * stride_sink_head
+                ).to(tl.float32)
+                sink3 = tl.load(
+                    sinks_ptr + 3 * stride_sink_head
+                ).to(tl.float32)
+                sink4 = tl.load(
+                    sinks_ptr + 4 * stride_sink_head
+                ).to(tl.float32)
+                sink5 = tl.load(
+                    sinks_ptr + 5 * stride_sink_head
+                ).to(tl.float32)
+                q_head_ids_fp32 = q_head_ids.to(tl.float32)
+                row_sink = tl.where(
+                    q_head_ids_fp32 < 1.0,
+                    sink0,
+                    tl.where(
+                        q_head_ids_fp32 < 2.0,
+                        sink1,
+                        tl.where(
+                            q_head_ids_fp32 < 3.0,
+                            sink2,
+                            tl.where(
+                                q_head_ids_fp32 < 4.0,
+                                sink3,
+                                tl.where(
+                                    q_head_ids_fp32 < 5.0,
+                                    sink4,
+                                    sink5,
+                                ),
+                            ),
+                        ),
+                    ),
+                )
+                m_i = tl.where(valid_rows, row_sink, -float("inf"))
+                l_i = tl.where(valid_rows, 1.0, 0.0).to(tl.float32)
+            else:
+                m_i = tl.full(
+                    (BLOCK_SIZE_M,), -float("inf"), tl.float32
+                )
+                l_i = tl.zeros((BLOCK_SIZE_M,), dtype=tl.float32)
+            acc = tl.zeros(
+                (BLOCK_SIZE_M, BLOCK_SIZE_D), dtype=tl.float32
+            )
+
+            kv_seq_len = tl.load(seqlens_kv_ptr + b_id).to(tl.int32)
+            kv_cache_len = kv_seq_len - q_seq_len
+            num_kv_blocks = tl.cdiv(kv_seq_len, BLOCK_SIZE_N)
+            for kv_block_id in range(0, num_kv_blocks):
+                kv_block_start = kv_block_id * BLOCK_SIZE_N
+                kv_block_end = min(
+                    kv_block_start + BLOCK_SIZE_N, kv_seq_len
+                )
+                kv_block_len = kv_block_end - kv_block_start
+                logical_page_id = min(
+                    kv_block_start // PAGE_SIZE,
+                    stride_bt_batch - 1,
+                )
+                physical_page_id = tl.load(
+                    block_tables_ptr
+                    + b_id * stride_bt_batch
+                    + logical_page_id * stride_bt_block
+                )
+                k_t_block_ptr = tl.make_block_ptr(
+                    base=(
+                        key_cache_ptr
+                        + physical_page_id * stride_k_block
+                    ),
+                    shape=(HEAD_DIM, kv_block_len),
+                    strides=(stride_k_dim, stride_k_blksz),
+                    offsets=(0, 0),
+                    block_shape=(BLOCK_SIZE_D, BLOCK_SIZE_N),
+                    order=(0, 1),
+                )
+                v_block_ptr = tl.make_block_ptr(
+                    base=(
+                        value_cache_ptr
+                        + physical_page_id * stride_v_block
+                    ),
+                    shape=(kv_block_len, HEAD_DIM),
+                    strides=(stride_v_blksz, stride_v_dim),
+                    offsets=(0, 0),
+                    block_shape=(BLOCK_SIZE_N, BLOCK_SIZE_D),
+                    order=(1, 0),
+                )
+                k_t = tl.load(
+                    k_t_block_ptr,
+                    boundary_check=(0, 1),
+                    padding_option="zero",
+                )
+                v = tl.load(
+                    v_block_ptr,
+                    boundary_check=(0, 1),
+                    padding_option="zero",
+                )
+                key_offsets = tl.arange(0, BLOCK_SIZE_N)
+                key_positions = kv_block_start + key_offsets
+                key_valid = (
+                    key_positions.to(tl.float32)
+                    < kv_seq_len.to(tl.float32)
+                )
+                query_positions = kv_cache_len + row_tokens
+                mask = (
+                    valid_rows[:, None]
+                    & key_valid[None, :]
+                    & (
+                        key_positions[None, :].to(tl.float32)
+                        <= query_positions[:, None].to(tl.float32)
+                    )
+                )
+                qk = tl.dot(q, k_t) * softmax_scale
+                qk = tl.where(mask, qk, -1e6)
+                m_ij = tl.maximum(
+                    m_i,
+                    tl.max(qk, 1, propagate_nan=True),
+                    propagate_nan=tl.PropagateNan.ALL,
+                )
+                p = tl.math.exp(qk - m_ij[:, None])
+                l_ij = tl.sum(p, 1)
+                alpha = tl.math.exp(m_i - m_ij)
+                l_i = l_i * alpha + l_ij
+                acc = acc * alpha[:, None]
+                acc = tl.dot(p.to(k_t.dtype), v, acc)
+                m_i = m_ij
+
+            o_ptrs = (
+                o_ptr
+                + (q_start + row_tokens[:, None]) * stride_ot
+                + q_head_ids[:, None] * stride_oh
+                + dim_offsets[None, :] * stride_od
+            )
+            tl.store(
+                o_ptrs,
+                (acc / l_i[:, None]).to(o_ptr.type.element_ty),
+                mask=valid_rows[:, None],
+            )
+
+
 def paged_attention_prefill_prepare(
     cu_q_lens,
     seqlens_kv,
@@ -955,6 +1193,71 @@ def paged_attention_prefill_impl(
             BLOCK_SIZE_D=head_dim,
             BLOCK_SIZE_N=page_size,
             MAX_Q_LEN=max_q_len,
+            SINK_ENABLED=sink_enabled,
+        )
+        return o
+
+    use_grouped_mid_q = (
+        q.dtype != torch.float32
+        and seqlens_kv is not None
+        and max_q_len is not None
+        and 5 <= max_q_len <= 64
+        and not gqa_interleave
+        and num_kv_heads == 1
+        and num_q_heads == 6
+        and page_size == 64
+        and q.stride(0) == num_q_heads * q.stride(1)
+        and o.stride(0) == num_q_heads * o.stride(1)
+    )
+    if use_grouped_mid_q:
+        if max_q_len <= 8:
+            q_bucket = 8
+            heads_per_group = 6
+        elif max_q_len <= 32:
+            q_bucket = 32
+            heads_per_group = 2
+        else:
+            q_bucket = 64
+            heads_per_group = 1
+        num_head_groups = num_q_heads // heads_per_group
+        grouped_grid = (
+            min(cube_num, batch_size * num_head_groups),
+        )
+        paged_prefill_mid_q_grouped_kernel[grouped_grid](
+            q,
+            key_cache,
+            value_cache,
+            o,
+            cu_q_lens,
+            seqlens_kv,
+            block_tables_i32,
+            sinks_pass,
+            batch_size,
+            q.stride(0),
+            q.stride(1),
+            q.stride(2),
+            key_cache.stride(0),
+            key_cache.stride(2),
+            key_cache.stride(3),
+            value_cache.stride(0),
+            value_cache.stride(2),
+            value_cache.stride(3),
+            o.stride(0),
+            o.stride(1),
+            o.stride(2),
+            block_tables_i32.stride(0),
+            block_tables_i32.stride(1),
+            sinks_pass.stride(0),
+            softmax_scale,
+            NUM_Q_HEADS=num_q_heads,
+            HEADS_PER_GROUP=heads_per_group,
+            NUM_HEAD_GROUPS=num_head_groups,
+            HEAD_DIM=head_dim,
+            PAGE_SIZE=page_size,
+            BLOCK_SIZE_M=64,
+            BLOCK_SIZE_D=head_dim,
+            BLOCK_SIZE_N=page_size,
+            Q_BUCKET=q_bucket,
             SINK_ENABLED=sink_enabled,
         )
         return o
