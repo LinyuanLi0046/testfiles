@@ -745,8 +745,10 @@ def paged_prefill_verify_grouped_kernel(
             kv_cache_len = kv_seq_len - q_seq_len
             num_kv_blocks = tl.cdiv(kv_seq_len, BLOCK_SIZE_N)
             # N=128 is assembled from two physical 64-token pages.  K scoring
-            # finishes before V becomes live, so even the conservative D=4
-            # insert-slice peak stays below 184 KiB of the 248 KiB UB.
+            # finishes before V becomes live, so the conservative D=4 peak is
+            # below 184 KiB of the 248 KiB UB.  join/trans/reshape preserves
+            # page order while keeping a compiler-visible allocation root for
+            # the tensor consumed by tl.dot (insert_slice does not on Ascend).
             for kv_block_id in range(0, num_kv_blocks):
                 kv_block_start = kv_block_id * BLOCK_SIZE_N
                 page0_start = kv_block_start
@@ -800,23 +802,10 @@ def paged_prefill_verify_grouped_kernel(
                     boundary_check=(0, 1),
                     padding_option="zero",
                 )
-                k = tl.zeros(
-                    (BLOCK_SIZE_N, BLOCK_SIZE_D),
-                    dtype=key_cache_ptr.dtype.element_ty,
-                )
-                k = tl.extra.cann.extension.insert_slice(
-                    k,
-                    k0,
-                    offsets=(0, 0),
-                    sizes=(PAGE_SIZE, BLOCK_SIZE_D),
-                    strides=(1, 1),
-                )
-                k = tl.extra.cann.extension.insert_slice(
-                    k,
-                    k1,
-                    offsets=(PAGE_SIZE, 0),
-                    sizes=(PAGE_SIZE, BLOCK_SIZE_D),
-                    strides=(1, 1),
+                k = (
+                    tl.join(k0, k1)
+                    .trans(2, 0, 1)
+                    .reshape(BLOCK_SIZE_N, BLOCK_SIZE_D)
                 )
                 k_t = tl.trans(k)
 
@@ -892,23 +881,10 @@ def paged_prefill_verify_grouped_kernel(
                     boundary_check=(0, 1),
                     padding_option="zero",
                 )
-                v = tl.zeros(
-                    (BLOCK_SIZE_N, BLOCK_SIZE_D),
-                    dtype=value_cache_ptr.dtype.element_ty,
-                )
-                v = tl.extra.cann.extension.insert_slice(
-                    v,
-                    v0,
-                    offsets=(0, 0),
-                    sizes=(PAGE_SIZE, BLOCK_SIZE_D),
-                    strides=(1, 1),
-                )
-                v = tl.extra.cann.extension.insert_slice(
-                    v,
-                    v1,
-                    offsets=(PAGE_SIZE, 0),
-                    sizes=(PAGE_SIZE, BLOCK_SIZE_D),
-                    strides=(1, 1),
+                v = (
+                    tl.join(v0, v1)
+                    .trans(2, 0, 1)
+                    .reshape(BLOCK_SIZE_N, BLOCK_SIZE_D)
                 )
                 acc0 = _full_verify_grouped_value(p0, v, acc0, alpha0)
                 if VERIFY_WIDTH >= 2:
