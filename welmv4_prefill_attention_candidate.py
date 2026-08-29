@@ -917,7 +917,7 @@ def paged_prefill_verify_split_kernel(
             for kv_block_id in range(0, num_kv_blocks):
                 kv_block_start = kv_start + kv_block_id * BLOCK_SIZE_N
                 kv_block_end = min(
-                    kv_block_start + BLOCK_SIZE_N, kv_end
+                    kv_block_start + BLOCK_SIZE_N, kv_seq_len
                 )
                 kv_block_len = kv_block_end - kv_block_start
                 logical_page_id = min(
@@ -959,13 +959,14 @@ def paged_prefill_verify_split_kernel(
 
                 key_offsets = tl.arange(0, BLOCK_SIZE_N)
                 key_positions = kv_block_start + key_offsets
+                key_valid = (
+                    key_positions.to(tl.float32)
+                    < kv_seq_len.to(tl.float32)
+                )
                 query_positions = kv_cache_len + row_tokens
                 mask = (
                     valid_rows[:, None]
-                    & (
-                        key_positions[None, :].to(tl.float32)
-                        < kv_end.to(tl.float32)
-                    )
+                    & key_valid[None, :]
                     & (
                         key_positions[None, :].to(tl.float32)
                         <= query_positions[:, None].to(tl.float32)
