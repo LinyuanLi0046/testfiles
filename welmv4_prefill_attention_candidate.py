@@ -994,19 +994,25 @@ def paged_prefill_verify_split_kernel(
                 m_i + tl.math.log(l_i_safe),
                 -float("inf"),
             )
-            acc_ptrs = (
-                acc_ws_ptr
-                + task_id * stride_acc_task
-                + row_ids[:, None] * stride_acc_row
-                + dim_offsets[None, :] * stride_acc_dim
+            # The workspace is contiguous in (row, dim).  A block-pointer
+            # store avoids materializing a BLOCK_M x D int64 address tensor
+            # in UB, which is especially costly for D=3/4 (BLOCK_M=32).
+            acc_block_ptr = tl.make_block_ptr(
+                base=acc_ws_ptr + task_id * stride_acc_task,
+                shape=(BLOCK_SIZE_M, HEAD_DIM),
+                strides=(stride_acc_row, stride_acc_dim),
+                offsets=(0, 0),
+                block_shape=(BLOCK_SIZE_M, BLOCK_SIZE_D),
+                order=(1, 0),
             )
             lse_ptrs = (
                 lse_ws_ptr
                 + task_id * stride_lse_task
                 + row_ids * stride_lse_row
             )
-            tl.store(acc_ptrs, partial, mask=valid_rows[:, None])
-            tl.store(lse_ptrs, lse, mask=valid_rows)
+            partial = tl.where(valid_rows[:, None], partial, 0.0)
+            tl.store(acc_block_ptr, partial)
+            tl.store(lse_ptrs, lse)
 
 
 @triton.jit
@@ -1017,6 +1023,7 @@ def paged_prefill_verify_split_reduce_kernel(
     cu_q_lens_ptr,
     sinks_ptr,
     batch_size,
+    kv_split_parts,
     stride_acc_task,
     stride_acc_row,
     stride_acc_dim,
@@ -1031,7 +1038,6 @@ def paged_prefill_verify_split_reduce_kernel(
     BLOCK_SIZE_M: tl.constexpr,
     BLOCK_SIZE_D: tl.constexpr,
     VERIFY_WIDTH: tl.constexpr,
-    KV_SPLIT_PARTS: tl.constexpr,
     SINK_ENABLED: tl.constexpr,
 ):
     """Phase 2: merge four partial online-softmax states and one sink."""
@@ -1040,11 +1046,6 @@ def paged_prefill_verify_split_reduce_kernel(
         NUM_Q_HEADS == 6,
         "split WeLM full verify reduce requires six local Q heads",
     )
-    tl.static_assert(
-        KV_SPLIT_PARTS == 4,
-        "split WeLM full verify reduce requires four KV parts",
-    )
-
     pid = tl.program_id(0)
     n_programs = tl.num_programs(0)
     b_begin = pid * batch_size // n_programs
@@ -1058,40 +1059,24 @@ def paged_prefill_verify_split_reduce_kernel(
             row_tokens = row_ids // NUM_Q_HEADS
             row_heads = row_ids - row_tokens * NUM_Q_HEADS
             row_heads_f32 = row_heads.to(tl.float32)
-            dim_offsets = tl.arange(0, BLOCK_SIZE_D)
-            task0 = b_id * KV_SPLIT_PARTS
+            task0 = b_id * kv_split_parts
 
-            lse0 = tl.load(
-                lse_ws_ptr
-                + task0 * stride_lse_task
-                + row_ids * stride_lse_row,
-                mask=valid_rows,
-                other=-float("inf"),
+            # Keep the split count as a runtime scalar here.  A constexpr
+            # four-way expression makes BiShengIR retain four FP32 partials
+            # and four 2-D address tensors simultaneously (~393 KiB UB for
+            # BLOCK_M=32).  The runtime loops reuse one contiguous tile.
+            lse_max = tl.full(
+                (BLOCK_SIZE_M,), -float("inf"), tl.float32
             )
-            lse1 = tl.load(
-                lse_ws_ptr
-                + (task0 + 1) * stride_lse_task
-                + row_ids * stride_lse_row,
-                mask=valid_rows,
-                other=-float("inf"),
-            )
-            lse2 = tl.load(
-                lse_ws_ptr
-                + (task0 + 2) * stride_lse_task
-                + row_ids * stride_lse_row,
-                mask=valid_rows,
-                other=-float("inf"),
-            )
-            lse3 = tl.load(
-                lse_ws_ptr
-                + (task0 + 3) * stride_lse_task
-                + row_ids * stride_lse_row,
-                mask=valid_rows,
-                other=-float("inf"),
-            )
-            lse_max = tl.maximum(
-                tl.maximum(lse0, lse1), tl.maximum(lse2, lse3)
-            )
+            for split_idx in range(0, kv_split_parts):
+                split_lse = tl.load(
+                    lse_ws_ptr
+                    + (task0 + split_idx) * stride_lse_task
+                    + row_ids * stride_lse_row,
+                    mask=valid_rows,
+                    other=-float("inf"),
+                )
+                lse_max = tl.maximum(lse_max, split_lse)
 
             sink_weight = tl.zeros((BLOCK_SIZE_M,), dtype=tl.float32)
             if SINK_ENABLED:
@@ -1121,47 +1106,46 @@ def paged_prefill_verify_split_reduce_kernel(
                 lse_max = tl.maximum(lse_max, row_sink)
                 sink_weight = tl.math.exp(row_sink - lse_max)
 
-            w0 = tl.math.exp(lse0 - lse_max)
-            w1 = tl.math.exp(lse1 - lse_max)
-            w2 = tl.math.exp(lse2 - lse_max)
-            w3 = tl.math.exp(lse3 - lse_max)
-            denom = w0 + w1 + w2 + w3 + sink_weight
-
-            acc_ptrs = (
-                acc_ws_ptr
-                + task0 * stride_acc_task
-                + row_ids[:, None] * stride_acc_row
-                + dim_offsets[None, :] * stride_acc_dim
+            denom = sink_weight
+            merged = tl.zeros(
+                (BLOCK_SIZE_M, BLOCK_SIZE_D), dtype=tl.float32
             )
-            merged = tl.load(
-                acc_ptrs, mask=valid_rows[:, None], other=0.0
-            ) * w0[:, None]
-            merged = merged + tl.load(
-                acc_ptrs + stride_acc_task,
-                mask=valid_rows[:, None],
-                other=0.0,
-            ) * w1[:, None]
-            merged = merged + tl.load(
-                acc_ptrs + 2 * stride_acc_task,
-                mask=valid_rows[:, None],
-                other=0.0,
-            ) * w2[:, None]
-            merged = merged + tl.load(
-                acc_ptrs + 3 * stride_acc_task,
-                mask=valid_rows[:, None],
-                other=0.0,
-            ) * w3[:, None]
+            for split_idx in range(0, kv_split_parts):
+                split_lse = tl.load(
+                    lse_ws_ptr
+                    + (task0 + split_idx) * stride_lse_task
+                    + row_ids * stride_lse_row,
+                    mask=valid_rows,
+                    other=-float("inf"),
+                )
+                weight = tl.math.exp(split_lse - lse_max)
+                acc_block_ptr = tl.make_block_ptr(
+                    base=(
+                        acc_ws_ptr
+                        + (task0 + split_idx) * stride_acc_task
+                    ),
+                    shape=(BLOCK_SIZE_M, HEAD_DIM),
+                    strides=(stride_acc_row, stride_acc_dim),
+                    offsets=(0, 0),
+                    block_shape=(BLOCK_SIZE_M, BLOCK_SIZE_D),
+                    order=(1, 0),
+                )
+                partial = tl.load(acc_block_ptr)
+                merged = merged + partial * weight[:, None]
+                denom = denom + weight
 
-            o_ptrs = (
-                o_ptr
-                + q_start * stride_ot
-                + row_ids[:, None] * stride_oh
-                + dim_offsets[None, :] * stride_od
+            o_block_ptr = tl.make_block_ptr(
+                base=o_ptr + q_start * stride_ot,
+                shape=(GROUPED_ROWS, HEAD_DIM),
+                strides=(stride_oh, stride_od),
+                offsets=(0, 0),
+                block_shape=(BLOCK_SIZE_M, BLOCK_SIZE_D),
+                order=(1, 0),
             )
             tl.store(
-                o_ptrs,
+                o_block_ptr,
                 (merged / denom[:, None]).to(o_ptr.type.element_ty),
-                mask=valid_rows[:, None],
+                boundary_check=(0, 1),
             )
 
 
@@ -1338,6 +1322,7 @@ def paged_attention_prefill_impl(
                 cu_q_lens,
                 sinks_pass,
                 batch_size,
+                kv_split_parts,
                 acc_ws.stride(0),
                 acc_ws.stride(1),
                 acc_ws.stride(2),
@@ -1352,7 +1337,6 @@ def paged_attention_prefill_impl(
                 BLOCK_SIZE_M=block_size_m,
                 BLOCK_SIZE_D=head_dim,
                 VERIFY_WIDTH=verify_width,
-                KV_SPLIT_PARTS=kv_split_parts,
                 SINK_ENABLED=sink_enabled,
             )
             return o
