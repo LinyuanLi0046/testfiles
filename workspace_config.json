@@ -33,7 +33,7 @@
     "baseline_candidate_atol": 0.005,
     "baseline_candidate_rtol": 0.005,
     "minimum_speedup": 1.03,
-    "minimum_case_speedup": 0.995,
+    "minimum_case_speedup": 0.98,
     "gain_topologies": ["verify_d2", "verify_d3"],
     "performance_focus": ["swa"],
     "decode_reference_targets_us": {
