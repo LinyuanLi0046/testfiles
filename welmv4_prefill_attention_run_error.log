@@ -1,11 +1,11 @@
-time: 2026-08-29T22:43:42+08:00
-command: /usr/local/python3.11.10/bin/python bench_welmv4_prefill_attention_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_attn_result_15dnjksu
+time: 2026-08-29T23:19:47+08:00
+command: /usr/local/python3.11.10/bin/python bench_welmv4_prefill_attention_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_attn_result_wtj88bch
 return_code: 3
 reason: benchmark exited with status 3; manifest_status=ERROR
 
 ===== stdout + stderr =====
 WeLMv4 NPU Full/SWA prefill Attention optimization workspace
-device=npu:5 (Ascend950PR_957b), base=dbdc4f0a3571, baseline=c47f9bdcfb87, candidate=61833913fc8b
+device=npu:5 (Ascend950PR_957b), base=492ddc710a68, baseline=c47f9bdcfb87, candidate=905d7fe8648f
 [correctness 1/215] full_dense_m1_kv63_uniform_compact_tp4
   PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 2/215] full_dense_m1_kv64_uniform_compact_tp4
@@ -33,6 +33,22 @@ device=npu:5 (Ascend950PR_957b), base=dbdc4f0a3571, baseline=c47f9bdcfb87, candi
 [correctness 12/215] full_ragged_prefill_b56_m1024_kv4096_ragged_compact_tp4
   PASS: candidate max_abs=0.00195312, pair max_abs=0
 [correctness 13/215] swa_ragged_prefill_b7_m129_kv4096_ragged_compact_tp4
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
   PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 14/215] swa_ragged_prefill_b32_m513_kv8192_ragged_compact_tp4
   PASS: candidate max_abs=0.00390625, pair max_abs=0
@@ -99,6 +115,22 @@ device=npu:5 (Ascend950PR_957b), base=dbdc4f0a3571, baseline=c47f9bdcfb87, candi
 [correctness 45/215] swa_dense_m2_kv4096_uniform_compact_tp4
   PASS: candidate max_abs=0.00195312, pair max_abs=0.00195312
 [correctness 46/215] swa_dense_m3_kv4096_uniform_compact_tp4
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
   PASS: candidate max_abs=0.00195312, pair max_abs=0
 [correctness 47/215] swa_dense_m7_kv4096_uniform_compact_tp4
   PASS: candidate max_abs=0.00195312, pair max_abs=0
@@ -438,180 +470,183 @@ device=npu:5 (Ascend950PR_957b), base=dbdc4f0a3571, baseline=c47f9bdcfb87, candi
   PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
 [correctness 215/215] swa_graph_d3_bcap56_m120_kv4096_ragged_graph_tp4
   PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[performance 1/167] full_verify_d2_m2_kv4096_uniform_compact_tp4
-[performance 2/167] full_verify_d2_m96_kv4096_uniform_compact_tp4
-[performance 3/167] full_verify_d3_m144_kv4096_uniform_compact_tp4
-[performance 4/167] full_verify_d2_m112_kv4096_uniform_compact_tp4
-[performance 5/167] full_verify_d3_m168_kv4096_uniform_compact_tp4
-[performance 6/167] full_dense_m1024_kv4096_uniform_compact_tp4
-[performance 7/167] full_dense_m1024_kv16896_ragged_compact_tp4
-[performance 8/167] full_ragged_prefill_b16_m257_kv4096_ragged_compact_tp4
-[performance 9/167] full_verify_d2_m112_kv11264_ragged_compact_tp4
-[performance 10/167] full_verify_d2_m112_kv16896_ragged_compact_tp4
-[performance 11/167] full_verify_d2_m112_kv26624_ragged_compact_tp4
-[performance 12/167] full_verify_d2_m96_kv11264_ragged_compact_tp4
-[performance 13/167] full_verify_d2_m96_kv16896_ragged_compact_tp4
-[performance 14/167] full_verify_d2_m96_kv26624_ragged_compact_tp4
-[performance 15/167] swa_verify_d2_m2_kv4096_uniform_compact_tp4
-[performance 16/167] swa_verify_d2_m96_kv4096_uniform_compact_tp4
-[performance 17/167] swa_verify_d3_m144_kv4096_uniform_compact_tp4
-[performance 18/167] swa_verify_d2_m112_kv4096_uniform_compact_tp4
-[performance 19/167] swa_verify_d3_m168_kv4096_uniform_compact_tp4
-[performance 20/167] swa_dense_m1024_kv4096_uniform_compact_tp4
-[performance 21/167] swa_dense_m1024_kv16896_ragged_compact_tp4
-[performance 22/167] swa_ragged_prefill_b16_m257_kv4096_ragged_compact_tp4
-[performance 23/167] swa_verify_d2_m112_kv11264_ragged_compact_tp4
-[performance 24/167] swa_verify_d2_m112_kv16896_ragged_compact_tp4
-[performance 25/167] swa_verify_d2_m112_kv26624_ragged_compact_tp4
-[performance 26/167] full_dense_m1_kv4096_uniform_compact_tp4
-[performance 27/167] full_dense_m2_kv4096_uniform_compact_tp4
-[performance 28/167] full_dense_m3_kv4096_uniform_compact_tp4
-[performance 29/167] full_dense_m4_kv4096_uniform_compact_tp4
-[performance 30/167] full_dense_m5_kv4096_uniform_compact_tp4
-[performance 31/167] full_dense_m7_kv4096_uniform_compact_tp4
-[performance 32/167] full_dense_m15_kv4096_uniform_compact_tp4
-[performance 33/167] full_dense_m16_kv4096_uniform_compact_tp4
-[performance 34/167] full_dense_m17_kv4096_uniform_compact_tp4
-[performance 35/167] full_dense_m23_kv4096_uniform_compact_tp4
-[performance 36/167] full_dense_m31_kv4096_uniform_compact_tp4
-[performance 37/167] full_dense_m32_kv4096_uniform_compact_tp4
-[performance 38/167] full_dense_m33_kv4096_uniform_compact_tp4
-[performance 39/167] full_dense_m37_kv4096_uniform_compact_tp4
-[performance 40/167] full_dense_m47_kv4096_uniform_compact_tp4
-[performance 41/167] full_dense_m48_kv4096_uniform_compact_tp4
-[performance 42/167] full_dense_m49_kv4096_uniform_compact_tp4
-[performance 43/167] full_dense_m63_kv4096_uniform_compact_tp4
-[performance 44/167] full_dense_m64_kv4096_uniform_compact_tp4
-[performance 45/167] full_dense_m65_kv4096_uniform_compact_tp4
-[performance 46/167] full_dense_m73_kv4096_uniform_compact_tp4
-[performance 47/167] full_dense_m95_kv4096_uniform_compact_tp4
-[performance 48/167] full_dense_m111_kv4096_uniform_compact_tp4
-[performance 49/167] full_dense_m127_kv4096_uniform_compact_tp4
-[performance 50/167] full_dense_m128_kv4096_uniform_compact_tp4
-[performance 51/167] swa_dense_m1_kv4096_uniform_compact_tp4
-[performance 52/167] swa_dense_m2_kv4096_uniform_compact_tp4
-[performance 53/167] swa_dense_m3_kv4096_uniform_compact_tp4
-[performance 54/167] swa_dense_m4_kv4096_uniform_compact_tp4
-[performance 55/167] swa_dense_m5_kv4096_uniform_compact_tp4
-[performance 56/167] swa_dense_m7_kv4096_uniform_compact_tp4
-[performance 57/167] swa_dense_m15_kv4096_uniform_compact_tp4
-[performance 58/167] swa_dense_m16_kv4096_uniform_compact_tp4
-[performance 59/167] swa_dense_m17_kv4096_uniform_compact_tp4
-[performance 60/167] swa_dense_m23_kv4096_uniform_compact_tp4
-[performance 61/167] swa_dense_m31_kv4096_uniform_compact_tp4
-[performance 62/167] swa_dense_m32_kv4096_uniform_compact_tp4
-[performance 63/167] swa_dense_m33_kv4096_uniform_compact_tp4
-[performance 64/167] swa_dense_m37_kv4096_uniform_compact_tp4
-[performance 65/167] swa_dense_m47_kv4096_uniform_compact_tp4
-[performance 66/167] swa_dense_m48_kv4096_uniform_compact_tp4
-[performance 67/167] swa_dense_m49_kv4096_uniform_compact_tp4
-[performance 68/167] swa_dense_m63_kv4096_uniform_compact_tp4
-[performance 69/167] swa_dense_m64_kv4096_uniform_compact_tp4
-[performance 70/167] swa_dense_m65_kv4096_uniform_compact_tp4
-[performance 71/167] swa_dense_m73_kv4096_uniform_compact_tp4
-[performance 72/167] swa_dense_m95_kv4096_uniform_compact_tp4
-[performance 73/167] swa_dense_m111_kv4096_uniform_compact_tp4
-[performance 74/167] swa_dense_m127_kv4096_uniform_compact_tp4
-[performance 75/167] swa_dense_m128_kv4096_uniform_compact_tp4
-[performance 76/167] full_dense_m129_kv4096_uniform_compact_tp4
-[performance 77/167] full_dense_m191_kv4096_uniform_compact_tp4
-[performance 78/167] full_dense_m192_kv4096_uniform_compact_tp4
-[performance 79/167] full_dense_m193_kv4096_uniform_compact_tp4
-[performance 80/167] full_dense_m255_kv4096_uniform_compact_tp4
-[performance 81/167] full_dense_m256_kv4096_uniform_compact_tp4
-[performance 82/167] full_dense_m257_kv4096_uniform_compact_tp4
-[performance 83/167] full_dense_m383_kv4096_uniform_compact_tp4
-[performance 84/167] full_dense_m511_kv4096_uniform_compact_tp4
-[performance 85/167] full_dense_m512_kv4096_uniform_compact_tp4
-[performance 86/167] full_dense_m513_kv4096_uniform_compact_tp4
-[performance 87/167] full_dense_m641_kv4096_uniform_compact_tp4
-[performance 88/167] full_dense_m767_kv4096_uniform_compact_tp4
-[performance 89/167] full_dense_m1023_kv4096_uniform_compact_tp4
-[performance 90/167] swa_dense_m129_kv4096_uniform_compact_tp4
-[performance 91/167] swa_dense_m191_kv4096_uniform_compact_tp4
-[performance 92/167] swa_dense_m192_kv4096_uniform_compact_tp4
-[performance 93/167] swa_dense_m193_kv4096_uniform_compact_tp4
-[performance 94/167] swa_dense_m255_kv4096_uniform_compact_tp4
-[performance 95/167] swa_dense_m256_kv4096_uniform_compact_tp4
-[performance 96/167] swa_dense_m257_kv4096_uniform_compact_tp4
-[performance 97/167] swa_dense_m383_kv4096_uniform_compact_tp4
-[performance 98/167] swa_dense_m511_kv4096_uniform_compact_tp4
-[performance 99/167] swa_dense_m512_kv4096_uniform_compact_tp4
-[performance 100/167] swa_dense_m513_kv4096_uniform_compact_tp4
-[performance 101/167] swa_dense_m641_kv4096_uniform_compact_tp4
-[performance 102/167] swa_dense_m767_kv4096_uniform_compact_tp4
-[performance 103/167] swa_dense_m1023_kv4096_uniform_compact_tp4
-[performance 104/167] full_ragged_prefill_b7_m15_kv4096_ragged_compact_tp4
-[performance 105/167] full_ragged_prefill_b7_m37_kv4096_ragged_compact_tp4
-[performance 106/167] full_ragged_prefill_b7_m63_kv4096_ragged_compact_tp4
-[performance 107/167] full_ragged_prefill_b7_m127_kv4096_ragged_compact_tp4
-[performance 108/167] swa_ragged_prefill_b7_m15_kv4096_ragged_compact_tp4
-[performance 109/167] swa_ragged_prefill_b7_m37_kv4096_ragged_compact_tp4
-[performance 110/167] swa_ragged_prefill_b7_m63_kv4096_ragged_compact_tp4
-[performance 111/167] swa_ragged_prefill_b7_m127_kv4096_ragged_compact_tp4
-[performance 112/167] full_ragged_prefill_b16_m48_kv4096_ragged_compact_tp4
-[performance 113/167] full_ragged_prefill_b16_m73_kv4096_ragged_compact_tp4
-[performance 114/167] full_ragged_prefill_b16_m128_kv4096_ragged_compact_tp4
-[performance 115/167] full_ragged_prefill_b16_m513_kv4096_ragged_compact_tp4
-[performance 116/167] full_ragged_prefill_b16_m1024_kv4096_ragged_compact_tp4
-[performance 117/167] swa_ragged_prefill_b16_m48_kv4096_ragged_compact_tp4
-[performance 118/167] swa_ragged_prefill_b16_m73_kv4096_ragged_compact_tp4
-[performance 119/167] swa_ragged_prefill_b16_m128_kv4096_ragged_compact_tp4
-[performance 120/167] swa_ragged_prefill_b16_m513_kv4096_ragged_compact_tp4
-[performance 121/167] swa_ragged_prefill_b16_m1024_kv4096_ragged_compact_tp4
-[performance 122/167] full_ragged_prefill_b56_m128_kv4096_ragged_compact_tp4
-[performance 123/167] full_ragged_prefill_b56_m257_kv4096_ragged_compact_tp4
-[performance 124/167] full_ragged_prefill_b56_m511_kv4096_ragged_compact_tp4
-[performance 125/167] full_ragged_prefill_b56_m1024_kv4096_ragged_compact_tp4
-[performance 126/167] swa_ragged_prefill_b56_m128_kv4096_ragged_compact_tp4
-[performance 127/167] swa_ragged_prefill_b56_m257_kv4096_ragged_compact_tp4
-[performance 128/167] swa_ragged_prefill_b56_m511_kv4096_ragged_compact_tp4
-[performance 129/167] swa_ragged_prefill_b56_m1024_kv4096_ragged_compact_tp4
-[performance 130/167] full_verify_d2_m128_kv4096_uniform_compact_tp4
-[performance 131/167] full_verify_d2_m130_kv4096_uniform_compact_tp4
-[performance 132/167] full_verify_d2_m256_kv4096_uniform_compact_tp4
-[performance 133/167] full_verify_d2_m512_kv4096_uniform_compact_tp4
-[performance 134/167] full_verify_d2_m1024_kv4096_uniform_compact_tp4
-[performance 135/167] swa_verify_d2_m128_kv4096_uniform_compact_tp4
-[performance 136/167] swa_verify_d2_m130_kv4096_uniform_compact_tp4
-[performance 137/167] swa_verify_d2_m256_kv4096_uniform_compact_tp4
-[performance 138/167] swa_verify_d2_m512_kv4096_uniform_compact_tp4
-[performance 139/167] swa_verify_d2_m1024_kv4096_uniform_compact_tp4
-[performance 140/167] full_verify_d3_m129_kv4096_uniform_compact_tp4
-[performance 141/167] full_verify_d3_m255_kv4096_uniform_compact_tp4
-[performance 142/167] full_verify_d3_m513_kv4096_uniform_compact_tp4
-[performance 143/167] full_verify_d3_m1023_kv4096_uniform_compact_tp4
-[performance 144/167] swa_verify_d3_m129_kv4096_uniform_compact_tp4
-[performance 145/167] swa_verify_d3_m255_kv4096_uniform_compact_tp4
-[performance 146/167] swa_verify_d3_m513_kv4096_uniform_compact_tp4
-[performance 147/167] swa_verify_d3_m1023_kv4096_uniform_compact_tp4
-[performance 148/167] full_dense_m64_kv16896_ragged_compact_tp4
-[performance 149/167] full_dense_m257_kv16896_ragged_compact_tp4
-[performance 150/167] full_dense_m64_kv26624_ragged_compact_tp4
-[performance 151/167] full_dense_m257_kv26624_ragged_compact_tp4
-[performance 152/167] swa_dense_m64_kv16896_ragged_compact_tp4
-[performance 153/167] swa_dense_m257_kv16896_ragged_compact_tp4
-[performance 154/167] swa_dense_m64_kv26624_ragged_compact_tp4
-[performance 155/167] swa_dense_m257_kv26624_ragged_compact_tp4
-[performance 156/167] full_ragged_prefill_b16_m64_kv11264_ragged_compact_tp4
-[performance 157/167] full_ragged_prefill_b16_m257_kv11264_ragged_compact_tp4
-[performance 158/167] full_ragged_prefill_b16_m64_kv16896_ragged_compact_tp4
-[performance 159/167] full_ragged_prefill_b16_m257_kv16896_ragged_compact_tp4
-[performance 160/167] full_ragged_prefill_b16_m64_kv26624_ragged_compact_tp4
-[performance 161/167] full_ragged_prefill_b16_m257_kv26624_ragged_compact_tp4
-[performance 162/167] swa_ragged_prefill_b16_m64_kv11264_ragged_compact_tp4
-[performance 163/167] swa_ragged_prefill_b16_m257_kv11264_ragged_compact_tp4
-[performance 164/167] swa_ragged_prefill_b16_m64_kv16896_ragged_compact_tp4
-[performance 165/167] swa_ragged_prefill_b16_m257_kv16896_ragged_compact_tp4
-[performance 166/167] swa_ragged_prefill_b16_m64_kv26624_ragged_compact_tp4
-[performance 167/167] swa_ragged_prefill_b16_m257_kv26624_ragged_compact_tp4
+[performance 1/169] full_verify_d2_m2_kv4096_uniform_compact_tp4
+[performance 2/169] full_verify_d2_m96_kv4096_uniform_compact_tp4
+[performance 3/169] full_verify_d3_m144_kv4096_uniform_compact_tp4
+[performance 4/169] full_verify_d2_m112_kv4096_uniform_compact_tp4
+[performance 5/169] full_verify_d3_m168_kv4096_uniform_compact_tp4
+[performance 6/169] full_dense_m1024_kv4096_uniform_compact_tp4
+[performance 7/169] full_dense_m1024_kv16896_ragged_compact_tp4
+[performance 8/169] full_ragged_prefill_b16_m257_kv4096_ragged_compact_tp4
+[performance 9/169] full_verify_d2_m112_kv11264_ragged_compact_tp4
+[performance 10/169] full_verify_d2_m112_kv16896_ragged_compact_tp4
+[performance 11/169] full_verify_d2_m112_kv26624_ragged_compact_tp4
+[performance 12/169] full_verify_d2_m96_kv11264_ragged_compact_tp4
+[performance 13/169] full_verify_d2_m96_kv16896_ragged_compact_tp4
+[performance 14/169] full_verify_d2_m96_kv26624_ragged_compact_tp4
+[performance 15/169] swa_verify_d2_m2_kv4096_uniform_compact_tp4
+[performance 16/169] swa_verify_d2_m96_kv4096_uniform_compact_tp4
+[performance 17/169] swa_verify_d3_m144_kv4096_uniform_compact_tp4
+[performance 18/169] swa_verify_d2_m112_kv4096_uniform_compact_tp4
+[performance 19/169] swa_verify_d3_m168_kv4096_uniform_compact_tp4
+[performance 20/169] swa_dense_m1024_kv4096_uniform_compact_tp4
+[performance 21/169] swa_dense_m1024_kv16896_ragged_compact_tp4
+[performance 22/169] swa_ragged_prefill_b16_m257_kv4096_ragged_compact_tp4
+[performance 23/169] swa_verify_d2_m112_kv11264_ragged_compact_tp4
+[performance 24/169] swa_verify_d2_m112_kv16896_ragged_compact_tp4
+[performance 25/169] swa_verify_d2_m112_kv26624_ragged_compact_tp4
+[performance 26/169] full_dense_m1_kv4096_uniform_compact_tp4
+[performance 27/169] full_dense_m2_kv4096_uniform_compact_tp4
+[performance 28/169] full_dense_m3_kv4096_uniform_compact_tp4
+[performance 29/169] full_dense_m4_kv4096_uniform_compact_tp4
+[performance 30/169] full_dense_m5_kv4096_uniform_compact_tp4
+[performance 31/169] full_dense_m7_kv4096_uniform_compact_tp4
+[performance 32/169] full_dense_m8_kv4096_uniform_compact_tp4
+[performance 33/169] full_dense_m15_kv4096_uniform_compact_tp4
+[performance 34/169] full_dense_m16_kv4096_uniform_compact_tp4
+[performance 35/169] full_dense_m17_kv4096_uniform_compact_tp4
+[performance 36/169] full_dense_m23_kv4096_uniform_compact_tp4
+[performance 37/169] full_dense_m31_kv4096_uniform_compact_tp4
+[performance 38/169] full_dense_m32_kv4096_uniform_compact_tp4
+[performance 39/169] full_dense_m33_kv4096_uniform_compact_tp4
+[performance 40/169] full_dense_m37_kv4096_uniform_compact_tp4
+[performance 41/169] full_dense_m47_kv4096_uniform_compact_tp4
+[performance 42/169] full_dense_m48_kv4096_uniform_compact_tp4
+[performance 43/169] full_dense_m49_kv4096_uniform_compact_tp4
+[performance 44/169] full_dense_m63_kv4096_uniform_compact_tp4
+[performance 45/169] full_dense_m64_kv4096_uniform_compact_tp4
+[performance 46/169] full_dense_m65_kv4096_uniform_compact_tp4
+[performance 47/169] full_dense_m73_kv4096_uniform_compact_tp4
+[performance 48/169] full_dense_m95_kv4096_uniform_compact_tp4
+[performance 49/169] full_dense_m111_kv4096_uniform_compact_tp4
+[performance 50/169] full_dense_m127_kv4096_uniform_compact_tp4
+[performance 51/169] full_dense_m128_kv4096_uniform_compact_tp4
+[performance 52/169] swa_dense_m1_kv4096_uniform_compact_tp4
+[performance 53/169] swa_dense_m2_kv4096_uniform_compact_tp4
+[performance 54/169] swa_dense_m3_kv4096_uniform_compact_tp4
+[performance 55/169] swa_dense_m4_kv4096_uniform_compact_tp4
+[performance 56/169] swa_dense_m5_kv4096_uniform_compact_tp4
+[performance 57/169] swa_dense_m7_kv4096_uniform_compact_tp4
+[performance 58/169] swa_dense_m8_kv4096_uniform_compact_tp4
+[performance 59/169] swa_dense_m15_kv4096_uniform_compact_tp4
+[performance 60/169] swa_dense_m16_kv4096_uniform_compact_tp4
+[performance 61/169] swa_dense_m17_kv4096_uniform_compact_tp4
+[performance 62/169] swa_dense_m23_kv4096_uniform_compact_tp4
+[performance 63/169] swa_dense_m31_kv4096_uniform_compact_tp4
+[performance 64/169] swa_dense_m32_kv4096_uniform_compact_tp4
+[performance 65/169] swa_dense_m33_kv4096_uniform_compact_tp4
+[performance 66/169] swa_dense_m37_kv4096_uniform_compact_tp4
+[performance 67/169] swa_dense_m47_kv4096_uniform_compact_tp4
+[performance 68/169] swa_dense_m48_kv4096_uniform_compact_tp4
+[performance 69/169] swa_dense_m49_kv4096_uniform_compact_tp4
+[performance 70/169] swa_dense_m63_kv4096_uniform_compact_tp4
+[performance 71/169] swa_dense_m64_kv4096_uniform_compact_tp4
+[performance 72/169] swa_dense_m65_kv4096_uniform_compact_tp4
+[performance 73/169] swa_dense_m73_kv4096_uniform_compact_tp4
+[performance 74/169] swa_dense_m95_kv4096_uniform_compact_tp4
+[performance 75/169] swa_dense_m111_kv4096_uniform_compact_tp4
+[performance 76/169] swa_dense_m127_kv4096_uniform_compact_tp4
+[performance 77/169] swa_dense_m128_kv4096_uniform_compact_tp4
+[performance 78/169] full_dense_m129_kv4096_uniform_compact_tp4
+[performance 79/169] full_dense_m191_kv4096_uniform_compact_tp4
+[performance 80/169] full_dense_m192_kv4096_uniform_compact_tp4
+[performance 81/169] full_dense_m193_kv4096_uniform_compact_tp4
+[performance 82/169] full_dense_m255_kv4096_uniform_compact_tp4
+[performance 83/169] full_dense_m256_kv4096_uniform_compact_tp4
+[performance 84/169] full_dense_m257_kv4096_uniform_compact_tp4
+[performance 85/169] full_dense_m383_kv4096_uniform_compact_tp4
+[performance 86/169] full_dense_m511_kv4096_uniform_compact_tp4
+[performance 87/169] full_dense_m512_kv4096_uniform_compact_tp4
+[performance 88/169] full_dense_m513_kv4096_uniform_compact_tp4
+[performance 89/169] full_dense_m641_kv4096_uniform_compact_tp4
+[performance 90/169] full_dense_m767_kv4096_uniform_compact_tp4
+[performance 91/169] full_dense_m1023_kv4096_uniform_compact_tp4
+[performance 92/169] swa_dense_m129_kv4096_uniform_compact_tp4
+[performance 93/169] swa_dense_m191_kv4096_uniform_compact_tp4
+[performance 94/169] swa_dense_m192_kv4096_uniform_compact_tp4
+[performance 95/169] swa_dense_m193_kv4096_uniform_compact_tp4
+[performance 96/169] swa_dense_m255_kv4096_uniform_compact_tp4
+[performance 97/169] swa_dense_m256_kv4096_uniform_compact_tp4
+[performance 98/169] swa_dense_m257_kv4096_uniform_compact_tp4
+[performance 99/169] swa_dense_m383_kv4096_uniform_compact_tp4
+[performance 100/169] swa_dense_m511_kv4096_uniform_compact_tp4
+[performance 101/169] swa_dense_m512_kv4096_uniform_compact_tp4
+[performance 102/169] swa_dense_m513_kv4096_uniform_compact_tp4
+[performance 103/169] swa_dense_m641_kv4096_uniform_compact_tp4
+[performance 104/169] swa_dense_m767_kv4096_uniform_compact_tp4
+[performance 105/169] swa_dense_m1023_kv4096_uniform_compact_tp4
+[performance 106/169] full_ragged_prefill_b7_m15_kv4096_ragged_compact_tp4
+[performance 107/169] full_ragged_prefill_b7_m37_kv4096_ragged_compact_tp4
+[performance 108/169] full_ragged_prefill_b7_m63_kv4096_ragged_compact_tp4
+[performance 109/169] full_ragged_prefill_b7_m127_kv4096_ragged_compact_tp4
+[performance 110/169] swa_ragged_prefill_b7_m15_kv4096_ragged_compact_tp4
+[performance 111/169] swa_ragged_prefill_b7_m37_kv4096_ragged_compact_tp4
+[performance 112/169] swa_ragged_prefill_b7_m63_kv4096_ragged_compact_tp4
+[performance 113/169] swa_ragged_prefill_b7_m127_kv4096_ragged_compact_tp4
+[performance 114/169] full_ragged_prefill_b16_m48_kv4096_ragged_compact_tp4
+[performance 115/169] full_ragged_prefill_b16_m73_kv4096_ragged_compact_tp4
+[performance 116/169] full_ragged_prefill_b16_m128_kv4096_ragged_compact_tp4
+[performance 117/169] full_ragged_prefill_b16_m513_kv4096_ragged_compact_tp4
+[performance 118/169] full_ragged_prefill_b16_m1024_kv4096_ragged_compact_tp4
+[performance 119/169] swa_ragged_prefill_b16_m48_kv4096_ragged_compact_tp4
+[performance 120/169] swa_ragged_prefill_b16_m73_kv4096_ragged_compact_tp4
+[performance 121/169] swa_ragged_prefill_b16_m128_kv4096_ragged_compact_tp4
+[performance 122/169] swa_ragged_prefill_b16_m513_kv4096_ragged_compact_tp4
+[performance 123/169] swa_ragged_prefill_b16_m1024_kv4096_ragged_compact_tp4
+[performance 124/169] full_ragged_prefill_b56_m128_kv4096_ragged_compact_tp4
+[performance 125/169] full_ragged_prefill_b56_m257_kv4096_ragged_compact_tp4
+[performance 126/169] full_ragged_prefill_b56_m511_kv4096_ragged_compact_tp4
+[performance 127/169] full_ragged_prefill_b56_m1024_kv4096_ragged_compact_tp4
+[performance 128/169] swa_ragged_prefill_b56_m128_kv4096_ragged_compact_tp4
+[performance 129/169] swa_ragged_prefill_b56_m257_kv4096_ragged_compact_tp4
+[performance 130/169] swa_ragged_prefill_b56_m511_kv4096_ragged_compact_tp4
+[performance 131/169] swa_ragged_prefill_b56_m1024_kv4096_ragged_compact_tp4
+[performance 132/169] full_verify_d2_m128_kv4096_uniform_compact_tp4
+[performance 133/169] full_verify_d2_m130_kv4096_uniform_compact_tp4
+[performance 134/169] full_verify_d2_m256_kv4096_uniform_compact_tp4
+[performance 135/169] full_verify_d2_m512_kv4096_uniform_compact_tp4
+[performance 136/169] full_verify_d2_m1024_kv4096_uniform_compact_tp4
+[performance 137/169] swa_verify_d2_m128_kv4096_uniform_compact_tp4
+[performance 138/169] swa_verify_d2_m130_kv4096_uniform_compact_tp4
+[performance 139/169] swa_verify_d2_m256_kv4096_uniform_compact_tp4
+[performance 140/169] swa_verify_d2_m512_kv4096_uniform_compact_tp4
+[performance 141/169] swa_verify_d2_m1024_kv4096_uniform_compact_tp4
+[performance 142/169] full_verify_d3_m129_kv4096_uniform_compact_tp4
+[performance 143/169] full_verify_d3_m255_kv4096_uniform_compact_tp4
+[performance 144/169] full_verify_d3_m513_kv4096_uniform_compact_tp4
+[performance 145/169] full_verify_d3_m1023_kv4096_uniform_compact_tp4
+[performance 146/169] swa_verify_d3_m129_kv4096_uniform_compact_tp4
+[performance 147/169] swa_verify_d3_m255_kv4096_uniform_compact_tp4
+[performance 148/169] swa_verify_d3_m513_kv4096_uniform_compact_tp4
+[performance 149/169] swa_verify_d3_m1023_kv4096_uniform_compact_tp4
+[performance 150/169] full_dense_m64_kv16896_ragged_compact_tp4
+[performance 151/169] full_dense_m257_kv16896_ragged_compact_tp4
+[performance 152/169] full_dense_m64_kv26624_ragged_compact_tp4
+[performance 153/169] full_dense_m257_kv26624_ragged_compact_tp4
+[performance 154/169] swa_dense_m64_kv16896_ragged_compact_tp4
+[performance 155/169] swa_dense_m257_kv16896_ragged_compact_tp4
+[performance 156/169] swa_dense_m64_kv26624_ragged_compact_tp4
+[performance 157/169] swa_dense_m257_kv26624_ragged_compact_tp4
+[performance 158/169] full_ragged_prefill_b16_m64_kv11264_ragged_compact_tp4
+[performance 159/169] full_ragged_prefill_b16_m257_kv11264_ragged_compact_tp4
+[performance 160/169] full_ragged_prefill_b16_m64_kv16896_ragged_compact_tp4
+[performance 161/169] full_ragged_prefill_b16_m257_kv16896_ragged_compact_tp4
+[performance 162/169] full_ragged_prefill_b16_m64_kv26624_ragged_compact_tp4
+[performance 163/169] full_ragged_prefill_b16_m257_kv26624_ragged_compact_tp4
+[performance 164/169] swa_ragged_prefill_b16_m64_kv11264_ragged_compact_tp4
+[performance 165/169] swa_ragged_prefill_b16_m257_kv11264_ragged_compact_tp4
+[performance 166/169] swa_ragged_prefill_b16_m64_kv16896_ragged_compact_tp4
+[performance 167/169] swa_ragged_prefill_b16_m257_kv16896_ragged_compact_tp4
+[performance 168/169] swa_ragged_prefill_b16_m64_kv26624_ragged_compact_tp4
+[performance 169/169] swa_ragged_prefill_b16_m257_kv26624_ragged_compact_tp4
 [performance gate] gain_geomean=1.0000, minimum=1.0300, PASS
-[msprof-op batch] provider=baseline, kernel=paged_prefill_page_aggregation_kernel, cases=85
-[msprof-op batch] provider=baseline, kernel=_swa_paged_prefill_aggregation_sink_kernel, cases=82
+[msprof-op batch] provider=baseline, kernel=paged_prefill_page_aggregation_kernel, cases=86
+[msprof-op batch] provider=baseline, kernel=_swa_paged_prefill_aggregation_sink_kernel, cases=83
 [msprof-op batch] provider=candidate, kernel=paged_prefill_small_q_grouped_kernel, cases=30
-[msprof-op batch] provider=candidate, kernel=paged_prefill_page_aggregation_kernel, cases=55
+[msprof-op batch] provider=candidate, kernel=paged_prefill_page_aggregation_kernel, cases=24
+[msprof-op batch] provider=candidate, kernel=paged_prefill_mid_q_grouped_kernel, cases=32
 [msprof-op batch] provider=candidate, kernel=_swa_paged_prefill_small_q_grouped_sink_kernel, cases=21
-[msprof-op batch] provider=candidate, kernel=_swa_paged_prefill_aggregation_sink_kernel, cases=57
+[msprof-op batch] provider=candidate, kernel=_swa_paged_prefill_aggregation_sink_kernel, cases=58
 [msprof-op batch] provider=candidate, kernel=_swa_paged_prefill_single_q_grouped_sink_kernel, cases=1
 [msprof-op batch] provider=candidate, kernel=_swa_paged_prefill_four_q_grouped_sink_kernel, cases=3
 [ir] full_verify_d2_m2_kv4096_uniform_compact_tp4
@@ -625,53 +660,53 @@ device=npu:5 (Ascend950PR_957b), base=dbdc4f0a3571, baseline=c47f9bdcfb87, candi
 [ir] swa_dense_m129_kv4096_uniform_compact_tp4
 [ir] swa_dense_m1024_kv4096_uniform_compact_tp4
 [profile:pipe_utilization] full_verify_d2_m96_kv16896_ragged_compact_tp4
-[2026-08-29 22:42:59] [WARNING] [1376542] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 22:43:00] [INFO] [1417710] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_pipe_utilization_oc9eoyks/TENCENT64-124_1376542_20260829224259916_ascend_pt
-|/-[2026-08-29 22:43:02] [INFO] [1417719] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017515
-[2026-08-29 22:43:03] [INFO] [1417710] profiler.py: All profiling data parsed in a total time of 0:00:03.047857
+[2026-08-29 23:19:05] [WARNING] [1420698] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 23:19:06] [INFO] [1467687] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_pipe_utilization_6zvddb51/TENCENT64-124_1420698_20260829231905565_ascend_pt
+|/-[2026-08-29 23:19:08] [INFO] [1467696] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017867
+[2026-08-29 23:19:09] [INFO] [1467687] profiler.py: All profiling data parsed in a total time of 0:00:03.002312
 [profile:memory] full_verify_d2_m96_kv16896_ragged_compact_tp4
-[2026-08-29 22:43:03] [WARNING] [1376542] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 22:43:04] [INFO] [1417980] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_memory_ii3kou2t/TENCENT64-124_1376542_20260829224303634_ascend_pt
-|/-[2026-08-29 22:43:06] [INFO] [1417989] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017415
-[2026-08-29 22:43:07] [INFO] [1417980] profiler.py: All profiling data parsed in a total time of 0:00:03.037916
+[2026-08-29 23:19:09] [WARNING] [1420698] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 23:19:09] [INFO] [1467957] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_memory_b_etbdb2/TENCENT64-124_1420698_20260829231909286_ascend_pt
+|/-[2026-08-29 23:19:12] [INFO] [1467966] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017611
+[2026-08-29 23:19:12] [INFO] [1467957] profiler.py: All profiling data parsed in a total time of 0:00:03.018734
 [profile:pipe_utilization] full_verify_d2_m112_kv16896_ragged_compact_tp4
-[2026-08-29 22:43:07] [WARNING] [1376542] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 22:43:08] [INFO] [1418250] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_pipe_utilization_nqz_fprq/TENCENT64-124_1376542_20260829224307644_ascend_pt
-|/-[2026-08-29 22:43:10] [INFO] [1418259] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017141
-[2026-08-29 22:43:11] [INFO] [1418250] profiler.py: All profiling data parsed in a total time of 0:00:03.062390
+[2026-08-29 23:19:13] [WARNING] [1420698] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 23:19:13] [INFO] [1468227] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_pipe_utilization_xr80sp7s/TENCENT64-124_1420698_20260829231913184_ascend_pt
+|/-[2026-08-29 23:19:15] [INFO] [1468236] profiler.py: CANN profiling data parsed in a total time of 0:00:02.036505
+[2026-08-29 23:19:16] [INFO] [1468227] profiler.py: All profiling data parsed in a total time of 0:00:03.014012
 [profile:memory] full_verify_d2_m112_kv16896_ragged_compact_tp4
-[2026-08-29 22:43:11] [WARNING] [1376542] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 22:43:12] [INFO] [1418520] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_memory_3pe7g5as/TENCENT64-124_1376542_20260829224311353_ascend_pt
-|/-[2026-08-29 22:43:14] [INFO] [1418529] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017233
-[2026-08-29 22:43:15] [INFO] [1418520] profiler.py: All profiling data parsed in a total time of 0:00:03.042231
+[2026-08-29 23:19:17] [WARNING] [1420698] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 23:19:17] [INFO] [1468497] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_memory_egilzmp1/TENCENT64-124_1420698_20260829231916873_ascend_pt
+|/-[2026-08-29 23:19:19] [INFO] [1468506] profiler.py: CANN profiling data parsed in a total time of 0:00:02.018009
+[2026-08-29 23:19:20] [INFO] [1468497] profiler.py: All profiling data parsed in a total time of 0:00:03.041894
 [profile:pipe_utilization] full_dense_m1024_kv4096_uniform_compact_tp4
-[2026-08-29 22:43:15] [WARNING] [1376542] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 22:43:15] [INFO] [1418790] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_pipe_utilization_o6lzvrwc/TENCENT64-124_1376542_20260829224315292_ascend_pt
-|/-[2026-08-29 22:43:18] [INFO] [1418799] profiler.py: CANN profiling data parsed in a total time of 0:00:02.037134
-[2026-08-29 22:43:18] [INFO] [1418790] profiler.py: All profiling data parsed in a total time of 0:00:03.068947
+[2026-08-29 23:19:20] [WARNING] [1420698] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 23:19:21] [INFO] [1468767] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_pipe_utilization_2ac37zrw/TENCENT64-124_1420698_20260829231920730_ascend_pt
+|/-[2026-08-29 23:19:23] [INFO] [1468776] profiler.py: CANN profiling data parsed in a total time of 0:00:02.036842
+[2026-08-29 23:19:24] [INFO] [1468767] profiler.py: All profiling data parsed in a total time of 0:00:03.037118
 [profile:memory] full_dense_m1024_kv4096_uniform_compact_tp4
-[2026-08-29 22:43:19] [WARNING] [1376542] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 22:43:19] [INFO] [1419060] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_memory_xhbbvijz/TENCENT64-124_1376542_20260829224318999_ascend_pt
-|/-[2026-08-29 22:43:21] [INFO] [1419069] profiler.py: CANN profiling data parsed in a total time of 0:00:02.037041
-[2026-08-29 22:43:22] [INFO] [1419060] profiler.py: All profiling data parsed in a total time of 0:00:03.056070
+[2026-08-29 23:19:24] [WARNING] [1420698] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 23:19:25] [INFO] [1469037] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_memory_a0pu284w/TENCENT64-124_1420698_20260829231924427_ascend_pt
+|/-[2026-08-29 23:19:27] [INFO] [1469046] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017170
+[2026-08-29 23:19:28] [INFO] [1469037] profiler.py: All profiling data parsed in a total time of 0:00:03.030695
 [profile:pipe_utilization] swa_verify_d2_m112_kv16896_ragged_compact_tp4
-[2026-08-29 22:43:23] [WARNING] [1376542] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 22:43:23] [INFO] [1419330] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_pipe_utilization_jsia8osc/TENCENT64-124_1376542_20260829224322947_ascend_pt
-|/-[2026-08-29 22:43:25] [INFO] [1419339] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017468
-[2026-08-29 22:43:26] [INFO] [1419330] profiler.py: All profiling data parsed in a total time of 0:00:03.050924
+[2026-08-29 23:19:28] [WARNING] [1420698] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 23:19:28] [INFO] [1469307] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_pipe_utilization_ma4fyfat/TENCENT64-124_1420698_20260829231928278_ascend_pt
+|/-[2026-08-29 23:19:31] [INFO] [1469316] profiler.py: CANN profiling data parsed in a total time of 0:00:02.036933
+[2026-08-29 23:19:31] [INFO] [1469307] profiler.py: All profiling data parsed in a total time of 0:00:03.030560
 [profile:memory] swa_verify_d2_m112_kv16896_ragged_compact_tp4
-[2026-08-29 22:43:26] [WARNING] [1376542] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 22:43:27] [INFO] [1419600] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_memory_l1rqjcbd/TENCENT64-124_1376542_20260829224326665_ascend_pt
-|/-[2026-08-29 22:43:29] [INFO] [1419609] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017444
-[2026-08-29 22:43:30] [INFO] [1419600] profiler.py: All profiling data parsed in a total time of 0:00:03.074269
+[2026-08-29 23:19:32] [WARNING] [1420698] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 23:19:32] [INFO] [1469577] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_memory_2j37ytdu/TENCENT64-124_1420698_20260829231931990_ascend_pt
+|/-[2026-08-29 23:19:34] [INFO] [1469586] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017769
+[2026-08-29 23:19:35] [INFO] [1469577] profiler.py: All profiling data parsed in a total time of 0:00:03.052315
 [profile:pipe_utilization] swa_dense_m1024_kv4096_uniform_compact_tp4
-[2026-08-29 22:43:30] [WARNING] [1376542] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 22:43:31] [INFO] [1419870] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_pipe_utilization_s1mj2v3c/TENCENT64-124_1376542_20260829224330639_ascend_pt
-|/-[2026-08-29 22:43:33] [INFO] [1419879] profiler.py: CANN profiling data parsed in a total time of 0:00:02.016809
-[2026-08-29 22:43:34] [INFO] [1419870] profiler.py: All profiling data parsed in a total time of 0:00:03.067007
+[2026-08-29 23:19:35] [WARNING] [1420698] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 23:19:36] [INFO] [1469847] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_pipe_utilization_a486jg_p/TENCENT64-124_1420698_20260829231935852_ascend_pt
+|/-[2026-08-29 23:19:38] [INFO] [1469856] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017184
+[2026-08-29 23:19:39] [INFO] [1469847] profiler.py: All profiling data parsed in a total time of 0:00:03.032409
 [profile:memory] swa_dense_m1024_kv4096_uniform_compact_tp4
-[2026-08-29 22:43:34] [WARNING] [1376542] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 22:43:35] [INFO] [1420140] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_memory_7lpbe9b1/TENCENT64-124_1376542_20260829224334350_ascend_pt
-|/-[2026-08-29 22:43:37] [INFO] [1420149] profiler.py: CANN profiling data parsed in a total time of 0:00:02.037554
-\[2026-08-29 22:43:38] [INFO] [1420140] profiler.py: All profiling data parsed in a total time of 0:00:03.082333
-result=ERROR; manifest=/data2/hw_lly/testfiles/welm_attn_result_15dnjksu/result.json
+[2026-08-29 23:19:39] [WARNING] [1420698] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 23:19:40] [INFO] [1470117] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_memory_dbhk8i1o/TENCENT64-124_1420698_20260829231939555_ascend_pt
+|/-[2026-08-29 23:19:42] [INFO] [1470126] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017166
+\[2026-08-29 23:19:43] [INFO] [1470117] profiler.py: All profiling data parsed in a total time of 0:00:03.067639
+result=ERROR; manifest=/data2/hw_lly/testfiles/welm_attn_result_wtj88bch/result.json
