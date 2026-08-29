@@ -32,7 +32,7 @@
     "reference_rtol": 0.03,
     "baseline_candidate_atol": 0.005,
     "baseline_candidate_rtol": 0.005,
-    "minimum_speedup": 1.0,
+    "minimum_speedup": 1.03,
     "latency_warmup": 5,
     "latency_groups": 7,
     "latency_iterations_per_group": 20,
