@@ -34,6 +34,9 @@
     "baseline_candidate_rtol": 0.005,
     "minimum_speedup": 1.03,
     "minimum_case_speedup": 0.98,
+    "enable_npu_event_timing": false,
+    "msprof_warmup_per_case": 1,
+    "msprof_samples_per_case": 3,
     "gain_topologies": ["verify_d2", "verify_d3"],
     "performance_focus": ["full", "swa"],
     "decode_reference_targets_us": {

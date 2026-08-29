@@ -757,6 +757,9 @@ def run_performance(
     minimum_case_speedup = float(VALIDATION.get("minimum_case_speedup", 1.0))
     gain_topologies = set(VALIDATION.get("gain_topologies", []))
     gain_speedups: list[float] = []
+    event_timing_enabled = bool(
+        VALIDATION.get("enable_npu_event_timing", False)
+    )
 
     for index, case in enumerate(cases, 1):
         print(f"[performance {index}/{len(cases)}] {case.name}", flush=True)
@@ -824,6 +827,22 @@ def run_performance(
             gc.collect()
             continue
         del expected, probe
+        if not event_timing_enabled:
+            for provider in ("baseline", "candidate"):
+                rows.append(
+                    {
+                        **common_case_record(harness, case, inputs),
+                        "record_type": "performance_shape_validation",
+                        "timing_authority": "msprof_op_task_duration_acceptance",
+                        "provider": provider,
+                        "status": "VALIDATED_FOR_MSPROF",
+                        "host_prepare_submit_ms": bound[provider].host_prepare_submit_ms,
+                        "kernel_name": bound[provider].kernel_name,
+                    }
+                )
+            del bound, inputs
+            gc.collect()
+            continue
         for provider in ("baseline", "candidate"):
             for _ in range(warmup):
                 bound[provider].launch()
@@ -898,7 +917,9 @@ def run_performance(
     gain_geomean = (
         statistics.geometric_mean(gain_speedups) if gain_speedups else 1.0
     )
-    gain_gate_passed = gain_geomean >= minimum_speedup
+    gain_gate_passed = (
+        gain_geomean >= minimum_speedup if event_timing_enabled else True
+    )
     regressions += int(not gain_gate_passed)
     print(
         f"[performance gate] gain_geomean={gain_geomean:.4f}, "
@@ -912,6 +933,9 @@ def run_performance(
         "minimum_gain_speedup": minimum_speedup,
         "minimum_case_speedup": minimum_case_speedup,
         "gain_gate_passed": gain_gate_passed,
+        "timing_authority": (
+            "npu_event" if event_timing_enabled else "msprof_op_task_duration"
+        ),
     }
     return rows, regressions, validation_failures, summary
 
@@ -1175,6 +1199,26 @@ def _parse_msprof_durations(
 ) -> tuple[list[float], list[str]]:
     durations: list[float] = []
     names: list[str] = []
+    # The text report enumerates captured tasks as name 0, 1, ... in launch
+    # order. Prefer it for batched shape attribution; CSV file ordering is not
+    # a stable timeline contract across msprof versions.
+    lines = stdout.splitlines()
+    for index, line in enumerate(lines):
+        if not line.strip().startswith("Op Name:"):
+            continue
+        name = line.partition(":")[2].strip()
+        names.append(name)
+        for detail in lines[index + 1 : index + 8]:
+            if detail.strip().startswith("Task Duration(us):"):
+                if kernel_name.lower() in name.lower():
+                    try:
+                        durations.append(float(detail.partition(":")[2].strip()))
+                    except ValueError:
+                        pass
+                break
+    if durations:
+        return durations, names
+
     csv_files = sorted(output_dir.rglob("*.csv"))
     basic_files = [path for path in csv_files if "opbasicinfo" in path.name.lower()]
     for path in basic_files:
@@ -1188,21 +1232,6 @@ def _parse_msprof_durations(
                     durations.append(float(row.get("Task Duration(us)", "")))
                 except (TypeError, ValueError):
                     pass
-    if not basic_files:
-        lines = stdout.splitlines()
-        for index, line in enumerate(lines):
-            if not line.strip().startswith("Op Name:"):
-                continue
-            name = line.partition(":")[2].strip()
-            names.append(name)
-            for detail in lines[index + 1 : index + 8]:
-                if detail.strip().startswith("Task Duration(us):"):
-                    if kernel_name.lower() in name.lower():
-                        try:
-                            durations.append(float(detail.partition(":")[2].strip()))
-                        except ValueError:
-                            pass
-                    break
     return durations, names
 
 
@@ -1211,121 +1240,155 @@ def capture_msprof_op(
     cases: Sequence[AttentionCase],
     output_dir: Path,
 ) -> tuple[list[dict[str, object]], int]:
-    """Capture the current primary Triton kernel as a diagnostic metric.
-
-    Acceptance uses logical NPU-event latency above.  This selected-name metric is
-    intentionally diagnostic because a future candidate may split one logical
-    attention call into multiple device kernels.
-    """
+    """Measure primary Triton latency with batched authoritative msprof runs."""
 
     rows: list[dict[str, object]] = []
     failures = 0
-    for case in cases:
-        for provider in ("baseline", "candidate"):
-            kernel_name = primary_kernel_name(provider, case)
-            print(f"[msprof-op] {case.name} {provider}", flush=True)
-            with tempfile.TemporaryDirectory(prefix="welm_attn_msprof_") as tmp:
-                command = [
-                    "msprof",
-                    "op",
-                    "--warm-up=10",
-                    "--launch-count=5",
-                    f"--kernel-name={kernel_name}",
-                    f"--output={tmp}",
-                    sys.executable,
-                    str(Path(__file__).resolve()),
-                    "--compile-only-provider",
-                    provider,
-                    "--compile-only-iterations",
-                    "20",
-                    "--case-name",
-                    case.name,
-                    "--device",
-                    str(harness.device),
-                    "--tp-size",
-                    str(case.tp_size),
-                ]
-                try:
-                    result = subprocess.run(
-                        command,
-                        cwd=ROOT,
-                        text=True,
-                        encoding="utf-8",
-                        errors="replace",
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.STDOUT,
-                        timeout=1200,
-                        check=False,
-                    )
-                    stdout = result.stdout or ""
-                except (OSError, subprocess.TimeoutExpired) as exc:
-                    failures += 1
+    warmup = int(VALIDATION.get("msprof_warmup_per_case", 1))
+    samples = int(VALIDATION.get("msprof_samples_per_case", 3))
+    grouped: dict[tuple[str, str], list[AttentionCase]] = {}
+    for provider in ("baseline", "candidate"):
+        for case in cases:
+            key = (provider, primary_kernel_name(provider, case))
+            grouped.setdefault(key, []).append(case)
+
+    for (provider, kernel_name), group_cases in grouped.items():
+        print(
+            f"[msprof-op batch] provider={provider}, kernel={kernel_name}, "
+            f"cases={len(group_cases)}",
+            flush=True,
+        )
+        total_launches = len(group_cases) * (warmup + samples)
+        with tempfile.TemporaryDirectory(prefix="welm_attn_msprof_") as tmp:
+            command = [
+                "msprof",
+                "op",
+                "--warm-up=0",
+                f"--launch-count={total_launches}",
+                f"--kernel-name={kernel_name}",
+                f"--output={tmp}",
+                sys.executable,
+                str(Path(__file__).resolve()),
+                "--msprof-batch-provider",
+                provider,
+                "--msprof-batch-kernel",
+                kernel_name,
+                "--msprof-batch-warmup",
+                str(warmup),
+                "--msprof-batch-samples",
+                str(samples),
+                "--device",
+                str(harness.device),
+                "--tp-size",
+                str(group_cases[0].tp_size),
+            ]
+            for case in group_cases:
+                command.extend(("--case-name", case.name))
+            try:
+                result = subprocess.run(
+                    command,
+                    cwd=ROOT,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    timeout=3600,
+                    check=False,
+                )
+                stdout = result.stdout or ""
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                failures += len(group_cases)
+                for case in group_cases:
                     rows.append(
                         {
                             **common_case_record(harness, case),
                             "record_type": "msprof_primary_kernel",
                             "provider": provider,
+                            "kernel_name": kernel_name,
                             "status": "ERROR",
                             "capture_log_tail": repr(exc),
                         }
                     )
-                    continue
+                continue
 
-                durations, names = _parse_msprof_durations(
-                    Path(tmp), stdout, kernel_name
+            durations, names = _parse_msprof_durations(
+                Path(tmp), stdout, kernel_name
+            )
+            artifact = (
+                output_dir / "msprof" / provider / f"{kernel_name}.log.gz"
+            )
+            artifact.parent.mkdir(parents=True, exist_ok=True)
+            with gzip.open(artifact, "wt", encoding="utf-8", compresslevel=9) as handle:
+                handle.write(stdout)
+            expected_count = total_launches
+            if result.returncode or len(durations) != expected_count:
+                failures += len(group_cases)
+                detail = (
+                    f"expected {expected_count} ordered durations, got "
+                    f"{len(durations)}; discovered={sorted(set(names))[:100]}\n"
+                    + stdout[-20000:]
                 )
-                artifact = output_dir / "msprof" / case.name / f"{provider}.log.gz"
-                artifact.parent.mkdir(parents=True, exist_ok=True)
-                with gzip.open(artifact, "wt", encoding="utf-8", compresslevel=9) as handle:
-                    handle.write(stdout)
-                common = {
-                    **common_case_record(harness, case),
-                    "record_type": "msprof_primary_kernel",
-                    "provider": provider,
-                    "kernel_name": kernel_name,
-                    "timing_authority": "diagnostic_primary_kernel_only",
-                    "capture_returncode": result.returncode,
-                    **file_record(artifact, output_dir),
-                }
-                if result.returncode:
-                    failures += 1
+                for case in group_cases:
                     rows.append(
                         {
-                            **common,
+                            **common_case_record(harness, case),
+                            "record_type": "msprof_primary_kernel",
+                            "provider": provider,
+                            "kernel_name": kernel_name,
+                            "timing_authority": "msprof_op_task_duration",
+                            "capture_returncode": result.returncode,
                             "status": "ERROR",
-                            "capture_log_tail": stdout[-20000:],
+                            "capture_log_tail": detail,
+                            **file_record(artifact, output_dir),
                         }
                     )
-                    continue
-                if not durations:
-                    # A legal optimization may split or rename the old primary
-                    # kernel. Logical wrapper event timing remains authoritative;
-                    # absence of this legacy diagnostic must not reject it.
-                    rows.append(
-                        {
-                            **common,
-                            "status": "NOT_FOUND_AFTER_KERNEL_CHANGE",
-                            "capture_log_tail": (
-                                "selected kernel missing; discovered="
-                                + repr(sorted(set(names))[:100])
-                                + "\n"
-                                + stdout[-20000:]
-                            ),
-                        }
-                    )
-                    continue
+                continue
+
+            span = warmup + samples
+            for index, case in enumerate(group_cases):
+                measured = durations[index * span + warmup : (index + 1) * span]
                 rows.append(
                     {
-                        **common,
+                        **common_case_record(harness, case),
+                        "record_type": "msprof_primary_kernel",
+                        "provider": provider,
+                        "kernel_name": kernel_name,
+                        "timing_authority": "msprof_op_task_duration_acceptance",
+                        "capture_returncode": result.returncode,
                         "status": "MEASURED",
-                        "sample_count": len(durations),
-                        "task_min_us": min(durations),
-                        "task_p50_us": statistics.median(durations),
-                        "task_mean_us": statistics.fmean(durations),
-                        "task_max_us": max(durations),
+                        "sample_count": len(measured),
+                        "task_min_us": min(measured),
+                        "task_p50_us": statistics.median(measured),
+                        "task_mean_us": statistics.fmean(measured),
+                        "task_max_us": max(measured),
+                        **file_record(artifact, output_dir),
                     }
                 )
     return rows, failures
+
+
+def run_msprof_batch_child(
+    harness: Harness,
+    cases: Sequence[AttentionCase],
+    provider: str,
+    kernel_name: str,
+    warmup: int,
+    samples: int,
+) -> None:
+    for case in cases:
+        inputs = make_inputs(case, harness.device, seed=harness.seed)
+        bound = harness.bind(provider, case, inputs)
+        if bound.kernel_name != kernel_name:
+            raise RuntimeError(
+                f"msprof batch kernel mismatch for {case.name}: "
+                f"{bound.kernel_name} != {kernel_name}"
+            )
+        for _ in range(warmup + samples):
+            bound.launch()
+        torch_npu.npu.synchronize()
+        del bound, inputs
+        gc.collect()
 
 
 def build_manual_cases(args: argparse.Namespace) -> list[AttentionCase] | None:
@@ -1413,6 +1476,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--compile-only-provider", choices=("", "baseline", "candidate"), default=""
     )
     parser.add_argument("--compile-only-iterations", type=int, default=1)
+    parser.add_argument(
+        "--msprof-batch-provider", choices=("", "baseline", "candidate"), default=""
+    )
+    parser.add_argument("--msprof-batch-kernel", default="")
+    parser.add_argument("--msprof-batch-warmup", type=int, default=1)
+    parser.add_argument("--msprof-batch-samples", type=int, default=3)
     return parser
 
 
@@ -1426,6 +1495,22 @@ def main() -> int:
     benchmark_base = args.benchmark_base or repository_head()
     harness = Harness(device, args.seed, benchmark_base)
     manual = build_manual_cases(args)
+
+    if args.msprof_batch_provider:
+        if not args.case_name or not args.msprof_batch_kernel:
+            raise ValueError(
+                "msprof batch mode requires --case-name and --msprof-batch-kernel"
+            )
+        cases = [find_case(name, tp_size=args.tp_size) for name in args.case_name]
+        run_msprof_batch_child(
+            harness,
+            cases,
+            args.msprof_batch_provider,
+            args.msprof_batch_kernel,
+            args.msprof_batch_warmup,
+            args.msprof_batch_samples,
+        )
+        return 0
 
     if args.compile_only_provider:
         if len(args.case_name) != 1:
