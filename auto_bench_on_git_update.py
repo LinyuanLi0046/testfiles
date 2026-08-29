@@ -218,7 +218,11 @@ def run_benchmark(device: str) -> bool:
             except (OSError, json.JSONDecodeError):
                 manifest_status = ""
         if manifest_status in {"PASS", "FAIL", "PERF_REGRESSION", "ERROR"}:
-            os.replace(staging, RESULT_PATH)
+            # Copy out of TemporaryDirectory explicitly.  Moving the staging
+            # root left some failed runs without their CSV/IR/profile tree on
+            # the remote worker; copytree makes artifact retention independent
+            # of TemporaryDirectory cleanup semantics.
+            shutil.copytree(staging, RESULT_PATH)
         if returncode == 0 and manifest_status == "PASS" and not launch_error:
             ERROR_PATH.unlink(missing_ok=True)
             log(f"benchmark succeeded; generated {RESULT_DIR}")

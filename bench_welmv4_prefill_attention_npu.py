@@ -720,7 +720,7 @@ def _measure_event_group(
 def run_performance(
     harness: Harness,
     cases: Sequence[AttentionCase],
-) -> tuple[list[dict[str, object]], int, int]:
+) -> tuple[list[dict[str, object]], int, int, dict[str, object]]:
     rows: list[dict[str, object]] = []
     regressions = 0
     validation_failures = 0
@@ -728,6 +728,9 @@ def run_performance(
     groups = int(VALIDATION["latency_groups"])
     iterations = int(VALIDATION["latency_iterations_per_group"])
     minimum_speedup = float(VALIDATION["minimum_speedup"])
+    minimum_case_speedup = float(VALIDATION.get("minimum_case_speedup", 1.0))
+    gain_topologies = set(VALIDATION.get("gain_topologies", []))
+    gain_speedups: list[float] = []
 
     for index, case in enumerate(cases, 1):
         print(f"[performance {index}/{len(cases)}] {case.name}", flush=True)
@@ -820,8 +823,13 @@ def run_performance(
             for provider, values in samples.items()
         }
         speedup = medians["baseline"] / medians["candidate"]
-        accepted = speedup >= minimum_speedup
+        accepted = speedup >= minimum_case_speedup
+        if not gain_topologies or case.topology in gain_topologies:
+            gain_speedups.append(speedup)
         regressions += int(not accepted)
+        decode_targets = VALIDATION.get("decode_reference_targets_us", {})
+        batch_targets = decode_targets.get(str(case.real_batch_size), {})
+        decode_target_us = batch_targets.get(case.attention)
         for provider in ("baseline", "candidate"):
             values = samples[provider]
             mean = statistics.fmean(values)
@@ -842,7 +850,13 @@ def run_performance(
                         statistics.pstdev(values) / mean if mean else 0.0
                     ),
                     "speedup_vs_baseline": speedup if provider == "candidate" else 1.0,
-                    "minimum_speedup": minimum_speedup,
+                    "minimum_case_speedup": minimum_case_speedup,
+                    "decode_reference_target_us": decode_target_us,
+                    "decode_target_ratio": (
+                        medians[provider] / float(decode_target_us)
+                        if decode_target_us is not None
+                        else None
+                    ),
                     "host_prepare_submit_ms": bound[provider].host_prepare_submit_ms,
                     "kernel_name": bound[provider].kernel_name,
                 }
@@ -855,7 +869,25 @@ def run_performance(
         )
         del bound, inputs
         gc.collect()
-    return rows, regressions, validation_failures
+    gain_geomean = (
+        statistics.geometric_mean(gain_speedups) if gain_speedups else 1.0
+    )
+    gain_gate_passed = gain_geomean >= minimum_speedup
+    regressions += int(not gain_gate_passed)
+    print(
+        f"[performance gate] gain_geomean={gain_geomean:.4f}, "
+        f"minimum={minimum_speedup:.4f}, "
+        f"{'PASS' if gain_gate_passed else 'PERF_REGRESSION'}",
+        flush=True,
+    )
+    summary = {
+        "gain_case_count": len(gain_speedups),
+        "gain_geomean_speedup": gain_geomean,
+        "minimum_gain_speedup": minimum_speedup,
+        "minimum_case_speedup": minimum_case_speedup,
+        "gain_gate_passed": gain_gate_passed,
+    }
+    return rows, regressions, validation_failures, summary
 
 
 def run_compile_only(
@@ -1305,7 +1337,12 @@ def select_phase_cases(
         if phase == "graph":
             return [case for case in manual if case.topology.startswith("graph_")]
         return manual
-    return suite_cases(args.suite, phase, tp_size=args.tp_size)
+    cases = suite_cases(args.suite, phase, tp_size=args.tp_size)
+    if phase == "performance":
+        focus = set(VALIDATION.get("performance_focus", []))
+        if focus:
+            cases = [case for case in cases if case.attention in focus]
+    return cases
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1423,7 +1460,7 @@ def main() -> int:
 
     if args.mode in ("both", "performance") and correctness_failures == 0:
         cases = select_phase_cases(args, "performance", manual)
-        rows, performance_regressions, validation_failures = run_performance(
+        rows, performance_regressions, validation_failures, performance_summary = run_performance(
             harness, cases
         )
         correctness_failures += validation_failures
@@ -1439,6 +1476,7 @@ def main() -> int:
             "case_count": len(cases),
             "regression_count": performance_regressions,
             "validation_failure_count": validation_failures,
+            **performance_summary,
         }
 
         if args.capture_msprof_op == "on" and validation_failures == 0:
