@@ -142,7 +142,7 @@ class BoundLaunch:
 
 def primary_kernel_name(provider: str, case: AttentionCase) -> str:
     if case.attention == "full":
-        if provider == "candidate" and 5 <= case.max_q_len <= 64:
+        if provider == "candidate" and 5 <= case.max_q_len <= 128:
             return "paged_prefill_mid_q_grouped_kernel"
         return (
             "paged_prefill_small_q_grouped_kernel"

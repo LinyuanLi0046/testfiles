@@ -822,7 +822,7 @@ def paged_prefill_small_q_grouped_kernel(
             )
 
 
-@triton.jit
+@triton.jit(do_not_specialize=["num_q_blocks"])
 def paged_prefill_mid_q_grouped_kernel(
     q_ptr,
     key_cache_ptr,
@@ -833,6 +833,7 @@ def paged_prefill_mid_q_grouped_kernel(
     block_tables_ptr,
     sinks_ptr,
     batch_size,
+    num_q_blocks,
     stride_qt,
     stride_qh,
     stride_qd,
@@ -860,7 +861,7 @@ def paged_prefill_mid_q_grouped_kernel(
     Q_BUCKET: tl.constexpr,
     SINK_ENABLED: tl.constexpr,
 ):
-    """Run one of three fixed M5-M64 buckets with grouped GQA heads."""
+    """Run fixed M5-M128 tiles with grouped GQA heads and M64 Q blocks."""
     tl.static_assert(
         NUM_Q_HEADS == 6,
         "mid-Q WeLM prefill requires six local Q heads",
@@ -889,21 +890,27 @@ def paged_prefill_mid_q_grouped_kernel(
 
     pid = tl.program_id(0)
     n_programs = tl.num_programs(0)
-    num_tasks = batch_size * NUM_HEAD_GROUPS
+    num_tasks = batch_size * num_q_blocks * NUM_HEAD_GROUPS
     task_begin = pid * num_tasks // n_programs
     task_end = (pid + 1) * num_tasks // n_programs
 
     for task_id in range(task_begin, task_end):
-        b_id = task_id // NUM_HEAD_GROUPS
-        head_group_id = task_id - b_id * NUM_HEAD_GROUPS
+        q_block_task = task_id // NUM_HEAD_GROUPS
+        head_group_id = task_id - q_block_task * NUM_HEAD_GROUPS
+        b_id = q_block_task // num_q_blocks
+        q_block_id = q_block_task - b_id * num_q_blocks
+        q_block_start = q_block_id * Q_BUCKET
         head_base = head_group_id * HEADS_PER_GROUP
         q_start = tl.load(cu_q_lens_ptr + b_id).to(tl.int32)
         q_end = tl.load(cu_q_lens_ptr + b_id + 1).to(tl.int32)
         q_seq_len = q_end - q_start
-        if q_seq_len.to(tl.float32) > 0.0:
+        if q_block_start.to(tl.float32) < q_seq_len.to(tl.float32):
             row_ids = tl.arange(0, BLOCK_SIZE_M)
-            row_tokens = row_ids // HEADS_PER_GROUP
-            local_heads = row_ids - row_tokens * HEADS_PER_GROUP
+            local_row_tokens = row_ids // HEADS_PER_GROUP
+            row_tokens = q_block_start + local_row_tokens
+            local_heads = (
+                row_ids - local_row_tokens * HEADS_PER_GROUP
+            )
             q_head_ids = head_base + local_heads
             valid_rows = (
                 row_ids.to(tl.float32) < GROUPED_ROWS
@@ -969,7 +976,9 @@ def paged_prefill_mid_q_grouped_kernel(
 
             kv_seq_len = tl.load(seqlens_kv_ptr + b_id).to(tl.int32)
             kv_cache_len = kv_seq_len - q_seq_len
-            num_kv_blocks = tl.cdiv(kv_seq_len, BLOCK_SIZE_N)
+            q_block_end = min(q_block_start + Q_BUCKET, q_seq_len)
+            visible_kv_end = kv_cache_len + q_block_end
+            num_kv_blocks = tl.cdiv(visible_kv_end, BLOCK_SIZE_N)
             for kv_block_id in range(0, num_kv_blocks):
                 kv_block_start = kv_block_id * BLOCK_SIZE_N
                 kv_block_end = min(
@@ -1201,7 +1210,7 @@ def paged_attention_prefill_impl(
         q.dtype != torch.float32
         and seqlens_kv is not None
         and max_q_len is not None
-        and 5 <= max_q_len <= 64
+        and 5 <= max_q_len <= 128
         and not gqa_interleave
         and num_kv_heads == 1
         and num_q_heads == 6
@@ -1220,8 +1229,12 @@ def paged_attention_prefill_impl(
             q_bucket = 64
             heads_per_group = 1
         num_head_groups = num_q_heads // heads_per_group
+        num_q_blocks = (max_q_len + q_bucket - 1) // q_bucket
         grouped_grid = (
-            min(cube_num, batch_size * num_head_groups),
+            min(
+                cube_num,
+                batch_size * num_q_blocks * num_head_groups,
+            ),
         )
         paged_prefill_mid_q_grouped_kernel[grouped_grid](
             q,
@@ -1233,6 +1246,7 @@ def paged_attention_prefill_impl(
             block_tables_i32,
             sinks_pass,
             batch_size,
+            num_q_blocks,
             q.stride(0),
             q.stride(1),
             q.stride(2),
