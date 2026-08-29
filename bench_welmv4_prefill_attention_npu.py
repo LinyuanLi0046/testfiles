@@ -151,10 +151,12 @@ def primary_kernel_name(provider: str, case: AttentionCase) -> str:
     candidate_swa_small_q = candidate_small_q and (
         case.real_batch_size > 1 or case.max_q_len <= 2
     )
+    if not candidate_swa_small_q:
+        return "_swa_paged_prefill_aggregation_sink_kernel"
     return (
-        "_swa_paged_prefill_small_q_grouped_sink_kernel"
-        if candidate_swa_small_q
-        else "_swa_paged_prefill_aggregation_sink_kernel"
+        "_swa_paged_prefill_single_q_grouped_sink_kernel"
+        if case.max_q_len == 1
+        else "_swa_paged_prefill_small_q_grouped_sink_kernel"
     )
 
 
