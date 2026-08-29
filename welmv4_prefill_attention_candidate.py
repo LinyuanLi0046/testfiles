@@ -608,6 +608,25 @@ def paged_prefill_page_aggregation_kernel(
 
 
 @triton.jit
+def _full_verify_grouped_update(q, k_t, v, mask, acc, l_i, m_i, scale):
+    """Update one six-head query token from a KV tile already in UB."""
+    qk = tl.dot(q, k_t) * scale
+    qk = tl.where(mask[None, :], qk, -1e6)
+    m_ij = tl.maximum(
+        m_i,
+        tl.max(qk, 1, propagate_nan=True),
+        propagate_nan=tl.PropagateNan.ALL,
+    )
+    p = tl.math.exp(qk - m_ij[:, None])
+    l_ij = tl.sum(p, 1)
+    alpha = tl.math.exp(m_i - m_ij)
+    l_i = l_i * alpha + l_ij
+    acc = acc * alpha[:, None]
+    acc = tl.dot(p.to(k_t.dtype), v, acc)
+    return acc, l_i, m_ij
+
+
+@triton.jit
 def paged_prefill_verify_grouped_kernel(
     q_ptr,
     key_cache_ptr,
@@ -642,7 +661,7 @@ def paged_prefill_verify_grouped_kernel(
     VERIFY_WIDTH: tl.constexpr,
     SINK_ENABLED: tl.constexpr,
 ):
-    """Full-attention verify with all six Q heads sharing one KV scan."""
+    """Full verify: all tokens and all six Q heads share one KV scan."""
     tl.static_assert(
         NUM_Q_HEADS == 6,
         "grouped WeLM full verify requires six local Q heads",
@@ -666,57 +685,57 @@ def paged_prefill_verify_grouped_kernel(
         q_end = tl.load(cu_q_lens_ptr + b_id + 1).to(tl.int32)
         q_seq_len = q_end - q_start
         if q_seq_len.to(tl.float32) > 0.0:
-            GROUPED_ROWS: tl.constexpr = NUM_Q_HEADS * VERIFY_WIDTH
-            row_ids = tl.arange(0, GROUPED_ROWS)
-            row_tokens = row_ids // NUM_Q_HEADS
-            row_heads = row_ids - row_tokens * NUM_Q_HEADS
+            q_head_ids = tl.arange(0, NUM_Q_HEADS)
             dim_offsets = tl.arange(0, BLOCK_SIZE_D)
 
-            q_ptrs = (
+            q0_ptrs = (
                 q_ptr
                 + q_start * stride_qt
-                + row_ids[:, None] * stride_qh
+                + q_head_ids[:, None] * stride_qh
                 + dim_offsets[None, :] * stride_qd
             )
-            q = tl.load(q_ptrs)
+            q0 = tl.load(q0_ptrs)
+            if VERIFY_WIDTH >= 2:
+                q1 = tl.load(q0_ptrs + stride_qt)
+            if VERIFY_WIDTH >= 3:
+                q2 = tl.load(q0_ptrs + 2 * stride_qt)
+            if VERIFY_WIDTH >= 4:
+                q3 = tl.load(q0_ptrs + 3 * stride_qt)
 
             if SINK_ENABLED:
-                sink_0 = tl.load(sinks_ptr).to(tl.float32)
-                sink_1 = tl.load(sinks_ptr + stride_sink_head).to(tl.float32)
-                sink_2 = tl.load(sinks_ptr + 2 * stride_sink_head).to(tl.float32)
-                sink_3 = tl.load(sinks_ptr + 3 * stride_sink_head).to(tl.float32)
-                sink_4 = tl.load(sinks_ptr + 4 * stride_sink_head).to(tl.float32)
-                sink_5 = tl.load(sinks_ptr + 5 * stride_sink_head).to(tl.float32)
-                m_i = tl.where(
-                    row_heads.to(tl.float32) < 1.0,
-                    sink_0,
-                    tl.where(
-                        row_heads.to(tl.float32) < 2.0,
-                        sink_1,
-                        tl.where(
-                            row_heads.to(tl.float32) < 3.0,
-                            sink_2,
-                            tl.where(
-                                row_heads.to(tl.float32) < 4.0,
-                                sink_3,
-                                tl.where(
-                                    row_heads.to(tl.float32) < 5.0,
-                                    sink_4,
-                                    sink_5,
-                                ),
-                            ),
-                        ),
-                    ),
-                )
-                l_i = tl.full((GROUPED_ROWS,), 1.0, tl.float32)
+                initial_m = tl.load(
+                    sinks_ptr + q_head_ids * stride_sink_head
+                ).to(tl.float32)
+                initial_l = tl.full((NUM_Q_HEADS,), 1.0, tl.float32)
             else:
-                m_i = tl.full(
-                    (GROUPED_ROWS,), -float("inf"), tl.float32
+                initial_m = tl.full(
+                    (NUM_Q_HEADS,), -float("inf"), tl.float32
                 )
-                l_i = tl.zeros((GROUPED_ROWS,), dtype=tl.float32)
-            acc = tl.zeros(
-                (GROUPED_ROWS, BLOCK_SIZE_D), dtype=tl.float32
+                initial_l = tl.zeros((NUM_Q_HEADS,), dtype=tl.float32)
+
+            m0 = initial_m
+            l0 = initial_l
+            acc0 = tl.zeros(
+                (NUM_Q_HEADS, BLOCK_SIZE_D), dtype=tl.float32
             )
+            if VERIFY_WIDTH >= 2:
+                m1 = initial_m
+                l1 = initial_l
+                acc1 = tl.zeros(
+                    (NUM_Q_HEADS, BLOCK_SIZE_D), dtype=tl.float32
+                )
+            if VERIFY_WIDTH >= 3:
+                m2 = initial_m
+                l2 = initial_l
+                acc2 = tl.zeros(
+                    (NUM_Q_HEADS, BLOCK_SIZE_D), dtype=tl.float32
+                )
+            if VERIFY_WIDTH >= 4:
+                m3 = initial_m
+                l3 = initial_l
+                acc3 = tl.zeros(
+                    (NUM_Q_HEADS, BLOCK_SIZE_D), dtype=tl.float32
+                )
 
             kv_seq_len = tl.load(seqlens_kv_ptr + b_id).to(tl.int32)
             kv_cache_len = kv_seq_len - q_seq_len
@@ -772,38 +791,64 @@ def paged_prefill_verify_grouped_kernel(
 
                 key_offsets = tl.arange(0, BLOCK_SIZE_N)
                 key_positions = kv_block_start + key_offsets
-                query_positions = kv_cache_len + row_tokens
-                mask = (
-                    key_positions[None, :].to(tl.float32)
-                    <= query_positions[:, None].to(tl.float32)
-                ) & (
-                    key_positions[None, :].to(tl.float32)
+                key_valid = (
+                    key_positions.to(tl.float32)
                     < kv_seq_len.to(tl.float32)
                 )
-
-                qk = tl.dot(q, k_t) * softmax_scale
-                qk = tl.where(mask, qk, -1e6)
-                m_ij = tl.maximum(
-                    m_i,
-                    tl.max(qk, 1, propagate_nan=True),
-                    propagate_nan=tl.PropagateNan.ALL,
+                mask0 = key_valid & (
+                    key_positions.to(tl.float32)
+                    <= kv_cache_len.to(tl.float32)
                 )
-                p = tl.math.exp(qk - m_ij[:, None])
-                pv = tl.dot(p.to(k_t.dtype), v)
-                l_ij = tl.sum(p, 1)
-                alpha = tl.math.exp(m_i - m_ij)
-                l_i = l_i * alpha + l_ij
-                acc = acc * alpha[:, None] + pv
-                m_i = m_ij
+                acc0, l0, m0 = _full_verify_grouped_update(
+                    q0, k_t, v, mask0, acc0, l0, m0, softmax_scale
+                )
+                if VERIFY_WIDTH >= 2:
+                    mask1 = key_valid & (
+                        key_positions.to(tl.float32)
+                        <= (kv_cache_len + 1).to(tl.float32)
+                    )
+                    acc1, l1, m1 = _full_verify_grouped_update(
+                        q1, k_t, v, mask1, acc1, l1, m1, softmax_scale
+                    )
+                if VERIFY_WIDTH >= 3:
+                    mask2 = key_valid & (
+                        key_positions.to(tl.float32)
+                        <= (kv_cache_len + 2).to(tl.float32)
+                    )
+                    acc2, l2, m2 = _full_verify_grouped_update(
+                        q2, k_t, v, mask2, acc2, l2, m2, softmax_scale
+                    )
+                if VERIFY_WIDTH >= 4:
+                    mask3 = key_valid & (
+                        key_positions.to(tl.float32)
+                        <= (kv_cache_len + 3).to(tl.float32)
+                    )
+                    acc3, l3, m3 = _full_verify_grouped_update(
+                        q3, k_t, v, mask3, acc3, l3, m3, softmax_scale
+                    )
 
-            output = acc / l_i[:, None]
-            o_ptrs = (
+            o0_ptrs = (
                 o_ptr
                 + q_start * stride_ot
-                + row_ids[:, None] * stride_oh
+                + q_head_ids[:, None] * stride_oh
                 + dim_offsets[None, :] * stride_od
             )
-            tl.store(o_ptrs, output.to(o_ptr.type.element_ty))
+            tl.store(o0_ptrs, (acc0 / l0[:, None]).to(o_ptr.type.element_ty))
+            if VERIFY_WIDTH >= 2:
+                tl.store(
+                    o0_ptrs + stride_ot,
+                    (acc1 / l1[:, None]).to(o_ptr.type.element_ty),
+                )
+            if VERIFY_WIDTH >= 3:
+                tl.store(
+                    o0_ptrs + 2 * stride_ot,
+                    (acc2 / l2[:, None]).to(o_ptr.type.element_ty),
+                )
+            if VERIFY_WIDTH >= 4:
+                tl.store(
+                    o0_ptrs + 3 * stride_ot,
+                    (acc3 / l3[:, None]).to(o_ptr.type.element_ty),
+                )
 
 
 def paged_attention_prefill_prepare(
