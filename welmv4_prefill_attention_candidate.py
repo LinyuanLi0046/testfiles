@@ -802,11 +802,11 @@ def paged_prefill_small_q_grouped_kernel(
                     propagate_nan=tl.PropagateNan.ALL,
                 )
                 p = tl.math.exp(qk - m_ij[:, None])
+                pv = tl.dot(p.to(k_t.dtype), v)
                 l_ij = tl.sum(p, 1)
                 alpha = tl.math.exp(m_i - m_ij)
                 l_i = l_i * alpha + l_ij
-                acc = acc * alpha[:, None]
-                acc = tl.dot(p.to(k_t.dtype), v, acc)
+                acc = acc * alpha[:, None] + pv
                 m_i = m_ij
 
             o_ptrs = (
@@ -1049,11 +1049,11 @@ def paged_prefill_mid_q_grouped_kernel(
                     propagate_nan=tl.PropagateNan.ALL,
                 )
                 p = tl.math.exp(qk - m_ij[:, None])
+                pv = tl.dot(p.to(k_t.dtype), v)
                 l_ij = tl.sum(p, 1)
                 alpha = tl.math.exp(m_i - m_ij)
                 l_i = l_i * alpha + l_ij
-                acc = acc * alpha[:, None]
-                acc = tl.dot(p.to(k_t.dtype), v, acc)
+                acc = acc * alpha[:, None] + pv
                 m_i = m_ij
 
             o_ptrs = (
