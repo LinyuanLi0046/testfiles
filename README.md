@@ -89,8 +89,9 @@ python auto_bench_on_git_update.py --interval 60 --device npu:5
 1. fetches and fast-forwards the current branch;
 2. runs the remote Full/SWA correctness, performance, IR, profiler and msprof
    suites without any Graph phase;
-3. writes `welmv4_prefill_attention_results/` on success, or a captured error
-   log on failure;
+3. preserves `welmv4_prefill_attention_results/` whenever a valid manifest was
+   produced, including failed/regressed runs, and adds a captured error log for
+   non-PASS runs;
 4. commits only those generated artifacts and pushes them to the same branch.
 
 Push races are detected before publication. A result produced from an obsolete

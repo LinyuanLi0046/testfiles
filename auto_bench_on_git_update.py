@@ -182,7 +182,7 @@ def remove_result_dir() -> None:
 
 
 def run_benchmark(device: str) -> bool:
-    """Run the benchmark and leave exactly one result directory or error log."""
+    """Run once and preserve every valid result, including failed/regressed runs."""
     remove_result_dir()
 
     returncode = -1
@@ -209,15 +209,17 @@ def run_benchmark(device: str) -> bool:
                 captured = stream.read()
 
         staging_manifest = staging / "result.json"
-        manifest_valid = False
+        manifest_status = ""
         if staging_manifest.is_file() and staging_manifest.stat().st_size > 0:
             try:
                 manifest = json.loads(staging_manifest.read_text(encoding="utf-8"))
-                manifest_valid = manifest.get("status") == "PASS"
+                if isinstance(manifest, dict):
+                    manifest_status = str(manifest.get("status", ""))
             except (OSError, json.JSONDecodeError):
-                manifest_valid = False
-        if returncode == 0 and manifest_valid and not launch_error:
+                manifest_status = ""
+        if manifest_status in {"PASS", "FAIL", "PERF_REGRESSION", "ERROR"}:
             os.replace(staging, RESULT_PATH)
+        if returncode == 0 and manifest_status == "PASS" and not launch_error:
             ERROR_PATH.unlink(missing_ok=True)
             log(f"benchmark succeeded; generated {RESULT_DIR}")
             return True
@@ -225,9 +227,15 @@ def run_benchmark(device: str) -> bool:
     if launch_error:
         reason = launch_error
     elif returncode != 0:
-        reason = f"benchmark exited with status {returncode}"
+        reason = (
+            f"benchmark exited with status {returncode}; "
+            f"manifest_status={manifest_status or 'missing'}"
+        )
     else:
-        reason = "benchmark exited successfully but result.json was missing or not PASS"
+        reason = (
+            "benchmark exited successfully but result.json was missing or not PASS; "
+            f"manifest_status={manifest_status or 'missing'}"
+        )
     write_error_log(command, returncode, captured, reason)
     log(f"benchmark failed; details written to {ERROR_LOG}")
     return False
