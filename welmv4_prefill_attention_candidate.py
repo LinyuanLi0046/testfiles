@@ -460,7 +460,8 @@ def _paged_prefill_grouped_tail_task(
     """Compute one short final M128 tile with several local Q heads packed in M."""
     tl.static_assert(NUM_Q_HEADS == 6, "tail grouping is specialized for WeLM TP4")
     tl.static_assert(
-        HEADS_PER_GROUP == 2 or HEADS_PER_GROUP == 3 or HEADS_PER_GROUP == 6,
+        (HEADS_PER_GROUP == 2 or HEADS_PER_GROUP == 3)
+        or HEADS_PER_GROUP == 6,
         "tail grouping supports two, three, or six local heads per Cube task",
     )
     q_start = tl.load(cu_q_lens_ptr + b_id).to(tl.int32)
