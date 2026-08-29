@@ -156,7 +156,11 @@ def primary_kernel_name(provider: str, case: AttentionCase) -> str:
     return (
         "_swa_paged_prefill_single_q_grouped_sink_kernel"
         if case.max_q_len == 1
-        else "_swa_paged_prefill_small_q_grouped_sink_kernel"
+        else (
+            "_swa_paged_prefill_four_q_grouped_sink_kernel"
+            if case.max_q_len == 4
+            else "_swa_paged_prefill_small_q_grouped_sink_kernel"
+        )
     )
 
 

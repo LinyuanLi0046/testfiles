@@ -3230,6 +3230,230 @@ def _swa_paged_prefill_single_q_grouped_sink_kernel(
 
 
 @triton.jit
+def _swa_paged_prefill_four_q_grouped_sink_kernel(
+    o_ptr,
+    q_ptr,
+    k_ptr,
+    v_ptr,
+    sinks_ptr,
+    bsz,
+    cu_q_lens_ptr,
+    kv_lens_ptr,
+    block_table_ptr,
+    scale,
+    stride_ot,
+    stride_oh,
+    stride_od,
+    stride_qt,
+    stride_qh,
+    stride_qd,
+    stride_kp,
+    stride_kh,
+    stride_kt,
+    stride_kd,
+    stride_vp,
+    stride_vh,
+    stride_vt,
+    stride_vd,
+    stride_block_table_b,
+    stride_block_table_p,
+    stride_sink_head,
+    GLOBAL_WINDOW: tl.constexpr,
+    LOCAL_WINDOW: tl.constexpr,
+    NUM_Q_HEADS: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    BLOCK_N: tl.constexpr,
+    BLOCK_D: tl.constexpr,
+    PAGE_SIZE: tl.constexpr,
+    MAX_Q_LEN: tl.constexpr,
+    SINK_ENABLED: tl.constexpr,
+):
+    """Run up to four query tokens while grouping six Q heads per KV head."""
+    tl.static_assert(
+        PAGE_SIZE // BLOCK_N * BLOCK_N == PAGE_SIZE,
+        "BLOCK_N must divide PAGE_SIZE",
+    )
+    tl.static_assert(
+        NUM_Q_HEADS == 6,
+        "grouped WeLM small-Q prefill requires six local Q heads",
+    )
+    tl.static_assert(
+        MAX_Q_LEN == 4,
+        "grouped WeLM four-Q prefill requires max query length 4",
+    )
+    tl.static_assert(
+        BLOCK_N == PAGE_SIZE,
+        "grouped WeLM small-Q prefill uses one page per KV tile",
+    )
+
+    pid = tl.program_id(0)
+    n_programs = tl.num_programs(0)
+    # Keep each program's requests contiguous, but distribute the remainder
+    # evenly so B=48 uses all 28 Cube cores instead of only 24.
+    b_begin = pid * bsz // n_programs
+    b_end = (pid + 1) * bsz // n_programs
+
+    for b_id in range(b_begin, b_end):
+        q_start = tl.load(cu_q_lens_ptr + b_id).to(tl.int32)
+        q_end = tl.load(cu_q_lens_ptr + b_id + 1).to(tl.int32)
+        q_seq_len = q_end - q_start
+        if q_seq_len.to(tl.float32) > 0.0:
+            kv_seq_len = tl.load(kv_lens_ptr + b_id).to(tl.int32)
+            kv_computed_len = kv_seq_len - q_seq_len
+            for q_token_id in range(0, MAX_Q_LEN):
+                active_token = q_token_id < q_seq_len.to(tl.float32)
+                q_head_ids = tl.arange(0, NUM_Q_HEADS)
+                dim_offsets = tl.arange(0, BLOCK_D)
+                q_ptrs = (
+                    q_ptr
+                    + (q_start + q_token_id) * stride_qt
+                    + q_head_ids[:, None] * stride_qh
+                    + dim_offsets[None, :] * stride_qd
+                )
+                q = tl.load(q_ptrs, mask=active_token, other=0.0)
+
+                if SINK_ENABLED:
+                    m_i = tl.load(
+                        sinks_ptr + q_head_ids * stride_sink_head
+                    ).to(tl.float32)
+                    l_i = tl.full((NUM_Q_HEADS,), 1.0, tl.float32)
+                else:
+                    m_i = tl.full(
+                        (NUM_Q_HEADS,), -float("inf"), tl.float32
+                    )
+                    l_i = tl.zeros((NUM_Q_HEADS,), dtype=tl.float32)
+                acc = tl.zeros(
+                    (NUM_Q_HEADS, BLOCK_D), dtype=tl.float32
+                )
+
+                query_position = kv_computed_len + q_token_id
+                (
+                    num_global_blocks,
+                    local_start_block,
+                    num_total_blocks,
+                ) = _swa_split_blocks(
+                    query_position,
+                    1,
+                    kv_seq_len,
+                    BLOCK_N,
+                    True,
+                    GLOBAL_WINDOW,
+                    LOCAL_WINDOW,
+                )
+                local_start_block = max(
+                    num_global_blocks, local_start_block
+                )
+                num_calced_blocks = num_global_blocks + max(
+                    num_total_blocks - local_start_block, 0
+                )
+                num_calced_blocks = min(
+                    num_calced_blocks, num_total_blocks
+                )
+
+                for kv_block_iter in range(0, num_calced_blocks):
+                    is_global = (
+                        kv_block_iter.to(tl.float32)
+                        < num_global_blocks.to(tl.float32)
+                    )
+                    kv_block_id = is_global * kv_block_iter + (
+                        1 - is_global
+                    ) * (
+                        local_start_block
+                        + kv_block_iter
+                        - num_global_blocks
+                    )
+                    kv_block_start = kv_block_id * BLOCK_N
+                    kv_block_end = min(
+                        kv_block_start + BLOCK_N, kv_seq_len
+                    )
+                    kv_block_len = max(
+                        kv_block_end - kv_block_start, 0
+                    )
+
+                    key_offsets = tl.arange(0, BLOCK_N)
+                    key_positions = kv_block_start + key_offsets
+                    causal = (
+                        key_positions.to(tl.float32)
+                        <= query_position.to(tl.float32)
+                    )
+                    in_sink = (
+                        key_positions.to(tl.float32) < GLOBAL_WINDOW
+                    )
+                    in_local = (
+                        key_positions.to(tl.float32) + LOCAL_WINDOW
+                        >= query_position.to(tl.float32)
+                    )
+                    key_valid = (
+                        key_positions.to(tl.float32)
+                        < kv_seq_len.to(tl.float32)
+                    )
+                    mask = active_token & key_valid & causal & (in_sink | in_local)
+
+                    logical_page_id = min(
+                        kv_block_start // PAGE_SIZE,
+                        stride_block_table_b - 1,
+                    )
+                    physical_page_id = tl.load(
+                        block_table_ptr
+                        + b_id * stride_block_table_b
+                        + logical_page_id * stride_block_table_p
+                    )
+                    k_t_block_ptr = tl.make_block_ptr(
+                        base=k_ptr + physical_page_id * stride_kp,
+                        shape=(HEAD_DIM, kv_block_len),
+                        strides=(stride_kd, stride_kt),
+                        offsets=(0, 0),
+                        block_shape=(BLOCK_D, BLOCK_N),
+                        order=(0, 1),
+                    )
+                    v_block_ptr = tl.make_block_ptr(
+                        base=v_ptr + physical_page_id * stride_vp,
+                        shape=(kv_block_len, HEAD_DIM),
+                        strides=(stride_vt, stride_vd),
+                        offsets=(0, 0),
+                        block_shape=(BLOCK_N, BLOCK_D),
+                        order=(1, 0),
+                    )
+                    k_t = tl.load(
+                        k_t_block_ptr,
+                        boundary_check=(0, 1),
+                        padding_option="zero",
+                    )
+                    v = tl.load(
+                        v_block_ptr,
+                        boundary_check=(0, 1),
+                        padding_option="zero",
+                    )
+                    qk = tl.dot(q, k_t) * scale
+                    qk = tl.where(mask[None, :], qk, -1e6)
+                    m_ij = tl.maximum(
+                        m_i,
+                        tl.max(qk, 1, propagate_nan=True),
+                        propagate_nan=tl.PropagateNan.ALL,
+                    )
+                    p = tl.math.exp(qk - m_ij[:, None])
+                    pv = tl.dot(p.to(k_t.dtype), v)
+                    l_ij = tl.sum(p, 1)
+                    alpha = tl.math.exp(m_i - m_ij)
+                    l_i = l_i * alpha + l_ij
+                    acc = acc * alpha[:, None] + pv
+                    m_i = m_ij
+
+                output = acc / l_i[:, None]
+                o_ptrs = (
+                    o_ptr
+                    + (q_start + q_token_id) * stride_ot
+                    + q_head_ids[:, None] * stride_oh
+                    + dim_offsets[None, :] * stride_od
+                )
+                tl.store(
+                    o_ptrs,
+                    output.to(o_ptr.type.element_ty),
+                    mask=active_token,
+                )
+
+
+@triton.jit
 def _swa_paged_prefill_small_q_grouped_sink_kernel(
     o_ptr,
     q_ptr,
@@ -3278,8 +3502,8 @@ def _swa_paged_prefill_small_q_grouped_sink_kernel(
         "grouped WeLM small-Q prefill requires six local Q heads",
     )
     tl.static_assert(
-        MAX_Q_LEN >= 2 and MAX_Q_LEN <= 4,
-        "merged WeLM small-Q prefill max query length must be in [2, 4]",
+        MAX_Q_LEN >= 2 and MAX_Q_LEN <= 3,
+        "shared-page WeLM small-Q prefill max query length must be 2 or 3",
     )
     tl.static_assert(
         BLOCK_N == PAGE_SIZE,
@@ -3673,7 +3897,12 @@ def swa_paged_prefill_impl(
             )
             return o
 
-        _swa_paged_prefill_small_q_grouped_sink_kernel[grouped_grid](
+        grouped_small_q_kernel = (
+            _swa_paged_prefill_four_q_grouped_sink_kernel
+            if max_q_len == 4
+            else _swa_paged_prefill_small_q_grouped_sink_kernel
+        )
+        grouped_small_q_kernel[grouped_grid](
             o,
             q,
             k_cache,
