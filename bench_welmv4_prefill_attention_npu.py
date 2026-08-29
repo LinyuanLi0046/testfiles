@@ -148,6 +148,8 @@ def primary_kernel_name(provider: str, case: AttentionCase) -> str:
         "graph_d3",
     )
     if case.attention == "full":
+        if candidate_verify and case.scheduled_batch_size == 48:
+            return "paged_prefill_verify_split_kernel"
         return (
             "paged_prefill_verify_grouped_kernel"
             if candidate_verify
