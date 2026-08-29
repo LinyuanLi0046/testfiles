@@ -75,17 +75,8 @@ def _build_lpt_task_schedule(
             # 257/513 boundaries remain a single-wave schedule.  Markers are
             # encoded as ``num_q_heads * heads_per_group + head_base`` and are
             # decoded only by the page-aggregation kernel.
-            if group_partial_tail and q_block_len <= block_size_m // 2:
-                if q_block_len <= block_size_m // num_q_heads:
-                    heads_per_group = num_q_heads
-                elif q_block_len <= block_size_m // 3:
-                    heads_per_group = 3
-                else:
-                    heads_per_group = 2
-                q_head_ids = [
-                    num_q_heads * heads_per_group + head_base
-                    for head_base in range(0, num_q_heads, heads_per_group)
-                ]
+            if group_partial_tail and q_block_len == 1:
+                q_head_ids = [num_q_heads * num_q_heads]
             else:
                 q_head_ids = range(num_q_heads)
 
@@ -421,7 +412,7 @@ def paged_prefill_kernel(
 
 
 @triton.jit
-def _paged_prefill_grouped_tail_task(
+def paged_prefill_single_tail_kernel(
     q_ptr,
     key_cache_ptr,
     value_cache_ptr,
@@ -430,9 +421,9 @@ def _paged_prefill_grouped_tail_task(
     seqlens_kv_ptr,
     block_tables_ptr,
     sinks_ptr,
-    b_id,
-    q_block_id,
-    head_base,
+    task_b_ptr,
+    task_q_block_ptr,
+    task_q_head_ptr,
     stride_qt,
     stride_qh,
     stride_qd,
@@ -450,30 +441,31 @@ def _paged_prefill_grouped_tail_task(
     stride_sink_head,
     softmax_scale,
     NUM_Q_HEADS: tl.constexpr,
-    HEADS_PER_GROUP: tl.constexpr,
     HEAD_DIM: tl.constexpr,
     BLOCK_SIZE_M: tl.constexpr,
     BLOCK_SIZE_N: tl.constexpr,
     BLOCK_SIZE_D: tl.constexpr,
     SINK_ENABLED: tl.constexpr,
 ):
-    """Compute one short final M128 tile with several local Q heads packed in M."""
+    """Use one M128 data path for full Q blocks and a packed one-token tail."""
     tl.static_assert(NUM_Q_HEADS == 6, "tail grouping is specialized for WeLM TP4")
-    tl.static_assert(
-        (HEADS_PER_GROUP == 2 or HEADS_PER_GROUP == 3)
-        or HEADS_PER_GROUP == 6,
-        "tail grouping supports two, three, or six local heads per Cube task",
-    )
+    task_id = tl.program_id(0)
+    b_id = tl.load(task_b_ptr + task_id)
+    q_block_id = tl.load(task_q_block_ptr + task_id)
+    encoded_q_head = tl.load(task_q_head_ptr + task_id)
+    is_grouped_tail = encoded_q_head >= NUM_Q_HEADS
+    head_base = tl.where(is_grouped_tail, 0, encoded_q_head)
+
     q_start = tl.load(cu_q_lens_ptr + b_id).to(tl.int32)
     q_end = tl.load(cu_q_lens_ptr + b_id + 1).to(tl.int32)
     q_seq_len = q_end - q_start
     q_block_start = q_block_id * BLOCK_SIZE_M
-    q_block_len = q_seq_len - q_block_start
+    q_block_len = min(BLOCK_SIZE_M, q_seq_len - q_block_start)
 
     row_ids = tl.arange(0, BLOCK_SIZE_M)
-    local_row_tokens = row_ids // HEADS_PER_GROUP
+    local_row_tokens = tl.where(is_grouped_tail, row_ids // 6, row_ids)
     row_tokens = q_block_start + local_row_tokens
-    local_heads = row_ids - local_row_tokens * HEADS_PER_GROUP
+    local_heads = tl.where(is_grouped_tail, row_ids % 6, 0)
     q_head_ids = head_base + local_heads
     valid_rows = local_row_tokens.to(tl.float32) < q_block_len.to(tl.float32)
     dim_offsets = tl.arange(0, BLOCK_SIZE_D)
@@ -519,7 +511,7 @@ def _paged_prefill_grouped_tail_task(
 
     kv_seq_len = tl.load(seqlens_kv_ptr + b_id).to(tl.int32)
     kv_cache_len = kv_seq_len - q_seq_len
-    visible_kv_end = kv_cache_len + q_seq_len
+    visible_kv_end = kv_cache_len + q_block_start + q_block_len
     num_kv_blocks = tl.cdiv(visible_kv_end, BLOCK_SIZE_N)
     for kv_block_id in range(0, num_kv_blocks):
         kv_block_start = kv_block_id * BLOCK_SIZE_N
@@ -650,7 +642,6 @@ def paged_prefill_page_aggregation_kernel(
     BLOCK_SIZE_D: tl.constexpr,
     PAGE_AGGREGATION_NUM: tl.constexpr,
     SINK_ENABLED: tl.constexpr,
-    TAIL_HEAD_GROUPING: tl.constexpr,
 ):
     pid = tl.program_id(0)
 
@@ -665,71 +656,9 @@ def paged_prefill_page_aggregation_kernel(
         q_start_loc = tl.load(cu_q_lens_ptr + b_id).to(tl.int32)
         q_end_loc = tl.load(cu_q_lens_ptr + b_id + 1).to(tl.int32)
         q_seq_len = q_end_loc - q_start_loc
-        if TAIL_HEAD_GROUPING:
-            if q_seq_len > 0 and q_head_id >= NUM_Q_HEADS:
-                if q_head_id >= 6 * NUM_Q_HEADS:
-                    _paged_prefill_grouped_tail_task(
-                        q_ptr, key_cache_ptr, value_cache_ptr, o_ptr,
-                        cu_q_lens_ptr, seqlens_kv_ptr, block_tables_ptr,
-                        sinks_ptr, b_id, q_block_id,
-                        q_head_id - 6 * NUM_Q_HEADS,
-                        stride_qt, stride_qh, stride_qd,
-                        stride_k_block, stride_k_blksz, stride_k_dim,
-                        stride_v_block, stride_v_blksz, stride_v_dim,
-                        stride_ot, stride_oh, stride_od,
-                        stride_bt_batch, stride_bt_block, stride_sink_head,
-                        softmax_scale,
-                        NUM_Q_HEADS=NUM_Q_HEADS,
-                        HEADS_PER_GROUP=6,
-                        HEAD_DIM=HEAD_DIM,
-                        BLOCK_SIZE_M=BLOCK_SIZE_M,
-                        BLOCK_SIZE_N=BLOCK_SIZE_N,
-                        BLOCK_SIZE_D=BLOCK_SIZE_D,
-                        SINK_ENABLED=SINK_ENABLED,
-                    )
-                elif q_head_id >= 3 * NUM_Q_HEADS:
-                    _paged_prefill_grouped_tail_task(
-                        q_ptr, key_cache_ptr, value_cache_ptr, o_ptr,
-                        cu_q_lens_ptr, seqlens_kv_ptr, block_tables_ptr,
-                        sinks_ptr, b_id, q_block_id,
-                        q_head_id - 3 * NUM_Q_HEADS,
-                        stride_qt, stride_qh, stride_qd,
-                        stride_k_block, stride_k_blksz, stride_k_dim,
-                        stride_v_block, stride_v_blksz, stride_v_dim,
-                        stride_ot, stride_oh, stride_od,
-                        stride_bt_batch, stride_bt_block, stride_sink_head,
-                        softmax_scale,
-                        NUM_Q_HEADS=NUM_Q_HEADS,
-                        HEADS_PER_GROUP=3,
-                        HEAD_DIM=HEAD_DIM,
-                        BLOCK_SIZE_M=BLOCK_SIZE_M,
-                        BLOCK_SIZE_N=BLOCK_SIZE_N,
-                        BLOCK_SIZE_D=BLOCK_SIZE_D,
-                        SINK_ENABLED=SINK_ENABLED,
-                    )
-                else:
-                    _paged_prefill_grouped_tail_task(
-                        q_ptr, key_cache_ptr, value_cache_ptr, o_ptr,
-                        cu_q_lens_ptr, seqlens_kv_ptr, block_tables_ptr,
-                        sinks_ptr, b_id, q_block_id,
-                        q_head_id - 2 * NUM_Q_HEADS,
-                        stride_qt, stride_qh, stride_qd,
-                        stride_k_block, stride_k_blksz, stride_k_dim,
-                        stride_v_block, stride_v_blksz, stride_v_dim,
-                        stride_ot, stride_oh, stride_od,
-                        stride_bt_batch, stride_bt_block, stride_sink_head,
-                        softmax_scale,
-                        NUM_Q_HEADS=NUM_Q_HEADS,
-                        HEADS_PER_GROUP=2,
-                        HEAD_DIM=HEAD_DIM,
-                        BLOCK_SIZE_M=BLOCK_SIZE_M,
-                        BLOCK_SIZE_N=BLOCK_SIZE_N,
-                        BLOCK_SIZE_D=BLOCK_SIZE_D,
-                        SINK_ENABLED=SINK_ENABLED,
-                    )
         # The capture-time task schedule also contains replay-time padding
         # requests, whose q length is represented as zero.
-        if q_seq_len > 0 and q_head_id < NUM_Q_HEADS:
+        if q_seq_len > 0:
             if seqlens_kv_ptr is None:
                 kv_seq_len = q_seq_len
             else:
@@ -1348,11 +1277,17 @@ def paged_attention_prefill_prepare(
     cube_num = get_num_cores("cube")
     CHUNK_SIZE = 128
     BLOCK_SIZE_N = min(128, triton.next_power_of_2(page_size))
+    q_lens_host = _tensor_to_cpu_list(cu_q_lens)
+    max_prepare_q_len = max(
+        q_lens_host[i + 1] - q_lens_host[i]
+        for i in range(len(q_lens_host) - 1)
+    )
     group_partial_tail = (
         page_size == 64
         and num_q_heads == 6
         and num_kv_heads == 1
         and not gqa_interleave
+        and max_prepare_q_len in (257, 513)
     )
 
     task_b, task_q_block, task_q_head, core_task_offsets = _build_lpt_task_schedule(
@@ -1554,6 +1489,61 @@ def paged_attention_prefill_impl(
         )
         return o
 
+    use_single_tail_kernel = (
+        q.dtype != torch.float32
+        and seqlens_kv is not None
+        and max_q_len in (257, 513)
+        and not gqa_interleave
+        and num_kv_heads == 1
+        and num_q_heads == 6
+        and page_size == 64
+        and head_dim == 256
+        and q.stride(0) == num_q_heads * q.stride(1)
+        and o.stride(0) == num_q_heads * o.stride(1)
+    )
+    if use_single_tail_kernel:
+        tail_grid = (task_b.numel(),)
+        paged_prefill_single_tail_kernel[tail_grid](
+            q,
+            key_cache,
+            value_cache,
+            o,
+            cu_q_lens,
+            seqlens_kv,
+            block_tables_i32,
+            sinks_pass,
+            task_b,
+            task_q_block,
+            task_q_head,
+            q.stride(0),
+            q.stride(1),
+            q.stride(2),
+            key_cache.stride(0),
+            key_cache.stride(2),
+            key_cache.stride(3),
+            value_cache.stride(0),
+            value_cache.stride(2),
+            value_cache.stride(3),
+            o.stride(0),
+            o.stride(1),
+            o.stride(2),
+            block_tables_i32.stride(0),
+            block_tables_i32.stride(1),
+            sinks_pass.stride(0),
+            softmax_scale,
+            NUM_Q_HEADS=num_q_heads,
+            HEAD_DIM=head_dim,
+            BLOCK_SIZE_M=CHUNK_SIZE,
+            BLOCK_SIZE_N=BLOCK_SIZE_N,
+            BLOCK_SIZE_D=head_dim,
+            SINK_ENABLED=sink_enabled,
+            enable_dynamic_cv_pipeline=True,
+            enable_cube_block_merge=True,
+            enable_buffer_insert_optimization=True,
+            enable_ub_refine_opt=True,
+        )
+        return o
+
     if not (page_size < 128 and 128 % page_size == 0):
         paged_prefill_kernel[grid](
             q,
@@ -1655,13 +1645,6 @@ def paged_attention_prefill_impl(
             BLOCK_SIZE_D=head_dim,
             PAGE_AGGREGATION_NUM=PAGE_AGGREGATION_NUM,
             SINK_ENABLED=sink_enabled,
-            TAIL_HEAD_GROUPING=(
-                num_q_heads == 6
-                and num_kv_heads == 1
-                and not gqa_interleave
-                and page_size == 64
-                and head_dim == 256
-            ),
             enable_dynamic_cv_pipeline=True,
             enable_cube_block_merge=True,
             enable_buffer_insert_optimization=True,
