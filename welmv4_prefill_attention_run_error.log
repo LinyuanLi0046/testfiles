@@ -1,11 +1,11 @@
-time: 2026-08-29T16:38:08+08:00
-command: /usr/local/python3.11.10/bin/python bench_welmv4_prefill_attention_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_attn_result_nyugfnnm
+time: 2026-08-29T16:43:58+08:00
+command: /usr/local/python3.11.10/bin/python bench_welmv4_prefill_attention_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_attn_result_nbhmv4ee
 return_code: 1
 reason: benchmark exited with status 1
 
 ===== stdout + stderr =====
 WeLMv4 NPU Full/SWA prefill Attention optimization workspace
-device=npu:5 (Ascend950PR_957b), base=0089f9036b1c, baseline=c47f9bdcfb87, candidate=396b090dfd6c
+device=npu:5 (Ascend950PR_957b), base=fc7ca3618af1, baseline=c47f9bdcfb87, candidate=1bce27ff8357
 [correctness 1/215] full_dense_m1_kv63_uniform_compact_tp4
   PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 2/215] full_dense_m1_kv64_uniform_compact_tp4
@@ -55,403 +55,194 @@ device=npu:5 (Ascend950PR_957b), base=0089f9036b1c, baseline=c47f9bdcfb87, candi
 [correctness 15/215] swa_ragged_prefill_b56_m1024_kv4096_ragged_compact_tp4
   PASS: candidate max_abs=0.0078125, pair max_abs=0
 [correctness 16/215] full_dense_m1_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
+  PASS: candidate max_abs=0.000976562, pair max_abs=0.000488281
 [correctness 17/215] full_dense_m2_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 18/215] full_dense_m3_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 19/215] full_dense_m7_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 20/215] full_dense_m8_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 21/215] full_dense_m15_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 22/215] full_dense_m16_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 23/215] full_dense_m31_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 24/215] full_dense_m32_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 25/215] full_dense_m63_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 26/215] full_dense_m64_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 27/215] full_dense_m65_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 28/215] full_dense_m127_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 29/215] full_dense_m128_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 30/215] full_dense_m129_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 31/215] full_dense_m191_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 32/215] full_dense_m192_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 33/215] full_dense_m255_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 34/215] full_dense_m256_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 35/215] full_dense_m257_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 36/215] full_dense_m511_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 37/215] full_dense_m512_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 38/215] full_dense_m513_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 39/215] full_dense_m767_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 40/215] full_dense_m768_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 41/215] full_dense_m769_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 42/215] full_dense_m1023_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 43/215] full_dense_m1024_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 44/215] swa_dense_m1_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.000976562
-[correctness 45/215] swa_dense_m2_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.00195312
-[correctness 46/215] swa_dense_m3_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 47/215] swa_dense_m7_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 48/215] swa_dense_m8_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 49/215] swa_dense_m15_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 50/215] swa_dense_m16_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 51/215] swa_dense_m31_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 52/215] swa_dense_m32_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 53/215] swa_dense_m63_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 54/215] swa_dense_m64_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 55/215] swa_dense_m65_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 56/215] swa_dense_m127_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 57/215] swa_dense_m128_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 58/215] swa_dense_m129_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 59/215] swa_dense_m191_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 60/215] swa_dense_m192_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 61/215] swa_dense_m255_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 62/215] swa_dense_m256_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 63/215] swa_dense_m257_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 64/215] swa_dense_m511_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 65/215] swa_dense_m512_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.0078125, pair max_abs=0
-[correctness 66/215] swa_dense_m513_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 67/215] swa_dense_m767_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 68/215] swa_dense_m768_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 69/215] swa_dense_m769_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.0078125, pair max_abs=0
-[correctness 70/215] swa_dense_m1023_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 71/215] swa_dense_m1024_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 72/215] full_verify_d2_m2_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 73/215] full_verify_d2_m4_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 74/215] full_verify_d2_m8_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 75/215] full_verify_d2_m16_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 76/215] full_verify_d2_m24_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 77/215] full_verify_d2_m32_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 78/215] full_verify_d2_m48_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 79/215] full_verify_d2_m64_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 80/215] full_verify_d2_m72_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 81/215] full_verify_d2_m80_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 82/215] full_verify_d2_m96_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 83/215] full_verify_d2_m112_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 84/215] swa_verify_d2_m2_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.00195312
-[correctness 85/215] swa_verify_d2_m4_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.00195312
-[correctness 86/215] swa_verify_d2_m8_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.00195312
-[correctness 87/215] swa_verify_d2_m16_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00195312
-[correctness 88/215] swa_verify_d2_m24_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00195312
-[correctness 89/215] swa_verify_d2_m32_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 90/215] swa_verify_d2_m48_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 91/215] swa_verify_d2_m64_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00195312
-[correctness 92/215] swa_verify_d2_m72_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 93/215] swa_verify_d2_m80_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 94/215] swa_verify_d2_m96_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.0078125, pair max_abs=0.0078125
-[correctness 95/215] swa_verify_d2_m112_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 96/215] full_verify_d3_m3_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 97/215] full_verify_d3_m6_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 98/215] full_verify_d3_m12_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 99/215] full_verify_d3_m24_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 100/215] full_verify_d3_m36_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 101/215] full_verify_d3_m48_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 102/215] full_verify_d3_m72_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 103/215] full_verify_d3_m96_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 104/215] full_verify_d3_m108_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 105/215] full_verify_d3_m120_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 106/215] full_verify_d3_m144_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 107/215] full_verify_d3_m168_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 108/215] swa_verify_d3_m3_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.00195312
-[correctness 109/215] swa_verify_d3_m6_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.00195312
-[correctness 110/215] swa_verify_d3_m12_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00195312
-[correctness 111/215] swa_verify_d3_m24_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.00195312
-[correctness 112/215] swa_verify_d3_m36_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 113/215] swa_verify_d3_m48_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 114/215] swa_verify_d3_m72_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 115/215] swa_verify_d3_m96_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 116/215] swa_verify_d3_m108_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 117/215] swa_verify_d3_m120_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 118/215] swa_verify_d3_m144_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 119/215] swa_verify_d3_m168_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 120/215] full_verify_d2_m2_kv64_ragged_compact_tp4
-  PASS: candidate max_abs=0.0078125, pair max_abs=0
-[correctness 121/215] full_verify_d2_m32_kv64_ragged_compact_tp4
-  FAIL: candidate max_abs=nan, pair max_abs=nan
-[correctness 122/215] full_verify_d2_m112_kv64_ragged_compact_tp4
-  FAIL: candidate max_abs=nan, pair max_abs=nan
-[correctness 123/215] full_verify_d2_m2_kv511_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 124/215] full_verify_d2_m32_kv511_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 125/215] full_verify_d2_m112_kv511_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 126/215] full_verify_d2_m2_kv512_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 127/215] full_verify_d2_m32_kv512_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 128/215] full_verify_d2_m112_kv512_ragged_compact_tp4
-  PASS: candidate max_abs=0.0078125, pair max_abs=0
-[correctness 129/215] full_verify_d2_m2_kv513_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 130/215] full_verify_d2_m32_kv513_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 131/215] full_verify_d2_m112_kv513_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 132/215] full_verify_d2_m2_kv8192_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 133/215] full_verify_d2_m32_kv8192_ragged_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 134/215] full_verify_d2_m112_kv8192_ragged_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 135/215] swa_verify_d2_m2_kv64_ragged_compact_tp4
-  PASS: candidate max_abs=0.0078125, pair max_abs=0
-[correctness 136/215] swa_verify_d2_m32_kv64_ragged_compact_tp4
-  PASS: candidate max_abs=0.015625, pair max_abs=0
-[correctness 137/215] swa_verify_d2_m112_kv64_ragged_compact_tp4
-  PASS: candidate max_abs=0.015625, pair max_abs=0
-[correctness 138/215] swa_verify_d2_m2_kv511_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.00195312
-[correctness 139/215] swa_verify_d2_m32_kv511_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 140/215] swa_verify_d2_m112_kv511_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 141/215] swa_verify_d2_m2_kv512_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.00195312
-[correctness 142/215] swa_verify_d2_m32_kv512_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 143/215] swa_verify_d2_m112_kv512_ragged_compact_tp4
-  PASS: candidate max_abs=0.0078125, pair max_abs=0.00390625
-[correctness 144/215] swa_verify_d2_m2_kv513_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.00195312
-[correctness 145/215] swa_verify_d2_m32_kv513_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 146/215] swa_verify_d2_m112_kv513_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 147/215] swa_verify_d2_m2_kv8192_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.000976562
-[correctness 148/215] swa_verify_d2_m32_kv8192_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 149/215] swa_verify_d2_m112_kv8192_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 150/215] full_verify_d2_m2_kv10240_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 151/215] full_verify_d2_m32_kv10240_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 152/215] full_verify_d2_m112_kv10240_ragged_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 153/215] full_verify_d2_m2_kv11264_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 154/215] full_verify_d2_m32_kv11264_ragged_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 155/215] full_verify_d2_m112_kv11264_ragged_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 156/215] full_verify_d2_m2_kv12288_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 157/215] full_verify_d2_m32_kv12288_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 158/215] full_verify_d2_m112_kv12288_ragged_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 159/215] full_verify_d2_m2_kv15360_ragged_compact_tp4
-  PASS: candidate max_abs=0.000244141, pair max_abs=0
-[correctness 160/215] full_verify_d2_m32_kv15360_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 161/215] full_verify_d2_m112_kv15360_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 162/215] full_verify_d2_m2_kv16896_ragged_compact_tp4
-  PASS: candidate max_abs=0.000244141, pair max_abs=0
-[correctness 163/215] full_verify_d2_m32_kv16896_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 164/215] full_verify_d2_m112_kv16896_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 165/215] full_verify_d2_m2_kv18432_ragged_compact_tp4
-  PASS: candidate max_abs=0.000244141, pair max_abs=0
-[correctness 166/215] full_verify_d2_m32_kv18432_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 167/215] full_verify_d2_m112_kv18432_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 168/215] full_verify_d2_m2_kv24576_ragged_compact_tp4
-  PASS: candidate max_abs=0.000244141, pair max_abs=0
-[correctness 169/215] full_verify_d2_m32_kv24576_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 170/215] full_verify_d2_m112_kv24576_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 171/215] full_verify_d2_m2_kv26624_ragged_compact_tp4
-  PASS: candidate max_abs=0.000244141, pair max_abs=0
-[correctness 172/215] full_verify_d2_m32_kv26624_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 173/215] full_verify_d2_m112_kv26624_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 174/215] full_verify_d2_m2_kv28672_ragged_compact_tp4
-  PASS: candidate max_abs=0.000244141, pair max_abs=0
-[correctness 175/215] full_verify_d2_m32_kv28672_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 176/215] full_verify_d2_m112_kv28672_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 177/215] swa_verify_d2_m2_kv10240_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.00195312
-[correctness 178/215] swa_verify_d2_m32_kv10240_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 179/215] swa_verify_d2_m112_kv10240_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00195312
-[correctness 180/215] swa_verify_d2_m2_kv11264_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.00195312
-[correctness 181/215] swa_verify_d2_m32_kv11264_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 182/215] swa_verify_d2_m112_kv11264_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 183/215] swa_verify_d2_m2_kv12288_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.00195312
-[correctness 184/215] swa_verify_d2_m32_kv12288_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00195312
-[correctness 185/215] swa_verify_d2_m112_kv12288_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00195312
-[correctness 186/215] swa_verify_d2_m2_kv15360_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.00195312
-[correctness 187/215] swa_verify_d2_m32_kv15360_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 188/215] swa_verify_d2_m112_kv15360_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 189/215] swa_verify_d2_m2_kv16896_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.00195312
-[correctness 190/215] swa_verify_d2_m32_kv16896_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00195312
-[correctness 191/215] swa_verify_d2_m112_kv16896_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00195312
-[correctness 192/215] swa_verify_d2_m2_kv18432_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.000976562
-[correctness 193/215] swa_verify_d2_m32_kv18432_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 194/215] swa_verify_d2_m112_kv18432_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 195/215] swa_verify_d2_m2_kv24576_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.00195312
-[correctness 196/215] swa_verify_d2_m32_kv24576_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.00195312
-[correctness 197/215] swa_verify_d2_m112_kv24576_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00195312
-[correctness 198/215] swa_verify_d2_m2_kv26624_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.00195312
-[correctness 199/215] swa_verify_d2_m32_kv26624_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.00390625
-[correctness 200/215] swa_verify_d2_m112_kv26624_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 201/215] swa_verify_d2_m2_kv28672_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.00195312
-[correctness 202/215] swa_verify_d2_m32_kv28672_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00195312
-[correctness 203/215] swa_verify_d2_m112_kv28672_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 204/215] full_graph_d2_bcap56_m2_kv4096_ragged_graph_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 205/215] full_graph_d2_bcap56_m32_kv4096_ragged_graph_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 206/215] full_graph_d2_bcap56_m80_kv4096_ragged_graph_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 207/215] swa_graph_d2_bcap56_m2_kv4096_ragged_graph_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.00195312
-[correctness 208/215] swa_graph_d2_bcap56_m32_kv4096_ragged_graph_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00195312
-[correctness 209/215] swa_graph_d2_bcap56_m80_kv4096_ragged_graph_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00195312
-[correctness 210/215] full_graph_d3_bcap56_m3_kv4096_ragged_graph_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 211/215] full_graph_d3_bcap56_m48_kv4096_ragged_graph_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 212/215] full_graph_d3_bcap56_m120_kv4096_ragged_graph_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 213/215] swa_graph_d3_bcap56_m3_kv4096_ragged_graph_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.00195312
-[correctness 214/215] swa_graph_d3_bcap56_m48_kv4096_ragged_graph_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-[correctness 215/215] swa_graph_d3_bcap56_m120_kv4096_ragged_graph_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
-result=FAIL; manifest=/data2/hw_lly/testfiles/welm_attn_result_nyugfnnm/result.json
+Traceback (most recent call last):
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/compiler/compiler.py", line 289, in compile
+    next_module = compile_ir(module, metadata)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/compiler.py", line 1223, in <lambda>
+    lambda src, metadata: linalg_to_bin_enable_npu_compile_910_95(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/compiler.py", line 654, in linalg_to_bin_enable_npu_compile_910_95
+    ret = subprocess.run(
+          ^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['/usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile', '/tmp/tmp9w7d8pnb/kernel.ttadapter.mlir', '--target=Ascend950PR_957b', '--enable-auto-multi-buffer=True', '--enable-auto-bind-sub-block=True', '--disable-ffts', '--limit-auto-multi-buffer-of-local-buffer=no-limit', '--enable-auto-blockify-loop', '--enable-hfusion-compile=true', '--enable-triton-kernel-compile=true', '--append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc', '--mlir-print-ir-after-failure', '--mlir-print-stacktrace-on-diagnostic', '-o', '/tmp/tmp9w7d8pnb/kernel', '--enable-vf-merge-level=1']' returned non-zero exit status 1.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/data2/hw_lly/testfiles/bench_welmv4_prefill_attention_npu.py", line 1604, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/data2/hw_lly/testfiles/bench_welmv4_prefill_attention_npu.py", line 1453, in main
+    rows, correctness_failures = run_correctness(harness, cases)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data2/hw_lly/testfiles/bench_welmv4_prefill_attention_npu.py", line 362, in run_correctness
+    outputs[provider] = bound.launch()
+                        ^^^^^^^^^^^^^^
+  File "/data2/hw_lly/testfiles/bench_welmv4_prefill_attention_npu.py", line 266, in launch_full
+    return module.paged_attention_prefill_impl(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py", line 1051, in paged_attention_prefill_impl
+    paged_prefill_verify_grouped_kernel[grouped_grid](
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/runtime/jit.py", line 333, in <lambda>
+    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/runtime/jit.py", line 622, in run
+    kernel = self._do_compile(key, signature, device, backend, target, constants, options, configs[0], warmup)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/runtime/jit.py", line 787, in _do_compile
+    kernel = self.compile(src, target=target, options=options.__dict__)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/compiler/compiler.py", line 303, in compile
+    raise MLIRCompilationError(stage_name, error_detail) from e
+triton.compiler.errors.MLIRCompilationError: 
+///------------------[ERROR][Triton][BEG]------------------
+[ConvertLinalgRToBinary] encounters error:
+[hivm-bind-sub-block] revert paged_prefill_verify_grouped_kernel_mix_aiv: bubble-up or verification failed
+loc("/tmp/bishengir-compile-815680/module.hivm.opt.mlir":871:12): error: LLVM Translation failed for operation: builtin.unrealized_conversion_cast
+loc("/tmp/bishengir-compile-815680/module.hivm.opt.mlir":3:1): error: Failed to translate module from LLVM Dialect IR to BiShengLIR
+
+loc("/tmp/bishengir-compile-815680/module.hivm.opt.mlir":3:1): error: Failed to compile BiShengLIR for device
+[ERROR] Failed to run HIVMC pipeline
+[ERROR] Executing: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/hivmc-a5 /tmp/bishengir-compile-815680/module.hivm.opt.mlir --append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc --target=Ascend950PR_957b --enable-hfusion-compile=true --enable-triton-kernel-compile=true -o /tmp/tmp9w7d8pnb/kernel --only-run-hivm-pipeline=false
+[hivm-bind-sub-block] revert paged_prefill_verify_grouped_kernel_mix_aiv: bubble-up or verification failed
+loc("/tmp/bishengir-compile-374e40/module.hivm.opt.mlir":871:12): error: LLVM Translation failed for operation: builtin.unrealized_conversion_cast
+loc("/tmp/bishengir-compile-374e40/module.hivm.opt.mlir":3:1): error: Failed to translate module from LLVM Dialect IR to BiShengLIR
+
+loc("/tmp/bishengir-compile-374e40/module.hivm.opt.mlir":3:1): error: Failed to compile BiShengLIR for device
+[ERROR] Failed to run HIVMC pipeline
+[ERROR] Executing: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/hivmc-a5 /tmp/bishengir-compile-374e40/module.hivm.opt.mlir --append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc --target=Ascend950PR_957b --enable-hfusion-compile=true --enable-triton-kernel-compile=true -o /tmp/tmp9w7d8pnb/kernel --only-run-hivm-pipeline=false
+[hivm-bind-sub-block] revert paged_prefill_verify_grouped_kernel_mix_aiv: bubble-up or verification failed
+loc("/tmp/bishengir-compile-80a81d/module.hivm.opt.mlir":871:12): error: LLVM Translation failed for operation: builtin.unrealized_conversion_cast
+loc("/tmp/bishengir-compile-80a81d/module.hivm.opt.mlir":3:1): error: Failed to translate module from LLVM Dialect IR to BiShengLIR
+
+loc("/tmp/bishengir-compile-80a81d/module.hivm.opt.mlir":3:1): error: Failed to compile BiShengLIR for device
+[ERROR] Failed to run HIVMC pipeline
+[ERROR] Executing: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/hivmc-a5 /tmp/bishengir-compile-80a81d/module.hivm.opt.mlir --append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc --target=Ascend950PR_957b --enable-hfusion-compile=true --enable-triton-kernel-compile=true -o /tmp/tmp9w7d8pnb/kernel --only-run-hivm-pipeline=false
+[hivm-bind-sub-block] revert paged_prefill_verify_grouped_kernel_mix_aiv: bubble-up or verification failed
+loc("/tmp/bishengir-compile-32e6c0/module.hivm.opt.mlir":871:12): error: LLVM Translation failed for operation: builtin.unrealized_conversion_cast
+loc("/tmp/bishengir-compile-32e6c0/module.hivm.opt.mlir":3:1): error: Failed to translate module from LLVM Dialect IR to BiShengLIR
+
+loc("/tmp/bishengir-compile-32e6c0/module.hivm.opt.mlir":3:1): error: Failed to compile BiShengLIR for device
+[ERROR] Failed to run HIVMC pipeline
+[ERROR] Executing: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/hivmc-a5 /tmp/bishengir-compile-32e6c0/module.hivm.opt.mlir --append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc --target=Ascend950PR_957b --enable-hfusion-compile=true --enable-triton-kernel-compile=true -o /tmp/tmp9w7d8pnb/kernel --only-run-hivm-pipeline=false
+[hivm-bind-sub-block] revert paged_prefill_verify_grouped_kernel_mix_aiv: bubble-up or verification failed
+loc("/tmp/bishengir-compile-c4a074/module.hivm.opt.mlir":871:12): error: LLVM Translation failed for operation: builtin.unrealized_conversion_cast
+loc("/tmp/bishengir-compile-c4a074/module.hivm.opt.mlir":3:1): error: Failed to translate module from LLVM Dialect IR to BiShengLIR
+
+loc("/tmp/bishengir-compile-c4a074/module.hivm.opt.mlir":3:1): error: Failed to compile BiShengLIR for device
+[ERROR] Failed to run HIVMC pipeline
+[ERROR] Executing: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/hivmc-a5 /tmp/bishengir-compile-c4a074/module.hivm.opt.mlir --append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc --target=Ascend950PR_957b --enable-hfusion-compile=true --enable-triton-kernel-compile=true -o /tmp/tmp9w7d8pnb/kernel --only-run-hivm-pipeline=false
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":915:67)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":915:67)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":913:63)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":913:63)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":844:44)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":844:44)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":834:40)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":834:40)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":908:20): error: 'bufferization.to_memref' op Unsupported op for finding the root alloc.
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":908:20): error: 'bufferization.to_memref' op Unsupported op for finding the root alloc.
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":816:20): error: 'bufferization.to_memref' op Unsupported op for finding the root alloc.
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":816:20): error: 'bufferization.to_memref' op Unsupported op for finding the root alloc.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":915:67)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":915:67)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":913:63)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":913:63)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":844:44)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":844:44)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":834:40)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":834:40)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":915:67)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":915:67)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":913:63)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":913:63)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":844:44)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":844:44)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":834:40)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":834:40)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":908:20): error: 'bufferization.to_memref' op Unsupported op for finding the root alloc.
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":908:20): error: 'bufferization.to_memref' op Unsupported op for finding the root alloc.
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":816:20): error: 'bufferization.to_memref' op Unsupported op for finding the root alloc.
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":816:20): error: 'bufferization.to_memref' op Unsupported op for finding the root alloc.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":915:67)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":915:67)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":913:63)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":913:63)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":844:44)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":844:44)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":834:40)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":834:40)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":915:67)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":915:67)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":913:63)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":913:63)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":844:44)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":844:44)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":834:40)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":834:40)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":908:20): error: 'bufferization.to_memref' op Unsupported op for finding the root alloc.
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":908:20): error: 'bufferization.to_memref' op Unsupported op for finding the root alloc.
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":816:20): error: 'bufferization.to_memref' op Unsupported op for finding the root alloc.
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":816:20): error: 'bufferization.to_memref' op Unsupported op for finding the root alloc.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":915:67)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":915:67)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":913:63)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":913:63)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":844:44)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":844:44)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":834:40)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":834:40)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":915:67)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":915:67)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":913:63)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":913:63)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":844:44)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":844:44)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":834:40)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":834:40)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":908:20): error: 'bufferization.to_memref' op Unsupported op for finding the root alloc.
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":908:20): error: 'bufferization.to_memref' op Unsupported op for finding the root alloc.
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":816:20): error: 'bufferization.to_memref' op Unsupported op for finding the root alloc.
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":816:20): error: 'bufferization.to_memref' op Unsupported op for finding the root alloc.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":915:67)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":915:67)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":913:63)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":913:63)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":844:44)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":844:44)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":834:40)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":834:40)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":915:67)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":915:67)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":913:63)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":913:63)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":844:44)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":844:44)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":834:40)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":834:40)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":908:20): error: 'bufferization.to_memref' op Unsupported op for finding the root alloc.
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":908:20): error: 'bufferization.to_memref' op Unsupported op for finding the root alloc.
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":816:20): error: 'bufferization.to_memref' op Unsupported op for finding the root alloc.
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":816:20): error: 'bufferization.to_memref' op Unsupported op for finding the root alloc.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":915:67)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":915:67)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":913:63)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":630:36 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":913:63)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":844:44)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":844:44)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":834:40)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope for mB
+loc(callsite("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":613:19 at "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":834:40)): error: 'hivm.hir.mmadL1' op Failed to infer/propagate memory scope.
+[ERROR] Failed to run BiShengIR pipeline
+[ERROR] Executing: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile-a5 /tmp/tmp9w7d8pnb/kernel.ttadapter.mlir --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --disable-ffts --limit-auto-multi-buffer-of-local-buffer=no-limit --enable-auto-blockify-loop --enable-hfusion-compile=true --enable-triton-kernel-compile=true --append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc --mlir-print-ir-after-failure --mlir-print-stacktrace-on-diagnostic -o /tmp/tmp9w7d8pnb/kernel --enable-vf-merge-level=1
+
+
+[INFO]: The compiled kernel cache is in /root/.triton/cache/GFlCidBc0gG8vNkVUxMDuRg-SP632msKoWIjS6X8m4I
+
+///------------------[ERROR][Triton][END]------------------
+
+[ERROR] 2026-08-29-16:43:56 (PID:941695, Device:5, RankID:-1) ERR99999 UNKNOWN applicaiton exception
