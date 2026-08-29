@@ -728,7 +728,67 @@ def paged_prefill_verify_grouped_kernel(
             kv_seq_len = tl.load(seqlens_kv_ptr + b_id).to(tl.int32)
             kv_cache_len = kv_seq_len - q_seq_len
             num_kv_blocks = tl.cdiv(kv_seq_len, BLOCK_SIZE_N)
-            for kv_block_id in range(0, num_kv_blocks):
+            # TARGET_VERIFY appends only D<=4 query tokens to the end of the
+            # sequence.  Every page strictly before the page containing those
+            # tokens is therefore full and causal for every real query row.
+            # Keep that dominant prefix on the same mask-free page path as
+            # decode; only the one or two tail pages need boundary/causal
+            # masks (two only when the D tokens cross a page boundary).
+            num_prefix_blocks = kv_cache_len // BLOCK_SIZE_N
+            for kv_block_id in range(0, num_prefix_blocks):
+                kv_block_start = kv_block_id * BLOCK_SIZE_N
+                logical_page_id = min(
+                    kv_block_start // PAGE_SIZE,
+                    stride_bt_batch - 1,
+                )
+                physical_page_id = tl.load(
+                    block_tables_ptr
+                    + b_id * stride_bt_batch
+                    + logical_page_id * stride_bt_block
+                )
+
+                k_t_block_ptr = tl.make_block_ptr(
+                    base=(
+                        key_cache_ptr
+                        + physical_page_id * stride_k_block
+                    ),
+                    shape=(HEAD_DIM, BLOCK_SIZE_N),
+                    strides=(stride_k_dim, stride_k_blksz),
+                    offsets=(0, 0),
+                    block_shape=(BLOCK_SIZE_D, BLOCK_SIZE_N),
+                    order=(0, 1),
+                )
+                v_block_ptr = tl.make_block_ptr(
+                    base=(
+                        value_cache_ptr
+                        + physical_page_id * stride_v_block
+                    ),
+                    shape=(BLOCK_SIZE_N, HEAD_DIM),
+                    strides=(stride_v_blksz, stride_v_dim),
+                    offsets=(0, 0),
+                    block_shape=(BLOCK_SIZE_N, BLOCK_SIZE_D),
+                    order=(1, 0),
+                )
+                k_t = tl.load(k_t_block_ptr)
+                v = tl.load(v_block_ptr)
+
+                qk = tl.dot(q, k_t) * softmax_scale
+                m_ij = tl.maximum(
+                    m_i,
+                    tl.max(qk, 1, propagate_nan=True),
+                    propagate_nan=tl.PropagateNan.ALL,
+                )
+                p = tl.math.exp(qk - m_ij[:, None])
+                l_ij = tl.sum(p, 1)
+                alpha = tl.math.exp(m_i - m_ij)
+                l_i = l_i * alpha + l_ij
+                acc = acc * alpha[:, None]
+                acc = tl.dot(p.to(k_t.dtype), v, acc)
+                m_i = m_ij
+
+            query_positions = kv_cache_len + row_tokens
+            key_offsets = tl.arange(0, BLOCK_SIZE_N)
+            for kv_block_id in range(num_prefix_blocks, num_kv_blocks):
                 kv_block_start = kv_block_id * BLOCK_SIZE_N
                 kv_block_end = min(
                     kv_block_start + BLOCK_SIZE_N, kv_seq_len
@@ -777,20 +837,14 @@ def paged_prefill_verify_grouped_kernel(
                     padding_option="zero",
                 )
 
-                key_offsets = tl.arange(0, BLOCK_SIZE_N)
                 key_positions = kv_block_start + key_offsets
                 key_valid = (
                     key_positions.to(tl.float32)
                     < kv_seq_len.to(tl.float32)
                 )
-                query_positions = kv_cache_len + row_tokens
-                mask = (
-                    valid_rows[:, None]
-                    & key_valid[None, :]
-                    & (
-                        key_positions[None, :].to(tl.float32)
-                        <= query_positions[:, None].to(tl.float32)
-                    )
+                mask = key_valid[None, :] & (
+                    key_positions[None, :].to(tl.float32)
+                    <= query_positions[:, None].to(tl.float32)
                 )
                 qk = tl.dot(q, k_t) * softmax_scale
                 qk = tl.where(mask, qk, -1e6)
