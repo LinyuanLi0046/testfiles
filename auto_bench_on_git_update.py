@@ -222,6 +222,10 @@ def run_benchmark(device: str) -> bool:
             # root left some failed runs without their CSV/IR/profile tree on
             # the remote worker; copytree makes artifact retention independent
             # of TemporaryDirectory cleanup semantics.
+            # A freshly loaded benchmark child can also publish this directory
+            # itself for compatibility with an older long-running monitor.
+            # Replace that complete copy instead of raising EEXIST here.
+            remove_result_dir()
             shutil.copytree(staging, RESULT_PATH)
         if returncode == 0 and manifest_status == "PASS" and not launch_error:
             ERROR_PATH.unlink(missing_ok=True)

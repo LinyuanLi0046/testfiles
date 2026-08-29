@@ -1674,18 +1674,6 @@ def main() -> int:
         "files": [file_record(path, output_dir) for path in files],
     }
     write_json(output_dir / "result.json", manifest)
-    # The long-running remote monitor may still have an older copy of its own
-    # Python code loaded.  Publish from this freshly spawned benchmark process
-    # as well, so failed/regressed runs retain CSV, IR and profiler artifacts
-    # without requiring a monitor restart.
-    if (
-        output_dir.parent.resolve() == ROOT
-        and output_dir.name.startswith("welm_attn_result_")
-    ):
-        published = ROOT / "welmv4_prefill_attention_results"
-        if published.is_dir():
-            shutil.rmtree(published)
-        shutil.copytree(output_dir, published)
     print(f"result={status}; manifest={output_dir / 'result.json'}", flush=True)
     return exit_code
 
