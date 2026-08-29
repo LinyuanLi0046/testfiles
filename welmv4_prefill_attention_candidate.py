@@ -3292,6 +3292,11 @@ def swa_paged_prefill_impl(
         q.dtype != torch.float32
         and is_causal
         and small_q_per_request
+        # A single SWA request with q_len 3/4 has only one grouped program;
+        # the generic page-aggregation path is faster at that tiny grid.
+        # Keep q_len 1/2 grouped because it still wins for B=1, and keep all
+        # multi-request small-q workloads grouped to share each KV scan.
+        and (bsz > 1 or max_q_len <= 2)
         and local_window_size is not None
         and not gqa_interleave
         and num_kv_heads == 1

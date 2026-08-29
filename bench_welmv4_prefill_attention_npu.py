@@ -1196,14 +1196,23 @@ def _parse_msprof_durations(
     output_dir: Path,
     stdout: str,
     kernel_name: str,
-) -> tuple[list[float], list[str]]:
+) -> tuple[list[float], list[str], str | None]:
     durations: list[float] = []
     names: list[str] = []
-    # The text report enumerates captured tasks as name 0, 1, ... in launch
-    # order. Prefer it for batched shape attribution; CSV file ordering is not
-    # a stable timeline contract across msprof versions.
+    indexed_durations: list[tuple[int, float]] = []
+    # msprof labels captured tasks with numeric launch ids, but renders the
+    # per-task reports in lexicographic id order (0, 1, 10, 100, ..., 2, ...).
+    # Recover and numerically sort those ids before assigning spans to cases.
+    # CSV file ordering is not a stable timeline contract across versions.
     lines = stdout.splitlines()
+    launch_id: int | None = None
     for index, line in enumerate(lines):
+        if "Start analyze kernel" in line and "name is:" in line:
+            try:
+                launch_id = int(line.rpartition("name is:")[2].strip())
+            except ValueError:
+                launch_id = None
+            continue
         if not line.strip().startswith("Op Name:"):
             continue
         name = line.partition(":")[2].strip()
@@ -1212,12 +1221,26 @@ def _parse_msprof_durations(
             if detail.strip().startswith("Task Duration(us):"):
                 if kernel_name.lower() in name.lower():
                     try:
-                        durations.append(float(detail.partition(":")[2].strip()))
+                        duration = float(detail.partition(":")[2].strip())
                     except ValueError:
                         pass
+                    else:
+                        if launch_id is None:
+                            return [], names, "matching task has no numeric launch id"
+                        indexed_durations.append((launch_id, duration))
                 break
-    if durations:
-        return durations, names
+    if indexed_durations:
+        launch_ids = [item[0] for item in indexed_durations]
+        expected_ids = list(range(len(indexed_durations)))
+        if sorted(launch_ids) != expected_ids:
+            return (
+                [],
+                names,
+                "numeric launch ids are not unique and contiguous: "
+                f"got={sorted(launch_ids)[:200]}",
+            )
+        indexed_durations.sort(key=lambda item: item[0])
+        return [item[1] for item in indexed_durations], names, None
 
     csv_files = sorted(output_dir.rglob("*.csv"))
     basic_files = [path for path in csv_files if "opbasicinfo" in path.name.lower()]
@@ -1232,7 +1255,13 @@ def _parse_msprof_durations(
                     durations.append(float(row.get("Task Duration(us)", "")))
                 except (TypeError, ValueError):
                     pass
-    return durations, names
+    if durations:
+        return (
+            [],
+            names,
+            "CSV fallback has no authoritative numeric launch order",
+        )
+    return [], names, "no matching task durations found"
 
 
 def capture_msprof_op(
@@ -1312,7 +1341,7 @@ def capture_msprof_op(
                     )
                 continue
 
-            durations, names = _parse_msprof_durations(
+            durations, names, ordering_error = _parse_msprof_durations(
                 Path(tmp), stdout, kernel_name
             )
             artifact = (
@@ -1322,11 +1351,12 @@ def capture_msprof_op(
             with gzip.open(artifact, "wt", encoding="utf-8", compresslevel=9) as handle:
                 handle.write(stdout)
             expected_count = total_launches
-            if result.returncode or len(durations) != expected_count:
+            if result.returncode or ordering_error or len(durations) != expected_count:
                 failures += len(group_cases)
                 detail = (
                     f"expected {expected_count} ordered durations, got "
-                    f"{len(durations)}; discovered={sorted(set(names))[:100]}\n"
+                    f"{len(durations)}; ordering_error={ordering_error!r}; "
+                    f"discovered={sorted(set(names))[:100]}\n"
                     + stdout[-20000:]
                 )
                 for case in group_cases:
