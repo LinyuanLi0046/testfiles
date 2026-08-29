@@ -140,6 +140,26 @@ class BoundLaunch:
     kernel_name: str
 
 
+def primary_kernel_name(provider: str, case: AttentionCase) -> str:
+    candidate_verify = provider == "candidate" and case.topology in (
+        "verify_d2",
+        "verify_d3",
+        "graph_d2",
+        "graph_d3",
+    )
+    if case.attention == "full":
+        return (
+            "paged_prefill_verify_grouped_kernel"
+            if candidate_verify
+            else "paged_prefill_page_aggregation_kernel"
+        )
+    return (
+        "_swa_paged_prefill_verify_grouped_sink_kernel"
+        if candidate_verify
+        else "_swa_paged_prefill_aggregation_sink_kernel"
+    )
+
+
 @dataclass
 class CapturedGraphBundle:
     """Own every tensor/object whose address can be retained by NPUGraph."""
@@ -263,7 +283,7 @@ class Harness:
             return BoundLaunch(
                 launch_full,
                 host_prepare_submit_ms,
-                "paged_prefill_page_aggregation_kernel",
+                primary_kernel_name(provider, case),
             )
 
         def launch_swa() -> torch.Tensor:
@@ -285,7 +305,7 @@ class Harness:
         return BoundLaunch(
             launch_swa,
             0.0,
-            "_swa_paged_prefill_aggregation_sink_kernel",
+            primary_kernel_name(provider, case),
         )
 
 
@@ -1196,12 +1216,8 @@ def capture_msprof_op(
     rows: list[dict[str, object]] = []
     failures = 0
     for case in cases:
-        kernel_name = (
-            "paged_prefill_page_aggregation_kernel"
-            if case.attention == "full"
-            else "_swa_paged_prefill_aggregation_sink_kernel"
-        )
         for provider in ("baseline", "candidate"):
+            kernel_name = primary_kernel_name(provider, case)
             print(f"[msprof-op] {case.name} {provider}", flush=True)
             with tempfile.TemporaryDirectory(prefix="welm_attn_msprof_") as tmp:
                 command = [

@@ -783,10 +783,16 @@ def paged_prefill_verify_grouped_kernel(
                     boundary_check=(0, 1),
                     padding_option="zero",
                 )
+                tl.extra.cann.extension.compile_hint(
+                    k_t, "mayDiscretememaccess"
+                )
                 v = tl.load(
                     v_block_ptr,
                     boundary_check=(0, 1),
                     padding_option="zero",
+                )
+                tl.extra.cann.extension.compile_hint(
+                    v, "mayDiscretememaccess"
                 )
 
                 key_offsets = tl.arange(0, BLOCK_SIZE_N)
