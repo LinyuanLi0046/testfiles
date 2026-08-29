@@ -2731,6 +2731,270 @@ def _swa_paged_prefill_aggregation_sink_kernel(
 
 
 
+@triton.jit
+def _swa_paged_prefill_verify_grouped_sink_kernel(
+    o_ptr,
+    q_ptr,
+    k_ptr,
+    v_ptr,
+    sinks_ptr,
+    bsz,
+    cu_q_lens_ptr,
+    kv_lens_ptr,
+    block_table_ptr,
+    scale,
+    stride_ot,
+    stride_oh,
+    stride_od,
+    stride_qt,
+    stride_qh,
+    stride_qd,
+    stride_kp,
+    stride_kh,
+    stride_kt,
+    stride_kd,
+    stride_vp,
+    stride_vh,
+    stride_vt,
+    stride_vd,
+    stride_block_table_b,
+    stride_block_table_p,
+    stride_sink_head,
+    GLOBAL_WINDOW: tl.constexpr,
+    LOCAL_WINDOW: tl.constexpr,
+    NUM_Q_HEADS: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    BLOCK_N: tl.constexpr,
+    BLOCK_D: tl.constexpr,
+    PAGE_SIZE: tl.constexpr,
+    PAGE_AGGREGATION_NUM: tl.constexpr,
+    GROUPED_ROWS: tl.constexpr,
+    SINK_ENABLED: tl.constexpr,
+):
+    """Vectorize all Q heads sharing WeLM's single local KV head."""
+    tl.static_assert(
+        PAGE_SIZE // BLOCK_N * BLOCK_N == PAGE_SIZE,
+        "BLOCK_N must divide PAGE_SIZE",
+    )
+
+    pid = tl.program_id(0)
+    n_programs = tl.num_programs(0)
+    # Keep each program's requests contiguous, but distribute the remainder
+    # evenly so B=48 uses all 28 Cube cores instead of only 24.
+    b_begin = pid * bsz // n_programs
+    b_end = (pid + 1) * bsz // n_programs
+
+    row_ids = tl.arange(0, GROUPED_ROWS)
+    row_tokens = row_ids // NUM_Q_HEADS
+    row_heads = row_ids - row_tokens * NUM_Q_HEADS
+    key_offsets = tl.arange(0, BLOCK_N * PAGE_AGGREGATION_NUM)
+
+    for b_id in range(b_begin, b_end):
+        q_start = tl.load(cu_q_lens_ptr + b_id).to(tl.int32)
+        q_end = tl.load(cu_q_lens_ptr + b_id + 1).to(tl.int32)
+        q_seq_len = q_end - q_start
+        if q_seq_len.to(tl.float32) > 0.0:
+            kv_seq_len = tl.load(kv_lens_ptr + b_id).to(tl.int32)
+            kv_computed_len = kv_seq_len - q_seq_len
+            num_q_rows = q_seq_len * NUM_Q_HEADS
+            row_valid = row_ids.to(tl.float32) < num_q_rows.to(tl.float32)
+
+            q_block_ptr = tl.make_block_ptr(
+                base=q_ptr + q_start * stride_qt,
+                shape=(num_q_rows, HEAD_DIM),
+                strides=(stride_qh, stride_qd),
+                offsets=(0, 0),
+                block_shape=(GROUPED_ROWS, BLOCK_D),
+                order=(1, 0),
+            )
+            q = tl.load(
+                q_block_ptr,
+                boundary_check=(0, 1),
+                padding_option="zero",
+            )
+
+            if SINK_ENABLED:
+                sink = tl.load(
+                    sinks_ptr + row_heads * stride_sink_head,
+                    mask=row_valid,
+                    other=0.0,
+                ).to(tl.float32)
+                m_i = tl.where(row_valid, sink, 0.0)
+                l_i = tl.full((GROUPED_ROWS,), 1.0, tl.float32)
+            else:
+                m_i = tl.where(row_valid, -float("inf"), 0.0)
+                l_i = tl.where(row_valid, 0.0, 1.0)
+            acc = tl.zeros((GROUPED_ROWS, BLOCK_D), dtype=tl.float32)
+
+            num_global_blocks, local_start_block, num_total_blocks = _swa_split_blocks(
+                kv_computed_len,
+                q_seq_len,
+                kv_seq_len,
+                BLOCK_N,
+                True,
+                GLOBAL_WINDOW,
+                LOCAL_WINDOW,
+            )
+            num_global_blocks = (
+                tl.cdiv(num_global_blocks, PAGE_AGGREGATION_NUM)
+                * PAGE_AGGREGATION_NUM
+            )
+            local_start_block = max(num_global_blocks, local_start_block)
+            num_calced_blocks = num_global_blocks + max(
+                num_total_blocks - local_start_block, 0
+            )
+            num_calced_blocks = min(num_calced_blocks, num_total_blocks)
+
+            for kv_block_iter in range(
+                0, num_calced_blocks, PAGE_AGGREGATION_NUM
+            ):
+                is_global = (
+                    kv_block_iter.to(tl.float32)
+                    < num_global_blocks.to(tl.float32)
+                )
+                kv_block_id = is_global * kv_block_iter + (1 - is_global) * (
+                    local_start_block + kv_block_iter - num_global_blocks
+                )
+                kv_block_start = kv_block_id * BLOCK_N
+
+                key_positions = kv_block_start + key_offsets
+                query_positions = kv_computed_len + row_tokens
+                causal = (
+                    key_positions[None, :].to(tl.float32)
+                    <= query_positions[:, None].to(tl.float32)
+                )
+                in_sink = (
+                    key_positions[None, :].to(tl.float32)
+                    < GLOBAL_WINDOW
+                )
+                in_local = (
+                    key_positions[None, :].to(tl.float32) + LOCAL_WINDOW
+                    >= query_positions[:, None].to(tl.float32)
+                )
+                key_valid = (
+                    key_positions[None, :].to(tl.float32)
+                    < kv_seq_len.to(tl.float32)
+                )
+                mask = (
+                    row_valid[:, None]
+                    & key_valid
+                    & causal
+                    & (in_sink | in_local)
+                )
+
+                k = tl.zeros(
+                    (PAGE_AGGREGATION_NUM * BLOCK_N, BLOCK_D),
+                    dtype=k_ptr.dtype.element_ty,
+                )
+                for page_iter in tl.extra.cann.extension.parallel(
+                    0, PAGE_AGGREGATION_NUM
+                ):
+                    page_block_start = (kv_block_id + page_iter) * BLOCK_N
+                    page_block_end = min(page_block_start + BLOCK_N, kv_seq_len)
+                    page_block_len = max(page_block_end - page_block_start, 0)
+                    logical_page_id = min(
+                        page_block_start // PAGE_SIZE,
+                        stride_block_table_b - 1,
+                    )
+                    physical_page_id = tl.load(
+                        block_table_ptr
+                        + b_id * stride_block_table_b
+                        + logical_page_id * stride_block_table_p
+                    )
+                    k_block_ptr = tl.make_block_ptr(
+                        base=k_ptr + physical_page_id * stride_kp,
+                        shape=(page_block_len, HEAD_DIM),
+                        strides=(stride_kt, stride_kd),
+                        offsets=(0, 0),
+                        block_shape=(BLOCK_N, BLOCK_D),
+                        order=(1, 0),
+                    )
+                    k_slice = tl.load(
+                        k_block_ptr,
+                        boundary_check=(0, 1),
+                        padding_option="zero",
+                    )
+                    k = tl.extra.cann.extension.insert_slice(
+                        k,
+                        k_slice,
+                        offsets=(page_iter * BLOCK_N, 0),
+                        sizes=(BLOCK_N, BLOCK_D),
+                        strides=(1, 1),
+                    )
+
+                k_t = tl.trans(k)
+                qk = tl.dot(q, k_t) * scale
+                qk = tl.where(mask, qk, -1e6)
+                m_ij = tl.maximum(
+                    m_i,
+                    tl.max(qk, 1, propagate_nan=True),
+                    propagate_nan=tl.PropagateNan.ALL,
+                )
+                p = tl.math.exp(qk - m_ij[:, None])
+                p_cast = p.to(k_t.dtype)
+                l_ij = tl.sum(p, 1)
+                alpha = tl.math.exp(m_i - m_ij)
+                m_i = m_ij
+                l_i = l_i * alpha + l_ij
+                acc = acc * alpha[:, None]
+
+                v = tl.zeros(
+                    (PAGE_AGGREGATION_NUM * BLOCK_N, BLOCK_D),
+                    dtype=v_ptr.dtype.element_ty,
+                )
+                for page_iter in tl.extra.cann.extension.parallel(
+                    0, PAGE_AGGREGATION_NUM
+                ):
+                    page_block_start = (kv_block_id + page_iter) * BLOCK_N
+                    page_block_end = min(page_block_start + BLOCK_N, kv_seq_len)
+                    page_block_len = max(page_block_end - page_block_start, 0)
+                    logical_page_id = min(
+                        page_block_start // PAGE_SIZE,
+                        stride_block_table_b - 1,
+                    )
+                    physical_page_id = tl.load(
+                        block_table_ptr
+                        + b_id * stride_block_table_b
+                        + logical_page_id * stride_block_table_p
+                    )
+                    v_block_ptr = tl.make_block_ptr(
+                        base=v_ptr + physical_page_id * stride_vp,
+                        shape=(page_block_len, HEAD_DIM),
+                        strides=(stride_vt, stride_vd),
+                        offsets=(0, 0),
+                        block_shape=(BLOCK_N, BLOCK_D),
+                        order=(1, 0),
+                    )
+                    v_slice = tl.load(
+                        v_block_ptr,
+                        boundary_check=(0, 1),
+                        padding_option="zero",
+                    )
+                    v = tl.extra.cann.extension.insert_slice(
+                        v,
+                        v_slice,
+                        offsets=(page_iter * BLOCK_N, 0),
+                        sizes=(BLOCK_N, BLOCK_D),
+                        strides=(1, 1),
+                    )
+                acc = tl.dot(p_cast, v, acc)
+
+            o_block_ptr = tl.make_block_ptr(
+                base=o_ptr + q_start * stride_ot,
+                shape=(num_q_rows, HEAD_DIM),
+                strides=(stride_oh, stride_od),
+                offsets=(0, 0),
+                block_shape=(GROUPED_ROWS, BLOCK_D),
+                order=(1, 0),
+            )
+            output = acc / l_i[:, None]
+            tl.store(
+                o_block_ptr,
+                output.to(o_ptr.type.element_ty),
+                boundary_check=(0, 1),
+            )
+
+
 def swa_paged_prefill_impl(
     q: torch.Tensor,
     k_cache: torch.Tensor,
@@ -2792,6 +3056,69 @@ def swa_paged_prefill_impl(
 
     if global_window_size is None:
         global_window_size = 0
+
+    # WeLM TP=4 has one local KV head shared by six local Q heads.  Verify and
+    # draft-extend carry at most four rows per request in this benchmark.  A
+    # single M32 program can therefore scan each K/V page once for all six Q
+    # heads instead of repeating the same scan six times.  The largest live
+    # tile is M32/N128/D256 (~208 KiB before compiler temporaries), below the
+    # 248 KiB UB budget.  Keep every other layout on the generic path.
+    use_grouped_verify = (
+        q.dtype != torch.float32
+        and is_causal
+        and small_q_per_request
+        and local_window_size is not None
+        and not gqa_interleave
+        and num_kv_heads == 1
+        and num_q_heads * 4 <= 32
+        and q.stride(0) == num_q_heads * q.stride(1)
+        and o.stride(0) == num_q_heads * o.stride(1)
+        and page_size < 128
+        and 128 % page_size == 0
+    )
+    if use_grouped_verify:
+        grouped_grid = (min(cube_num, bsz),)
+        _swa_paged_prefill_verify_grouped_sink_kernel[grouped_grid](
+            o,
+            q,
+            k_cache,
+            v_cache,
+            sinks_pass,
+            bsz,
+            cu_q_lens,
+            kvlens,
+            block_table,
+            softmax_scale,
+            o.stride(0),
+            o.stride(1),
+            o.stride(2),
+            q.stride(0),
+            q.stride(1),
+            q.stride(2),
+            k_cache.stride(0),
+            k_cache.stride(1),
+            k_cache.stride(2),
+            k_cache.stride(3),
+            v_cache.stride(0),
+            v_cache.stride(1),
+            v_cache.stride(2),
+            v_cache.stride(3),
+            block_table.stride(0),
+            block_table.stride(1),
+            sinks_pass.stride(0),
+            GLOBAL_WINDOW=global_window_size,
+            LOCAL_WINDOW=local_window_size,
+            NUM_Q_HEADS=num_q_heads,
+            HEAD_DIM=head_dim,
+            BLOCK_N=BLOCK_N,
+            BLOCK_D=BLOCK_D,
+            PAGE_SIZE=page_size,
+            PAGE_AGGREGATION_NUM=128 // page_size,
+            GROUPED_ROWS=32,
+            SINK_ENABLED=sink_enabled,
+            enable_cube_block_merge=True,
+        )
+        return o
 
     causal_mask = get_mask_causal_with_window(
         BLOCK_M,
