@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Poll origin every minute and run the WeLMv4 tail-RoPE NPU benchmark.
+"""Poll origin every minute and run the WeLMv4 prefill-Attention NPU benchmark.
 
 Put this file in the root of the ``testfiles`` Git repository, then run:
 
@@ -12,8 +12,10 @@ benchmark. Press Ctrl+C to stop it.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -25,9 +27,9 @@ from typing import Sequence
 
 
 REMOTE = "origin"
-BENCHMARK_SCRIPT = "bench_welmv4_inplace_rope_npu.py"
-OUTPUT_CSV = "welmv4_inplace_rope_npu_all.csv"
-ERROR_LOG = "welmv4_inplace_rope_npu_run_error.log"
+BENCHMARK_SCRIPT = "bench_welmv4_prefill_attention_npu.py"
+RESULT_DIR = "welmv4_prefill_attention_results"
+ERROR_LOG = "welmv4_prefill_attention_run_error.log"
 DEFAULT_INTERVAL_SECONDS = 60
 AUTO_COMMIT_MARKER = "Auto-Benchmark: true"
 
@@ -46,7 +48,7 @@ class PendingPush:
 
 REPO = Path(__file__).resolve().parent
 BENCHMARK_PATH = REPO / BENCHMARK_SCRIPT
-CSV_PATH = REPO / OUTPUT_CSV
+RESULT_PATH = REPO / RESULT_DIR
 ERROR_PATH = REPO / ERROR_LOG
 
 
@@ -132,40 +134,25 @@ def pull_if_updated(branch: str) -> str | None:
     )
 
 
-def benchmark_command(device: str) -> list[str]:
+def benchmark_command(device: str, output_dir: Path) -> list[str]:
     python_executable = os.environ.get("BENCH_PYTHON", sys.executable)
     return [
         python_executable,
         BENCHMARK_SCRIPT,
+        "--suite",
+        "remote",
         "--mode",
         "both",
-        "--cases",
-        (
-            "mirror_contiguous_m8192_bs1,"
-            "mirror_contiguous_m9616_bs1,"
-            "mirror_contiguous_m16361_bs1,"
-            "mirror_contiguous_m16384_bs1,"
-            "mirror_segmented_m8192_b2_aligned,"
-            "mirror_segmented_m8192_b4_aligned,"
-            "mirror_segmented_m9616_b8_uneven,"
-            "mirror_segmented_m8192_b16_aligned,"
-            "mirror_segmented_m16384_b32_aligned,"
-            "mirror_segmented_m16384_b64_aligned,"
-            "mirror_segmented_m16384_b128_uneven,"
-            "prefill_m8191,prefill_m8192,prefill_m16384,"
-            "segmented_m8192_b32_aligned,"
-            "segmented_m16384_b128_uneven"
-        ),
-        "--scope",
-        "kernel",
         "--device",
         device,
         "--capture-ir",
         "on",
+        "--capture-profile",
+        "on",
         "--capture-msprof-op",
         "on",
-        "--output-csv",
-        OUTPUT_CSV,
+        "--output-dir",
+        str(output_dir),
     ]
 
 
@@ -186,46 +173,61 @@ def write_error_log(command: Sequence[str], returncode: int, output: str, reason
     os.replace(temporary_path, ERROR_PATH)
 
 
-def run_benchmark(device: str) -> bool:
-    """Run the benchmark and leave exactly one of CSV/error-log as the result."""
-    command = benchmark_command(device)
+def remove_result_dir() -> None:
+    resolved = RESULT_PATH.resolve()
+    if resolved.parent != REPO or resolved.name != RESULT_DIR:
+        raise RuntimeError(f"refusing to remove unexpected result path: {resolved}")
+    if resolved.is_dir():
+        shutil.rmtree(resolved)
 
-    # A pre-existing CSV must not be mistaken for fresh output from this run.
-    CSV_PATH.unlink(missing_ok=True)
-    log(f"starting benchmark: {shlex.join(command)}")
+
+def run_benchmark(device: str) -> bool:
+    """Run the benchmark and leave exactly one result directory or error log."""
+    remove_result_dir()
 
     returncode = -1
     captured = ""
     launch_error = ""
-    with tempfile.TemporaryFile(mode="w+", encoding="utf-8", errors="replace") as stream:
-        try:
-            result = subprocess.run(
-                command,
-                cwd=REPO,
-                stdout=stream,
-                stderr=subprocess.STDOUT,
-                check=False,
-            )
-            returncode = result.returncode
-        except OSError as exc:
-            launch_error = f"could not start benchmark: {exc}"
-        finally:
-            stream.seek(0)
-            captured = stream.read()
+    with tempfile.TemporaryDirectory(prefix="welm_attn_result_", dir=REPO) as tmp:
+        staging = Path(tmp)
+        command = benchmark_command(device, staging)
+        log(f"starting benchmark: {shlex.join(command)}")
+        with tempfile.TemporaryFile(mode="w+", encoding="utf-8", errors="replace") as stream:
+            try:
+                result = subprocess.run(
+                    command,
+                    cwd=REPO,
+                    stdout=stream,
+                    stderr=subprocess.STDOUT,
+                    check=False,
+                )
+                returncode = result.returncode
+            except OSError as exc:
+                launch_error = f"could not start benchmark: {exc}"
+            finally:
+                stream.seek(0)
+                captured = stream.read()
 
-    csv_is_valid = CSV_PATH.is_file() and CSV_PATH.stat().st_size > 0
-    if returncode == 0 and csv_is_valid and not launch_error:
-        ERROR_PATH.unlink(missing_ok=True)
-        log(f"benchmark succeeded; generated {OUTPUT_CSV}")
-        return True
+        staging_manifest = staging / "result.json"
+        manifest_valid = False
+        if staging_manifest.is_file() and staging_manifest.stat().st_size > 0:
+            try:
+                manifest = json.loads(staging_manifest.read_text(encoding="utf-8"))
+                manifest_valid = manifest.get("status") == "PASS"
+            except (OSError, json.JSONDecodeError):
+                manifest_valid = False
+        if returncode == 0 and manifest_valid and not launch_error:
+            os.replace(staging, RESULT_PATH)
+            ERROR_PATH.unlink(missing_ok=True)
+            log(f"benchmark succeeded; generated {RESULT_DIR}")
+            return True
 
-    CSV_PATH.unlink(missing_ok=True)
     if launch_error:
         reason = launch_error
     elif returncode != 0:
         reason = f"benchmark exited with status {returncode}"
     else:
-        reason = f"benchmark exited successfully but did not create a non-empty {OUTPUT_CSV}"
+        reason = "benchmark exited successfully but result.json was missing or not PASS"
     write_error_log(command, returncode, captured, reason)
     log(f"benchmark failed; details written to {ERROR_LOG}")
     return False
@@ -233,7 +235,7 @@ def run_benchmark(device: str) -> bool:
 
 def artifact_status_paths() -> list[str]:
     changed: list[str] = []
-    for path in (OUTPUT_CSV, ERROR_LOG):
+    for path in (RESULT_DIR, ERROR_LOG):
         if git("status", "--porcelain", "--", path).stdout.strip():
             changed.append(path)
     return changed
@@ -268,13 +270,16 @@ def commit_artifacts(branch: str, base_sha: str, succeeded: bool) -> PendingPush
 
 def restore_artifacts_from_head() -> None:
     """Discard only generated artifacts, leaving all unrelated files untouched."""
-    for name, path in ((OUTPUT_CSV, CSV_PATH), (ERROR_LOG, ERROR_PATH)):
+    for name, path in ((RESULT_DIR, RESULT_PATH), (ERROR_LOG, ERROR_PATH)):
         tracked = git("ls-files", "--error-unmatch", "--", name, check=False).returncode == 0
         if tracked:
             git("restore", "--source=HEAD", "--staged", "--worktree", "--", name)
         else:
             git("reset", "--quiet", "HEAD", "--", name, check=False)
-            path.unlink(missing_ok=True)
+            if path.is_dir():
+                remove_result_dir()
+            else:
+                path.unlink(missing_ok=True)
 
 
 def rewind_own_commit(pending: PendingPush) -> None:
@@ -398,7 +403,7 @@ def main() -> int:
     log(
         f"monitoring {REMOTE}/{branch} every {args.interval:g} seconds; "
         f"benchmark={BENCHMARK_SCRIPT}, device={args.device}, "
-        f"artifact={OUTPUT_CSV}"
+        f"artifact={RESULT_DIR}"
     )
 
     pending: PendingPush | None = detect_interrupted_pending_push(branch)

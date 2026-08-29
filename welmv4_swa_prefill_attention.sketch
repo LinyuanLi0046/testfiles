@@ -1,0 +1,34 @@
+# WeLMv4 SWA+Sink Prefill Attention optimization sketch
+
+Production contract
+
+- Candidate entry: `swa_paged_prefill_impl`.
+- Production page64/head256 path:
+  `_swa_paged_prefill_aggregation_sink_kernel`.
+- BF16 Q/K/V, FP32 sink, causal, local-left-window=511, global-window=0.
+- TP4 local shape: Hq=6, Hkv=1, D=256; GQA is contiguous grouping.
+- Current tiling: BM=128, BN=64, BD=256, page aggregation=2.
+- The harness maps evicted old logical pages to allocated poison page zero and
+  maps the retained tail pages to shuffled valid physical pages.
+- Dense/ragged Prefill and D=2/D=3 verify cover M=1..1024; long-context bands
+  span roughly 10--12K, 15--18K, and 24--28K KV tokens.
+
+Frozen observations, not yet accepted optimizations
+
+- Host grid is currently `ceil(total_M/128)*Hq`, while the kernel's real work is
+  `sum_i ceil(q_len_i/128)*Hq`. For B=56,D=2 this means 6 programs serially
+  consume 336 request/head tasks. The workspace records this exact topology.
+- Verify tasks have only 2/3 valid M rows inside BM=128.
+- `get_mask_causal_with_window` is a one-entry global cache. If bounded BM
+  variants are introduced, change it to a strong multi-key cache before testing
+  multiple captured variants; otherwise an older graph may retain a dead address.
+- Never derive host dispatch from replay-time device-to-host q_lens reads.
+
+Acceptance order
+
+1. Full window/sink/causal correctness, including 511/512/513 boundaries.
+2. Exact metadata simulation plus real underfilled NPUGraph replay with fixed
+   Bcap*D buffers, capture KV=D, live long KV, and old pages poisoned.
+3. Logical wrapper latency, then per-kernel msprof and pipeline evidence.
+4. TTIR/TTAdapter/last-pass MLIR plus PipeUtilization and Memory/L2 are saved.
+5. One optimization point per candidate revision.

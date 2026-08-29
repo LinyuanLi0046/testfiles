@@ -1,128 +1,203 @@
-# WeLMv4 inplace RoPE NPU optimization workspace
+# WeLMv4 NPU Full/SWA Prefill Attention optimization workspace
 
-This repository is a self-contained remote benchmark loop for
-`welmv4_inplace_rope_npu` on Ascend A5.  It does not import the NEWSGLANG
-checkout.
+This repository is a self-contained Ascend worker for optimizing the WeLMv4
+NPU paged Prefill Attention used by normal Prefill and Spec-V2 MTP verify. It
+does **not** import a NEWSGLANG checkout on the remote machine.
+
+The frozen baseline and initial candidate are exact copies of:
+
+```text
+NEWSGLANG/sglang @ 58a1448cc30c5a21feebaee6980f5b3612ed914e
+python/sglang/srt/hardware_backend/npu/attention/sink_full_attention.py
+```
+
+`workspace_config.json` pins the LF-normalized baseline SHA-256. A run fails
+immediately if the frozen baseline is edited accidentally. Optimization commits
+should edit only `welmv4_prefill_attention_candidate.py` plus an intentional
+case/worker change when needed.
+
+## Production contract represented here
+
+- BF16 Q/K/V and KV cache; FP32 learned sink.
+- Page size 64 and head dimension 256.
+- Global heads 24/2. The default TP4 rank has local Hq=6/Hkv=1; TP1/2/8 can
+  also be selected with `--tp-size`.
+- Native KV allocation is `[P*64,Hkv,256]`; the kernels receive the same
+  zero-copy `view(P,64,Hkv,256).permute(0,2,1,3)` view as NEWSGLANG.
+- Contiguous GQA grouping (`gqa_interleave=false`).
+- YaRN-adjusted softmax scale `0.09119556747428784`.
+- Full Attention plus a zero-value learned sink.
+- SWA Attention plus the same sink, left history 511 (visible span 512), and
+  global window 0.
+- `seq_lens_kv` is the post-write length: K/V for the current Query window is
+  already in paged cache.
+
+At page64/head256 the current Full implementation executes
+`paged_prefill_page_aggregation_kernel` with BM/BN/BD=128/64/256 and page
+aggregation 1. SWA executes `_swa_paged_prefill_aggregation_sink_kernel` with
+the same blocks and page aggregation 2.
+
+## M and topology
+
+`M` always means total real Query rows, `sum(q_lens)`. It is not sufficient by
+itself to describe performance, so every result also records the complete
+`q_lens`, KV lengths, batch size, table stride, topology, and graph bucket.
+
+- `dense`: one request with `q_len=M`; every integer M from 1 through 1024 is
+  legal.
+- `ragged_prefill`: multiple requests with positive, non-uniform `q_lens` and
+  exact `sum(q_lens)=M`, covering the ordinary batched Prefill scheduler/LPT
+  contract.
+- `verify_d2`: step=1, fixed verify width D=2, B=M/2 requests.
+- `verify_d3`: step=2, fixed verify width D=3, B=M/3 requests.
+
+The automatic optimization gate measures the Attention operator itself. It does
+not capture or replay NPU Graph; Graph integration remains in NEWSGLANG's model
+test and does not affect selection of the Triton kernel candidate here.
+
+SWA cases map evicted old logical pages to an allocated poison page (never
+`-1`) and retain shuffled physical pages only for the union of tokens visible
+to the Query window. An erroneous old-page read therefore becomes a numerical
+failure instead of an asynchronous device OOB crash.
+
+The remote matrix treats context length as a band, not three exact points. It
+covers roughly 10–12K, 15–18K, and 24–28K tokens, including the observed 11K,
+16.5K, and 26K regions. Ragged per-request lengths also create non-page-aligned
+tails. Exact lengths remain selectable with `--kv-lengths`.
 
 ## Remote worker
 
-Start or restart the monitor from the NPU Python environment in the repository
-root.  `--run-now` benchmarks the current synchronized HEAD immediately and
-then leaves the normal one-minute monitor running:
+Stop the old RoPE monitor once, pull this revision, then start the new worker
+from the NPU Python environment:
 
 ```bash
 python auto_bench_on_git_update.py --run-now --device npu:5
 ```
 
-An already-running copy of the old TopK monitor must be stopped and restarted;
-a Python process does not reload its source after `git pull` rewrites the file.
-
-Every 60 seconds it fetches `origin/<current-branch>`.  When the remote branch
-has a newer commit, it fast-forwards, runs:
+Useful worker flags:
 
 ```bash
-python bench_welmv4_inplace_rope_npu.py \
-  --mode both \
-  --cases mirror_contiguous_m8192_bs1,mirror_contiguous_m9616_bs1,mirror_contiguous_m16361_bs1,mirror_contiguous_m16384_bs1,mirror_segmented_m8192_b2_aligned,mirror_segmented_m8192_b4_aligned,mirror_segmented_m9616_b8_uneven,mirror_segmented_m8192_b16_aligned,mirror_segmented_m16384_b32_aligned,mirror_segmented_m16384_b64_aligned,mirror_segmented_m16384_b128_uneven,prefill_m8191,prefill_m8192,prefill_m16384,segmented_m8192_b32_aligned,segmented_m16384_b128_uneven \
-  --scope kernel \
-  --device npu:5 \
-  --capture-ir on \
-  --capture-msprof-op on \
-  --output-csv welmv4_inplace_rope_npu_all.csv
+# Run one polling cycle, publish the generated result, and exit.
+python auto_bench_on_git_update.py --once --run-now --device npu:5
+
+# Change the polling interval.
+python auto_bench_on_git_update.py --interval 60 --device npu:5
 ```
 
-During the benchmark it does not fetch or pull.  On success it removes any old
-`welmv4_inplace_rope_npu_run_error.log`, commits the CSV, and pushes.  On
-failure it removes any stale CSV, writes the combined stdout/stderr to that
-error log, commits it, and pushes.  Automatic result commits contain
-`Auto-Benchmark: true`, allowing the monitor to recover safely after a restart
-or push failure.
+`BENCH_PYTHON=/path/to/python` selects the NPU interpreter. The worker:
 
-The standard remote run recompiles the experimental segmented multi-BS mirror
-candidate at `N=16384, BS=128` with Triton debug dumping enabled.
-It lowers the adapter IR
-with `bishengir-compile` for the detected A5 target and stores gzip+base64
-TTIR, TTAdapter, and last-pass MLIR as `record_type=ir_artifact` rows in the
-same CSV.  IR capture errors are diagnostic CSV rows and do not discard valid
-correctness/performance measurements.  Use `--capture-ir off` for a manual
-run that should skip this diagnostic step.
+1. fetches and fast-forwards the current branch;
+2. runs the remote Full/SWA correctness, performance, IR, profiler and msprof
+   suites without any Graph phase;
+3. writes `welmv4_prefill_attention_results/` on success, or a captured error
+   log on failure;
+4. commits only those generated artifacts and pushes them to the same branch.
 
-An explicit `--capture-profile on` run profiles the candidate at
-`prefill_m16384` with A5 memory and L2-cache counters and stores profiler text
-summaries as gzip+base64 `record_type=profile_artifact` rows. Profiling
-failures remain diagnostic rows and do not discard valid benchmark results.
+Push races are detected before publication. A result produced from an obsolete
+HEAD is discarded and rerun on the newest code. Old successful results are
+never deleted by a later failed run.
 
-The standard remote run invokes native `msprof op` for paired frozen-reference
-and candidate kernels with `--warm-up=10 --launch-count=5` and an exact
-`--kernel-name`. The four acceptance probes cover ordinary contiguous,
-ordinary segmented, BS=1 mirror, and multi-BS segmented mirror Prefill at
-`M/N=16384`. Parsed `OpBasicInfo.csv`
-`Task Duration(us)` values are stored as `record_type=msprof_op`, and the raw
-files are stored as gzip+base64 `record_type=msprof_op_artifact` rows.  These
-device task durations are the only authoritative performance measurements for
-accepting or rejecting an optimization; the benchmark no longer runs event
-timing. A missing msprof result fails the entire automatic run. Correctness
-still covers all listed aligned and uneven shapes. Use `--capture-msprof-op off`
-only for manual diagnostic runs that
-intentionally skip acceptance timing.
+## Automatic result layout
 
-Use `BENCH_PYTHON=/path/to/python` to select a different interpreter.  Use
-`--device npu:N` to select the NPU (`npu:5` by default) and `--interval
-SECONDS` to change the poll interval.  `--once --run-now` runs and publishes
-exactly one current-HEAD benchmark, while plain `--once` performs one poll
-only.
+```text
+welmv4_prefill_attention_results/
+  result.json
+  correctness.csv
+  performance.csv
+  msprof_primary_kernel.csv
+  ir.csv
+  profile.csv
+  ir/full/.../*.mlir.gz
+  ir/swa/.../*.mlir.gz
+  profile/full/.../{pipe_utilization,memory}/*.csv.gz or *.json.gz
+  profile/swa/.../{pipe_utilization,memory}/*.csv.gz or *.json.gz
+  msprof/.../*.log.gz
+welmv4_prefill_attention_run_error.log  # only when the run fails
+```
 
-## Benchmark coverage
+`result.json` is the machine-readable authority. Status is one of `PASS`,
+`FAIL`, `PERF_REGRESSION`, or `ERROR`, with per-phase state and
+source/environment hashes.
 
-The fixed production-local shape uses BF16 Q/K, an FP32 cos/sin cache,
-6 query heads, 1 KV head, `head_dim=256`, and `rope_dim=64`.
-The ordinary prefill input matches the model after its unconditional Q
-`contiguous()` and uses contiguous single-request positions `0..M-1`.
+Correctness is checked in FP32 against causal paged GQA with the virtual
+zero-value sink. Candidate is also compared directly with the frozen baseline.
+Logical wrapper latency is measured with grouped NPU events and is the
+acceptance metric, so all device kernels introduced by a future split are
+included. Every timed shape passes its own reference/baseline correctness gate
+first, including `--mode performance`. Selected-name `msprof op` duration is a
+non-authoritative diagnostic for the current primary Triton kernel; a legal
+split/rename is recorded rather than rejected. Selected candidate calls export
+PipeUtilization and Memory/L2 profiler pipelines plus TTIR, TTAdapter, and
+last-pass MLIR as separate gzip artifacts.
 
-The `segmented_prefill` suite is benchmark-only and is not wired into NEWSGLANG. It
-builds compact per-request 64-token tile boundaries once before the launch,
-then compares the frozen per-token reference against the formal ordinary
-Prefill candidate.
-For compatibility with a monitor process started before this experiment, the
-legacy `--cases segmented` command is temporarily routed to the active
-multi-BS mirror suite plus frozen BS=1 and ordinary-prefill regressions. The
-segmented-only suite remains
-available as `--cases segmented_prefill`; the former single-request suite
-remains available as `--cases single_prefill`.
+## Manual use
 
-- Decode: every concurrency/token count from `M=1` through `M=128`.
-- Prefill: dense crossover probes from `M=128` through `M=1281`, the
-  `M=2048..4097` threshold pairs, and `M=6145,7169,8191,8192,9616,16384`.
-- KV mirror: `(N=8192, BS=4)` and `(N=16384, BS=8)`, where Q has only `BS`
-  rows while K and positions have `N` rows.
-- Single-request contiguous KV mirror: `Q=[1,6,256]`,
-  `K=[N,1,256]` for `N=8192,9616,16361,16384`. This benchmark-only candidate
-  is isolated from the existing kernels until its NPU results are accepted.
-- Segmented multi-request KV mirror: `Q=[BS,6,256]`, `K=[N,1,256]`, with
-  `BS=2,4,8,16,32,64,128`. Its 64-token tiles never cross request boundaries;
-  it is benchmark-only and is not wired into NEWSGLANG.
+Smoke test:
 
-Exactly two candidate Prefill JIT functions exist: one ordinary and one
-mirror kernel. Runtime `N`, `BS`, work-tile count, Q/K token strides, and the
-contiguous-versus-segmented selector are ordinary integer arguments and are all
-listed in `do_not_specialize`; neither function exposes a `tl.constexpr`
-argument. Full-versus-tail masking is also selected at runtime inside each
-kernel. The fixed model contract (`head_dim=256`, `rope_dim=64`, six Q heads,
-one K head, 64-token tiles, one pipeline stage) remains literal code, not a
-shape-derived launch argument. A source-level audit runs before every remote
-benchmark and fails if this two-kernel/cache-key contract changes.
+```bash
+python bench_welmv4_prefill_attention_npu.py \
+  --suite smoke --mode both --device npu:0 \
+  --output-dir manual_results/smoke
+```
 
-The dedicated blocked path is selected only for the candidate's ordinary
-`prefill` phase. Native msprof-op establishes the all-M threshold at `M=640`:
-M=640 exact64 improves 15.65% and M=641 masked64 improves 8.32%.  M=576 exact64
-improves 6.23% and is retained as an aligned fast path, but M=577 masked64
-regresses 1.8%, so other M below 640 use the shared kernel. The new
-`mirror_contiguous` provider is benchmark-only and selected solely for its four
-BS=1 cases. It and `mirror_segmented` now launch the same mirror Prefill JIT;
-only their runtime metadata differs. Ordinary contiguous and segmented cases
-likewise launch the same ordinary Prefill JIT.
+Any dense M from 1 to 1024:
 
-The `baseline` kernel is frozen.  Later optimization rounds should edit only
-the clearly marked `candidate` section in
-`bench_welmv4_inplace_rope_npu.py`.  Correctness must pass before performance
-is measured.
+```bash
+python bench_welmv4_prefill_attention_npu.py \
+  --mode correctness --device npu:0 \
+  --attention full,swa --topology dense,ragged_prefill \
+  --m-values 1:1024 --kv-lengths 4096 \
+  --prefill-batch-size 8 \
+  --output-dir manual_results/dense_all_m
+```
+
+Actual step1/step2 verify shapes (invalid non-divisible M values are skipped):
+
+```bash
+python bench_welmv4_prefill_attention_npu.py \
+  --mode both --device npu:0 \
+  --attention full,swa --topology verify_d2,verify_d3 \
+  --m-values 1:1024 --kv-lengths 511,512,513,4096 \
+  --length-pattern ragged \
+  --output-dir manual_results/verify_all_m
+```
+
+The three production context bands can be requested explicitly:
+
+```bash
+python bench_welmv4_prefill_attention_npu.py \
+  --mode both --device npu:0 --attention full,swa \
+  --topology verify_d2 --m-values 2,32,112 \
+  --kv-lengths 10240,11264,12288,15360,16896,18432,24576,26624,28672 \
+  --length-pattern ragged --output-dir manual_results/context_bands
+```
+
+Run one configured case repeatedly for `msprof`, debugger, or compiler work:
+
+```bash
+python run_welmv4_prefill_attention_case_npu.py \
+  --case-name full_verify_d2_m112_kv4096_uniform_compact_tp4 \
+  --provider candidate --iterations 20 --device npu:0
+```
+
+## Optimization discipline
+
+- Keep `welmv4_prefill_attention_baseline.py` frozen.
+- Make one optimization change at a time in the candidate.
+- Preserve all production semantics; do not specialize on runtime M, sequence
+  lengths, page IDs, or block-table contents.
+- Bounded static variants such as D=2/D=3 or a finite BM set are allowed, but
+  must be visible in source and reflected by IR/profile artifacts.
+- Correctness must pass before performance is accepted.
+- A candidate below the configured minimum speedup is published as
+  `PERF_REGRESSION`, not silently promoted.
+
+Two initial profiling targets are intentionally recorded in the sketches:
+
+- Full verify uses only 2/3 valid Query rows inside BM=128.
+- SWA additionally sizes its grid from `ceil(total_M/128)*Hq`, although its
+  actual task count is `sum_i ceil(q_len_i/128)*Hq`. For B=56,D=2 this is 6
+  programs serializing 336 request/head tasks.
+
+These are hypotheses/observations to validate with the returned profiler and
+MLIR evidence, not pre-applied optimizations.

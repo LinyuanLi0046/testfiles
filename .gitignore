@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+.auto_bench_on_git_update.lock
+manual_results/
+results/.staging/
+welm_attn_result_*/
+welmv4_prefill_attention_ir/

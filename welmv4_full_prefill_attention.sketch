@@ -1,0 +1,41 @@
+# WeLMv4 Full+Sink Prefill Attention optimization sketch
+
+Production contract
+
+- Candidate entry: `paged_attention_prefill_impl`.
+- Production page64/head256 path:
+  `paged_prefill_page_aggregation_kernel`.
+- BF16 Q/K/V, FP32 per-Q-head sink, causal, contiguous GQA grouping.
+- TP4 local shape: Hq=6, Hkv=1, D=256.
+- `softmax_scale=0.09119556747428784`.
+- KV public view is produced from native `[P*64,Hkv,D]` storage by
+  `view(P,64,Hkv,D).permute(0,2,1,3)`.
+- Current tiling: BM=128, BN=64, BD=256, page aggregation=1.
+
+Workload families
+
+- dense: one request with q_len=M, every M in [1,1024] is legal.
+- ragged_prefill: multiple non-uniform q_lens with exact total M.
+- verify_d2/d3: B requests with q_len=2/3; total M=B*D.
+- graph_d2/d3: capture schedule uses Bcap fixed-width requests while replay
+  uses the same Bcap*D Q/O address with zero-width padded requests and live,
+  heterogeneous KV lengths. Capture KV is D; replay can be 10--28K+.
+- Context bands cover roughly 10--12K, 15--18K, and 24--28K.
+- Full schedule preparation is outside steady kernel latency and is reported
+  separately. A captured static LPT schedule is intentionally reused at replay.
+
+Frozen observation, not yet an accepted optimization
+
+- Verify tasks contain only 2 or 3 valid M rows but enter a BM=128 Cube tile.
+- This is a candidate for the skill's bounded multi-path/grid/tile strategies.
+- Do not specialize on runtime M, seq_len, page IDs, or block-table contents.
+- Any new static variants must be finite and listed in the result manifest.
+
+Acceptance order
+
+1. Baseline and candidate pass FP32 reference for all required cases.
+2. Candidate stays within the baseline/candidate pair tolerance.
+3. Logical wrapper latency does not regress; main-kernel msprof is diagnostic.
+4. Real NPUGraph capture/replay passes, including poisoned output and padding.
+5. Full TTIR, TTAdapter, last-pass MLIR, PipeUtilization, and Memory/L2 are saved.
+6. Only then may `welmv4_prefill_attention_candidate.py` become the next baseline.
