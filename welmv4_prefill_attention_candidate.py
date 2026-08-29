@@ -38,7 +38,6 @@ def _build_lpt_task_schedule(
         cube_num: int,
         gqa_interleave: bool,
         device: Optional[torch.device] = None,
-        skip_single_tail: bool = False,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """Build a shape-aware static schedule for the 1D Triton grid.
 
@@ -68,11 +67,6 @@ def _build_lpt_task_schedule(
         for q_block_id in range(q_chunks):
             q_block_end = min((q_block_id + 1) * block_size_m, q_seq_len)
             cost = max(1, triton.cdiv(kv_cache_len + q_block_end, block_size_n))
-            q_block_start = q_block_id * block_size_m
-            q_block_len = q_block_end - q_block_start
-            if skip_single_tail and q_seq_len == 513 and q_block_len == 1:
-                continue
-
             for q_head_id in range(num_q_heads):
                 if gqa_interleave:
                     kv_head_id = q_head_id % num_kv_heads
@@ -647,7 +641,6 @@ def paged_prefill_small_q_grouped_kernel(
     BLOCK_SIZE_D: tl.constexpr,
     BLOCK_SIZE_N: tl.constexpr,
     MAX_Q_LEN: tl.constexpr,
-    Q_START_OFFSET: tl.constexpr,
     SINK_ENABLED: tl.constexpr,
 ):
     """Group up to four query tokens and all six Q heads per request."""
@@ -679,10 +672,7 @@ def paged_prefill_small_q_grouped_kernel(
     b_end = (pid + 1) * batch_size // n_programs
 
     for b_id in range(b_begin, b_end):
-        q_start = (
-            tl.load(cu_q_lens_ptr + b_id).to(tl.int32)
-            + Q_START_OFFSET
-        )
+        q_start = tl.load(cu_q_lens_ptr + b_id).to(tl.int32)
         q_end = tl.load(cu_q_lens_ptr + b_id + 1).to(tl.int32)
         q_seq_len = q_end - q_start
         if q_seq_len.to(tl.float32) > 0.0:
@@ -1091,18 +1081,6 @@ def paged_attention_prefill_prepare(
     cube_num = get_num_cores("cube")
     CHUNK_SIZE = 128
     BLOCK_SIZE_N = min(128, triton.next_power_of_2(page_size))
-    q_lens_host = _tensor_to_cpu_list(cu_q_lens)
-    max_prepare_q_len = max(
-        q_lens_host[i + 1] - q_lens_host[i]
-        for i in range(len(q_lens_host) - 1)
-    )
-    skip_single_tail = (
-        page_size == 64
-        and num_q_heads == 6
-        and num_kv_heads == 1
-        and not gqa_interleave
-        and max_prepare_q_len == 513
-    )
 
     task_b, task_q_block, task_q_head, core_task_offsets = _build_lpt_task_schedule(
         cu_q_lens,
@@ -1114,7 +1092,6 @@ def paged_attention_prefill_prepare(
         cube_num,
         gqa_interleave,
         device,
-        skip_single_tail,
     )
     return task_b, task_q_block, task_q_head, core_task_offsets
 
@@ -1225,7 +1202,6 @@ def paged_attention_prefill_impl(
             BLOCK_SIZE_D=head_dim,
             BLOCK_SIZE_N=page_size,
             MAX_Q_LEN=max_q_len,
-            Q_START_OFFSET=0,
             SINK_ENABLED=sink_enabled,
         )
         return o
@@ -1303,7 +1279,6 @@ def paged_attention_prefill_impl(
             SINK_ENABLED=sink_enabled,
         )
         return o
-
 
     if not (page_size < 128 and 128 % page_size == 0):
         paged_prefill_kernel[grid](
@@ -1410,53 +1385,6 @@ def paged_attention_prefill_impl(
             enable_cube_block_merge=True,
             enable_buffer_insert_optimization=True,
             enable_ub_refine_opt=True,
-        )
-
-    run_split_single_tail = (
-        seqlens_kv is not None
-        and max_q_len == 513
-        and not gqa_interleave
-        and num_kv_heads == 1
-        and num_q_heads == 6
-        and page_size == 64
-    )
-    if run_split_single_tail:
-        tail_grid = (min(cube_num, batch_size),)
-        paged_prefill_small_q_grouped_kernel[tail_grid](
-            q,
-            key_cache,
-            value_cache,
-            o,
-            cu_q_lens,
-            seqlens_kv,
-            block_tables_i32,
-            sinks_pass,
-            batch_size,
-            q.stride(0),
-            q.stride(1),
-            q.stride(2),
-            key_cache.stride(0),
-            key_cache.stride(2),
-            key_cache.stride(3),
-            value_cache.stride(0),
-            value_cache.stride(2),
-            value_cache.stride(3),
-            o.stride(0),
-            o.stride(1),
-            o.stride(2),
-            block_tables_i32.stride(0),
-            block_tables_i32.stride(1),
-            sinks_pass.stride(0),
-            softmax_scale,
-            NUM_Q_HEADS=num_q_heads,
-            HEAD_DIM=head_dim,
-            PAGE_SIZE=page_size,
-            BLOCK_SIZE_M=16,
-            BLOCK_SIZE_D=head_dim,
-            BLOCK_SIZE_N=page_size,
-            MAX_Q_LEN=1,
-            Q_START_OFFSET=512,
-            SINK_ENABLED=sink_enabled,
         )
 
     return o
