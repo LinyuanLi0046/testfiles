@@ -35,7 +35,7 @@
     "minimum_speedup": 1.03,
     "minimum_case_speedup": 0.98,
     "gain_topologies": ["verify_d2", "verify_d3"],
-    "performance_focus": ["swa"],
+    "performance_focus": ["full"],
     "decode_reference_targets_us": {
       "48": {"full": 620.0, "swa": 27.0}
     },
@@ -140,6 +140,8 @@
       ],
       "performance": [
         {"attention": "full", "topology": "verify_d2", "m": 2, "kv_length": 4096},
+        {"attention": "full", "topology": "verify_d2", "batch_size": 48, "kv_length": 4096},
+        {"attention": "full", "topology": "verify_d3", "batch_size": 48, "kv_length": 4096},
         {"attention": "full", "topology": "verify_d2", "m": 112, "kv_length": 4096},
         {"attention": "full", "topology": "verify_d3", "m": 168, "kv_length": 4096},
         {"attention": "full", "topology": "dense", "m": 1024, "kv_length": 4096},

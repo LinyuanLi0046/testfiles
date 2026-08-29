@@ -607,6 +607,205 @@ def paged_prefill_page_aggregation_kernel(
             tl.store(O_block_ptr, accumulator.to(o_ptr.type.element_ty), boundary_check=(0, 1))
 
 
+@triton.jit
+def paged_prefill_verify_grouped_kernel(
+    q_ptr,
+    key_cache_ptr,
+    value_cache_ptr,
+    o_ptr,
+    cu_q_lens_ptr,
+    seqlens_kv_ptr,
+    block_tables_ptr,
+    sinks_ptr,
+    batch_size,
+    stride_qt,
+    stride_qh,
+    stride_qd,
+    stride_k_block,
+    stride_k_blksz,
+    stride_k_dim,
+    stride_v_block,
+    stride_v_blksz,
+    stride_v_dim,
+    stride_ot,
+    stride_oh,
+    stride_od,
+    stride_bt_batch,
+    stride_bt_block,
+    stride_sink_head,
+    softmax_scale,
+    NUM_Q_HEADS: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    PAGE_SIZE: tl.constexpr,
+    BLOCK_SIZE_D: tl.constexpr,
+    BLOCK_SIZE_N: tl.constexpr,
+    VERIFY_WIDTH: tl.constexpr,
+    SINK_ENABLED: tl.constexpr,
+):
+    """Full-attention verify with all six Q heads sharing one KV scan."""
+    tl.static_assert(
+        NUM_Q_HEADS == 6,
+        "grouped WeLM full verify requires six local Q heads",
+    )
+    tl.static_assert(
+        VERIFY_WIDTH >= 1 and VERIFY_WIDTH <= 4,
+        "grouped WeLM full verify width must be in [1, 4]",
+    )
+    tl.static_assert(
+        PAGE_SIZE == BLOCK_SIZE_N,
+        "grouped WeLM full verify uses one page per KV tile",
+    )
+
+    pid = tl.program_id(0)
+    n_programs = tl.num_programs(0)
+    b_begin = pid * batch_size // n_programs
+    b_end = (pid + 1) * batch_size // n_programs
+
+    for b_id in range(b_begin, b_end):
+        q_start = tl.load(cu_q_lens_ptr + b_id).to(tl.int32)
+        q_end = tl.load(cu_q_lens_ptr + b_id + 1).to(tl.int32)
+        q_seq_len = q_end - q_start
+        if q_seq_len.to(tl.float32) > 0.0:
+            GROUPED_ROWS: tl.constexpr = NUM_Q_HEADS * VERIFY_WIDTH
+            row_ids = tl.arange(0, GROUPED_ROWS)
+            row_tokens = row_ids // NUM_Q_HEADS
+            row_heads = row_ids - row_tokens * NUM_Q_HEADS
+            dim_offsets = tl.arange(0, BLOCK_SIZE_D)
+
+            q_ptrs = (
+                q_ptr
+                + q_start * stride_qt
+                + row_ids[:, None] * stride_qh
+                + dim_offsets[None, :] * stride_qd
+            )
+            q = tl.load(q_ptrs)
+
+            if SINK_ENABLED:
+                sink_0 = tl.load(sinks_ptr).to(tl.float32)
+                sink_1 = tl.load(sinks_ptr + stride_sink_head).to(tl.float32)
+                sink_2 = tl.load(sinks_ptr + 2 * stride_sink_head).to(tl.float32)
+                sink_3 = tl.load(sinks_ptr + 3 * stride_sink_head).to(tl.float32)
+                sink_4 = tl.load(sinks_ptr + 4 * stride_sink_head).to(tl.float32)
+                sink_5 = tl.load(sinks_ptr + 5 * stride_sink_head).to(tl.float32)
+                m_i = tl.where(
+                    row_heads.to(tl.float32) < 1.0,
+                    sink_0,
+                    tl.where(
+                        row_heads.to(tl.float32) < 2.0,
+                        sink_1,
+                        tl.where(
+                            row_heads.to(tl.float32) < 3.0,
+                            sink_2,
+                            tl.where(
+                                row_heads.to(tl.float32) < 4.0,
+                                sink_3,
+                                tl.where(
+                                    row_heads.to(tl.float32) < 5.0,
+                                    sink_4,
+                                    sink_5,
+                                ),
+                            ),
+                        ),
+                    ),
+                )
+                l_i = tl.full((GROUPED_ROWS,), 1.0, tl.float32)
+            else:
+                m_i = tl.full(
+                    (GROUPED_ROWS,), -float("inf"), tl.float32
+                )
+                l_i = tl.zeros((GROUPED_ROWS,), dtype=tl.float32)
+            acc = tl.zeros(
+                (GROUPED_ROWS, BLOCK_SIZE_D), dtype=tl.float32
+            )
+
+            kv_seq_len = tl.load(seqlens_kv_ptr + b_id).to(tl.int32)
+            kv_cache_len = kv_seq_len - q_seq_len
+            num_kv_blocks = tl.cdiv(kv_seq_len, BLOCK_SIZE_N)
+            for kv_block_id in range(0, num_kv_blocks):
+                kv_block_start = kv_block_id * BLOCK_SIZE_N
+                kv_block_end = min(
+                    kv_block_start + BLOCK_SIZE_N, kv_seq_len
+                )
+                kv_block_len = kv_block_end - kv_block_start
+                logical_page_id = min(
+                    kv_block_start // PAGE_SIZE,
+                    stride_bt_batch - 1,
+                )
+                physical_page_id = tl.load(
+                    block_tables_ptr
+                    + b_id * stride_bt_batch
+                    + logical_page_id * stride_bt_block
+                )
+
+                k_t_block_ptr = tl.make_block_ptr(
+                    base=(
+                        key_cache_ptr
+                        + physical_page_id * stride_k_block
+                    ),
+                    shape=(HEAD_DIM, kv_block_len),
+                    strides=(stride_k_dim, stride_k_blksz),
+                    offsets=(0, 0),
+                    block_shape=(BLOCK_SIZE_D, BLOCK_SIZE_N),
+                    order=(0, 1),
+                )
+                v_block_ptr = tl.make_block_ptr(
+                    base=(
+                        value_cache_ptr
+                        + physical_page_id * stride_v_block
+                    ),
+                    shape=(kv_block_len, HEAD_DIM),
+                    strides=(stride_v_blksz, stride_v_dim),
+                    offsets=(0, 0),
+                    block_shape=(BLOCK_SIZE_N, BLOCK_SIZE_D),
+                    order=(1, 0),
+                )
+                k_t = tl.load(
+                    k_t_block_ptr,
+                    boundary_check=(0, 1),
+                    padding_option="zero",
+                )
+                v = tl.load(
+                    v_block_ptr,
+                    boundary_check=(0, 1),
+                    padding_option="zero",
+                )
+
+                key_offsets = tl.arange(0, BLOCK_SIZE_N)
+                key_positions = kv_block_start + key_offsets
+                query_positions = kv_cache_len + row_tokens
+                mask = (
+                    key_positions[None, :].to(tl.float32)
+                    <= query_positions[:, None].to(tl.float32)
+                ) & (
+                    key_positions[None, :].to(tl.float32)
+                    < kv_seq_len.to(tl.float32)
+                )
+
+                qk = tl.dot(q, k_t) * softmax_scale
+                qk = tl.where(mask, qk, -1e6)
+                m_ij = tl.maximum(
+                    m_i,
+                    tl.max(qk, 1, propagate_nan=True),
+                    propagate_nan=tl.PropagateNan.ALL,
+                )
+                p = tl.math.exp(qk - m_ij[:, None])
+                pv = tl.dot(p.to(k_t.dtype), v)
+                l_ij = tl.sum(p, 1)
+                alpha = tl.math.exp(m_i - m_ij)
+                l_i = l_i * alpha + l_ij
+                acc = acc * alpha[:, None] + pv
+                m_i = m_ij
+
+            output = acc / l_i[:, None]
+            o_ptrs = (
+                o_ptr
+                + q_start * stride_ot
+                + row_ids[:, None] * stride_oh
+                + dim_offsets[None, :] * stride_od
+            )
+            tl.store(o_ptrs, output.to(o_ptr.type.element_ty))
+
+
 def paged_attention_prefill_prepare(
     cu_q_lens,
     seqlens_kv,
@@ -692,6 +891,62 @@ def paged_attention_prefill_impl(
     BLOCK_SIZE_N = min(128, triton.next_power_of_2(page_size))
     cube_num = get_num_cores("cube")
     grid = (cube_num,)
+
+    total_q_tokens = q.shape[0]
+    verify_width = total_q_tokens // batch_size if batch_size > 0 else 0
+    has_fixed_verify_width = (
+        verify_width >= 1
+        and verify_width <= 4
+        and verify_width * batch_size == total_q_tokens
+    )
+    use_grouped_verify = (
+        q.dtype != torch.float32
+        and seqlens_kv is not None
+        and has_fixed_verify_width
+        and not gqa_interleave
+        and num_kv_heads == 1
+        and num_q_heads == 6
+        and page_size == 64
+        and q.stride(0) == num_q_heads * q.stride(1)
+        and o.stride(0) == num_q_heads * o.stride(1)
+    )
+    if use_grouped_verify:
+        grouped_grid = (min(cube_num, batch_size),)
+        paged_prefill_verify_grouped_kernel[grouped_grid](
+            q,
+            key_cache,
+            value_cache,
+            o,
+            cu_q_lens,
+            seqlens_kv,
+            block_tables_i32,
+            sinks_pass,
+            batch_size,
+            q.stride(0),
+            q.stride(1),
+            q.stride(2),
+            key_cache.stride(0),
+            key_cache.stride(2),
+            key_cache.stride(3),
+            value_cache.stride(0),
+            value_cache.stride(2),
+            value_cache.stride(3),
+            o.stride(0),
+            o.stride(1),
+            o.stride(2),
+            block_tables_i32.stride(0),
+            block_tables_i32.stride(1),
+            sinks_pass.stride(0),
+            softmax_scale,
+            NUM_Q_HEADS=num_q_heads,
+            HEAD_DIM=head_dim,
+            PAGE_SIZE=page_size,
+            BLOCK_SIZE_D=head_dim,
+            BLOCK_SIZE_N=page_size,
+            VERIFY_WIDTH=verify_width,
+            SINK_ENABLED=sink_enabled,
+        )
+        return o
 
     if not (page_size < 128 and 128 % page_size == 0):
         paged_prefill_kernel[grid](
