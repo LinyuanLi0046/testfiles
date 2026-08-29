@@ -1,16 +1,18 @@
-time: 2026-08-29T18:08:07+08:00
-command: /usr/local/python3.11.10/bin/python bench_welmv4_prefill_attention_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_attn_result_2qrlrgk9
+time: 2026-08-29T18:42:38+08:00
+command: /usr/local/python3.11.10/bin/python bench_welmv4_prefill_attention_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_attn_result_qw9i7ejd
 return_code: 3
 reason: benchmark exited with status 3
 
 ===== stdout + stderr =====
 WeLMv4 NPU Full/SWA prefill Attention optimization workspace
-device=npu:5 (Ascend950PR_957b), base=c8b7d9372bcf, baseline=c47f9bdcfb87, candidate=4fb95f43aec4
+device=npu:5 (Ascend950PR_957b), base=bc9e1d236db3, baseline=c47f9bdcfb87, candidate=0fcd0520d41d
 [correctness 1/215] full_dense_m1_kv63_uniform_compact_tp4
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":691:24): error: operand #1 does not dominate this use
   PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 2/215] full_dense_m1_kv64_uniform_compact_tp4
   PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 3/215] full_dense_m1_kv65_uniform_compact_tp4
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":691:24): error: operand #1 does not dominate this use
   PASS: candidate max_abs=0.0078125, pair max_abs=0
 [correctness 4/215] swa_dense_m1_kv511_uniform_compact_tp4
 /data2/hw_lly/testfiles/welmv4_prefill_attention_baseline.py:2766: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:423.)
@@ -55,10 +57,13 @@ device=npu:5 (Ascend950PR_957b), base=c8b7d9372bcf, baseline=c47f9bdcfb87, candi
 [correctness 15/215] swa_ragged_prefill_b56_m1024_kv4096_ragged_compact_tp4
   PASS: candidate max_abs=0.0078125, pair max_abs=0
 [correctness 16/215] full_dense_m1_kv4096_uniform_compact_tp4
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":691:24): error: operand #1 does not dominate this use
   PASS: candidate max_abs=0.000976562, pair max_abs=0
 [correctness 17/215] full_dense_m2_kv4096_uniform_compact_tp4
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":691:24): error: operand #1 does not dominate this use
   PASS: candidate max_abs=0.000976562, pair max_abs=0
 [correctness 18/215] full_dense_m3_kv4096_uniform_compact_tp4
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":691:24): error: operand #1 does not dominate this use
   PASS: candidate max_abs=0.00195312, pair max_abs=0
 [correctness 19/215] full_dense_m7_kv4096_uniform_compact_tp4
   PASS: candidate max_abs=0.000976562, pair max_abs=0
@@ -169,6 +174,7 @@ device=npu:5 (Ascend950PR_957b), base=c8b7d9372bcf, baseline=c47f9bdcfb87, candi
 [correctness 72/215] full_verify_d2_m2_kv4096_uniform_compact_tp4
   PASS: candidate max_abs=0.000976562, pair max_abs=0
 [correctness 73/215] full_verify_d2_m4_kv4096_uniform_compact_tp4
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":691:24): error: operand #1 does not dominate this use
   PASS: candidate max_abs=0.000976562, pair max_abs=0
 [correctness 74/215] full_verify_d2_m8_kv4096_uniform_compact_tp4
   PASS: candidate max_abs=0.000976562, pair max_abs=0
@@ -177,6 +183,7 @@ device=npu:5 (Ascend950PR_957b), base=c8b7d9372bcf, baseline=c47f9bdcfb87, candi
 [correctness 76/215] full_verify_d2_m24_kv4096_uniform_compact_tp4
   PASS: candidate max_abs=0.000976562, pair max_abs=0
 [correctness 77/215] full_verify_d2_m32_kv4096_uniform_compact_tp4
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":691:24): error: operand #1 does not dominate this use
   PASS: candidate max_abs=0.000976562, pair max_abs=0
 [correctness 78/215] full_verify_d2_m48_kv4096_uniform_compact_tp4
   PASS: candidate max_abs=0.000976562, pair max_abs=0
@@ -187,7 +194,7 @@ device=npu:5 (Ascend950PR_957b), base=c8b7d9372bcf, baseline=c47f9bdcfb87, candi
 [correctness 81/215] full_verify_d2_m80_kv4096_uniform_compact_tp4
   PASS: candidate max_abs=0.00195312, pair max_abs=0
 [correctness 82/215] full_verify_d2_m96_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0.000976562
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
 [correctness 83/215] full_verify_d2_m112_kv4096_uniform_compact_tp4
   PASS: candidate max_abs=0.000976562, pair max_abs=0
 [correctness 84/215] swa_verify_d2_m2_kv4096_uniform_compact_tp4
@@ -217,6 +224,7 @@ device=npu:5 (Ascend950PR_957b), base=c8b7d9372bcf, baseline=c47f9bdcfb87, candi
 [correctness 96/215] full_verify_d3_m3_kv4096_uniform_compact_tp4
   PASS: candidate max_abs=0.000976562, pair max_abs=0
 [correctness 97/215] full_verify_d3_m6_kv4096_uniform_compact_tp4
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":691:24): error: operand #1 does not dominate this use
   PASS: candidate max_abs=0.000976562, pair max_abs=0
 [correctness 98/215] full_verify_d3_m12_kv4096_uniform_compact_tp4
   PASS: candidate max_abs=0.000976562, pair max_abs=0
@@ -225,6 +233,7 @@ device=npu:5 (Ascend950PR_957b), base=c8b7d9372bcf, baseline=c47f9bdcfb87, candi
 [correctness 100/215] full_verify_d3_m36_kv4096_uniform_compact_tp4
   PASS: candidate max_abs=0.000976562, pair max_abs=0
 [correctness 101/215] full_verify_d3_m48_kv4096_uniform_compact_tp4
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":691:24): error: operand #1 does not dominate this use
   PASS: candidate max_abs=0.00195312, pair max_abs=0
 [correctness 102/215] full_verify_d3_m72_kv4096_uniform_compact_tp4
   PASS: candidate max_abs=0.00195312, pair max_abs=0
@@ -235,7 +244,7 @@ device=npu:5 (Ascend950PR_957b), base=c8b7d9372bcf, baseline=c47f9bdcfb87, candi
 [correctness 105/215] full_verify_d3_m120_kv4096_uniform_compact_tp4
   PASS: candidate max_abs=0.00195312, pair max_abs=0
 [correctness 106/215] full_verify_d3_m144_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0.00195312
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
 [correctness 107/215] full_verify_d3_m168_kv4096_uniform_compact_tp4
   PASS: candidate max_abs=0.00195312, pair max_abs=0
 [correctness 108/215] swa_verify_d3_m3_kv4096_uniform_compact_tp4
@@ -263,16 +272,22 @@ device=npu:5 (Ascend950PR_957b), base=c8b7d9372bcf, baseline=c47f9bdcfb87, candi
 [correctness 119/215] swa_verify_d3_m168_kv4096_uniform_compact_tp4
   PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
 [correctness 120/215] full_verify_d2_m2_kv64_ragged_compact_tp4
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":691:24): error: operand #1 does not dominate this use
   PASS: candidate max_abs=0.0078125, pair max_abs=0
 [correctness 121/215] full_verify_d2_m32_kv64_ragged_compact_tp4
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":691:24): error: operand #1 does not dominate this use
   PASS: candidate max_abs=0.015625, pair max_abs=0
 [correctness 122/215] full_verify_d2_m112_kv64_ragged_compact_tp4
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":691:24): error: operand #1 does not dominate this use
   PASS: candidate max_abs=0.015625, pair max_abs=0
 [correctness 123/215] full_verify_d2_m2_kv511_ragged_compact_tp4
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":691:24): error: operand #1 does not dominate this use
   PASS: candidate max_abs=0.00195312, pair max_abs=0
 [correctness 124/215] full_verify_d2_m32_kv511_ragged_compact_tp4
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":691:24): error: operand #1 does not dominate this use
   PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 125/215] full_verify_d2_m112_kv511_ragged_compact_tp4
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":691:24): error: operand #1 does not dominate this use
   PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 126/215] full_verify_d2_m2_kv512_ragged_compact_tp4
   PASS: candidate max_abs=0.00390625, pair max_abs=0
@@ -443,6 +458,7 @@ device=npu:5 (Ascend950PR_957b), base=c8b7d9372bcf, baseline=c47f9bdcfb87, candi
 [correctness 209/215] swa_graph_d2_bcap56_m80_kv4096_ragged_graph_tp4
   PASS: candidate max_abs=0.00390625, pair max_abs=0.00195312
 [correctness 210/215] full_graph_d3_bcap56_m3_kv4096_ragged_graph_tp4
+loc("/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py":691:24): error: operand #1 does not dominate this use
   PASS: candidate max_abs=0.000488281, pair max_abs=0
 [correctness 211/215] full_graph_d3_bcap56_m48_kv4096_ragged_graph_tp4
   PASS: candidate max_abs=0.000976562, pair max_abs=0
@@ -455,34 +471,34 @@ device=npu:5 (Ascend950PR_957b), base=c8b7d9372bcf, baseline=c47f9bdcfb87, candi
 [correctness 215/215] swa_graph_d3_bcap56_m120_kv4096_ragged_graph_tp4
   PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
 [performance 1/14] full_verify_d2_m2_kv4096_uniform_compact_tp4
-  baseline=102.068 us, candidate=72.275 us, speedup=1.4122, PASS
+  baseline=102.980 us, candidate=75.208 us, speedup=1.3693, PASS
 [performance 2/14] full_verify_d2_m96_kv4096_uniform_compact_tp4
-  baseline=1030.963 us, candidate=182.761 us, speedup=5.6411, PASS
+  baseline=1031.493 us, candidate=166.978 us, speedup=6.1774, PASS
 [performance 3/14] full_verify_d3_m144_kv4096_uniform_compact_tp4
-  baseline=1031.495 us, candidate=199.521 us, speedup=5.1699, PASS
+  baseline=1031.643 us, candidate=165.889 us, speedup=6.2189, PASS
 [performance 4/14] full_verify_d2_m112_kv4096_uniform_compact_tp4
-  baseline=1125.927 us, candidate=186.230 us, speedup=6.0459, PASS
+  baseline=1125.572 us, candidate=187.604 us, speedup=5.9997, PASS
 [performance 5/14] full_verify_d3_m168_kv4096_uniform_compact_tp4
-  baseline=1126.152 us, candidate=189.081 us, speedup=5.9559, PASS
+  baseline=1125.765 us, candidate=189.336 us, speedup=5.9459, PASS
 [performance 6/14] full_dense_m1024_kv4096_uniform_compact_tp4
-  baseline=175.285 us, candidate=175.392 us, speedup=0.9994, PASS
+  baseline=175.706 us, candidate=175.800 us, speedup=0.9995, PASS
 [performance 7/14] full_dense_m1024_kv16896_ragged_compact_tp4
-  baseline=746.093 us, candidate=746.075 us, speedup=1.0000, PASS
+  baseline=745.598 us, candidate=745.978 us, speedup=0.9995, PASS
 [performance 8/14] full_ragged_prefill_b16_m257_kv4096_ragged_compact_tp4
-  baseline=372.549 us, candidate=372.582 us, speedup=0.9999, PASS
+  baseline=372.139 us, candidate=372.265 us, speedup=0.9997, PASS
 [performance 9/14] full_verify_d2_m112_kv11264_ragged_compact_tp4
-  baseline=3086.446 us, candidate=504.109 us, speedup=6.1226, PASS
+  baseline=3071.133 us, candidate=504.613 us, speedup=6.0861, PASS
 [performance 10/14] full_verify_d2_m112_kv16896_ragged_compact_tp4
-  baseline=4629.115 us, candidate=759.992 us, speedup=6.0910, PASS
+  baseline=4634.545 us, candidate=755.261 us, speedup=6.1364, PASS
 [performance 11/14] full_verify_d2_m112_kv26624_ragged_compact_tp4
-  baseline=7334.445 us, candidate=1183.405 us, speedup=6.1977, PASS
+  baseline=7336.255 us, candidate=1181.126 us, speedup=6.2112, PASS
 [performance 12/14] full_verify_d2_m96_kv11264_ragged_compact_tp4
-  baseline=2762.188 us, candidate=456.354 us, speedup=6.0527, PASS
+  baseline=2763.239 us, candidate=444.812 us, speedup=6.2122, PASS
 [performance 13/14] full_verify_d2_m96_kv16896_ragged_compact_tp4
-  baseline=4152.200 us, candidate=664.182 us, speedup=6.2516, PASS
+  baseline=4152.098 us, candidate=664.536 us, speedup=6.2481, PASS
 [performance 14/14] full_verify_d2_m96_kv26624_ragged_compact_tp4
-  baseline=6537.183 us, candidate=1018.724 us, speedup=6.4170, PASS
-[performance gate] gain_geomean=5.2484, minimum=1.0300, PASS
+  baseline=6569.892 us, candidate=1038.944 us, speedup=6.3236, PASS
+[performance gate] gain_geomean=5.3689, minimum=1.0300, PASS
 [msprof-op] full_verify_d2_m2_kv4096_uniform_compact_tp4 baseline
 [msprof-op] full_verify_d2_m2_kv4096_uniform_compact_tp4 candidate
 [msprof-op] full_verify_d2_m96_kv4096_uniform_compact_tp4 baseline
@@ -522,53 +538,53 @@ device=npu:5 (Ascend950PR_957b), base=c8b7d9372bcf, baseline=c47f9bdcfb87, candi
 [ir] swa_dense_m129_kv4096_uniform_compact_tp4
 [ir] swa_dense_m1024_kv4096_uniform_compact_tp4
 [profile:pipe_utilization] full_verify_d2_m96_kv16896_ragged_compact_tp4
-[2026-08-29 18:07:25] [WARNING] [998671] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 18:07:25] [INFO] [1020619] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_pipe_utilization_dsy74zqy/TENCENT64-124_998671_20260829180725052_ascend_pt
-|/-[2026-08-29 18:07:27] [INFO] [1020628] profiler.py: CANN profiling data parsed in a total time of 0:00:02.016969
-[2026-08-29 18:07:28] [INFO] [1020619] profiler.py: All profiling data parsed in a total time of 0:00:03.056311
+[2026-08-29 18:41:46] [WARNING] [1047597] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 18:41:47] [INFO] [1072537] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_pipe_utilization_riudnsbn/TENCENT64-124_1047597_20260829184146605_ascend_pt
+|/-[2026-08-29 18:41:49] [INFO] [1072546] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017852
+\[2026-08-29 18:41:50] [INFO] [1072537] profiler.py: All profiling data parsed in a total time of 0:00:03.129142
 [profile:memory] full_verify_d2_m96_kv16896_ragged_compact_tp4
-[2026-08-29 18:07:28] [WARNING] [998671] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 18:07:29] [INFO] [1020889] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_memory_n6ez5z1d/TENCENT64-124_998671_20260829180728759_ascend_pt
-|/-[2026-08-29 18:07:31] [INFO] [1020898] profiler.py: CANN profiling data parsed in a total time of 0:00:02.036805
-[2026-08-29 18:07:32] [INFO] [1020889] profiler.py: All profiling data parsed in a total time of 0:00:03.009816
+[2026-08-29 18:41:51] [WARNING] [1047597] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 18:41:51] [INFO] [1072807] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_memory_92vebnla/TENCENT64-124_1047597_20260829184151311_ascend_pt
+|/-[2026-08-29 18:41:54] [INFO] [1072816] profiler.py: CANN profiling data parsed in a total time of 0:00:02.016613
+\[2026-08-29 18:41:55] [INFO] [1072807] profiler.py: All profiling data parsed in a total time of 0:00:03.097055
 [profile:pipe_utilization] full_verify_d2_m112_kv16896_ragged_compact_tp4
-[2026-08-29 18:07:32] [WARNING] [998671] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 18:07:33] [INFO] [1021159] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_pipe_utilization_tyxsn5gn/TENCENT64-124_998671_20260829180732659_ascend_pt
-|/-[2026-08-29 18:07:35] [INFO] [1021168] profiler.py: CANN profiling data parsed in a total time of 0:00:02.016976
-[2026-08-29 18:07:36] [INFO] [1021159] profiler.py: All profiling data parsed in a total time of 0:00:03.024171
+[2026-08-29 18:41:56] [WARNING] [1047597] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 18:41:56] [INFO] [1073077] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_pipe_utilization_cwyf24xb/TENCENT64-124_1047597_20260829184156211_ascend_pt
+|/-[2026-08-29 18:41:58] [INFO] [1073086] profiler.py: CANN profiling data parsed in a total time of 0:00:02.016738
+\[2026-08-29 18:41:59] [INFO] [1073077] profiler.py: All profiling data parsed in a total time of 0:00:03.093732
 [profile:memory] full_verify_d2_m112_kv16896_ragged_compact_tp4
-[2026-08-29 18:07:36] [WARNING] [998671] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 18:07:37] [INFO] [1021429] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_memory_c0548hu0/TENCENT64-124_998671_20260829180736371_ascend_pt
-|/-[2026-08-29 18:07:39] [INFO] [1021438] profiler.py: CANN profiling data parsed in a total time of 0:00:02.037601
-[2026-08-29 18:07:40] [INFO] [1021429] profiler.py: All profiling data parsed in a total time of 0:00:03.035405
+[2026-08-29 18:42:01] [WARNING] [1047597] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 18:42:01] [INFO] [1073347] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_memory_j4a79ytu/TENCENT64-124_1047597_20260829184200904_ascend_pt
+|/-[2026-08-29 18:42:03] [INFO] [1073356] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017600
+\[2026-08-29 18:42:04] [INFO] [1073347] profiler.py: All profiling data parsed in a total time of 0:00:03.252199
 [profile:pipe_utilization] full_dense_m1024_kv4096_uniform_compact_tp4
-[2026-08-29 18:07:40] [WARNING] [998671] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 18:07:40] [INFO] [1021699] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_pipe_utilization_enyhv6i9/TENCENT64-124_998671_20260829180740231_ascend_pt
-|/-[2026-08-29 18:07:42] [INFO] [1021708] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017673
-[2026-08-29 18:07:43] [INFO] [1021699] profiler.py: All profiling data parsed in a total time of 0:00:03.058917
+[2026-08-29 18:42:05] [WARNING] [1047597] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 18:42:06] [INFO] [1073617] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_pipe_utilization_opi6p4g9/TENCENT64-124_1047597_20260829184205751_ascend_pt
+|/-[2026-08-29 18:42:08] [INFO] [1073626] profiler.py: CANN profiling data parsed in a total time of 0:00:02.016621
+\[2026-08-29 18:42:09] [INFO] [1073617] profiler.py: All profiling data parsed in a total time of 0:00:03.132684
 [profile:memory] full_dense_m1024_kv4096_uniform_compact_tp4
-[2026-08-29 18:07:44] [WARNING] [998671] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 18:07:44] [INFO] [1021969] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_memory_1ewxv731/TENCENT64-124_998671_20260829180743926_ascend_pt
-|/-[2026-08-29 18:07:46] [INFO] [1021978] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017466
-[2026-08-29 18:07:47] [INFO] [1021969] profiler.py: All profiling data parsed in a total time of 0:00:03.055317
+[2026-08-29 18:42:10] [WARNING] [1047597] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 18:42:11] [INFO] [1073887] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_memory_k89_nn3j/TENCENT64-124_1047597_20260829184210448_ascend_pt
+|/-[2026-08-29 18:42:13] [INFO] [1073896] profiler.py: CANN profiling data parsed in a total time of 0:00:02.016766
+\[2026-08-29 18:42:14] [INFO] [1073887] profiler.py: All profiling data parsed in a total time of 0:00:03.106779
 [profile:pipe_utilization] swa_verify_d2_m112_kv16896_ragged_compact_tp4
-[2026-08-29 18:07:48] [WARNING] [998671] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 18:07:48] [INFO] [1022239] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_pipe_utilization_mdxyj8r4/TENCENT64-124_998671_20260829180747990_ascend_pt
-|/-[2026-08-29 18:07:50] [INFO] [1022248] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017122
-\[2026-08-29 18:07:51] [INFO] [1022239] profiler.py: All profiling data parsed in a total time of 0:00:03.077517
+[2026-08-29 18:42:15] [WARNING] [1047597] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 18:42:15] [INFO] [1074157] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_pipe_utilization_mwhgq9cz/TENCENT64-124_1047597_20260829184215312_ascend_pt
+|/-[2026-08-29 18:42:18] [INFO] [1074166] profiler.py: CANN profiling data parsed in a total time of 0:00:02.036794
+\[2026-08-29 18:42:19] [INFO] [1074157] profiler.py: All profiling data parsed in a total time of 0:00:03.143547
 [profile:memory] swa_verify_d2_m112_kv16896_ragged_compact_tp4
-[2026-08-29 18:07:52] [WARNING] [998671] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 18:07:53] [INFO] [1022511] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_memory_21fsh0be/TENCENT64-124_998671_20260829180752694_ascend_pt
-|/-[2026-08-29 18:07:55] [INFO] [1022520] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017914
-[2026-08-29 18:07:56] [INFO] [1022511] profiler.py: All profiling data parsed in a total time of 0:00:03.064053
+[2026-08-29 18:42:20] [WARNING] [1047597] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 18:42:20] [INFO] [1074427] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_memory_j2d0r_7q/TENCENT64-124_1047597_20260829184220019_ascend_pt
+|/-[2026-08-29 18:42:22] [INFO] [1074436] profiler.py: CANN profiling data parsed in a total time of 0:00:02.037604
+\[2026-08-29 18:42:23] [INFO] [1074427] profiler.py: All profiling data parsed in a total time of 0:00:03.188704
 [profile:pipe_utilization] swa_dense_m1024_kv4096_uniform_compact_tp4
-[2026-08-29 18:07:56] [WARNING] [998671] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 18:07:57] [INFO] [1022781] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_pipe_utilization_7l1_t0q7/TENCENT64-124_998671_20260829180756638_ascend_pt
-|/-[2026-08-29 18:07:59] [INFO] [1022790] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017622
-[2026-08-29 18:08:00] [INFO] [1022781] profiler.py: All profiling data parsed in a total time of 0:00:03.060958
+[2026-08-29 18:42:24] [WARNING] [1047597] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 18:42:25] [INFO] [1074698] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_pipe_utilization_fn7bz31w/TENCENT64-124_1047597_20260829184224906_ascend_pt
+|/-[2026-08-29 18:42:27] [INFO] [1074707] profiler.py: CANN profiling data parsed in a total time of 0:00:02.036801
+\[2026-08-29 18:42:28] [INFO] [1074698] profiler.py: All profiling data parsed in a total time of 0:00:03.131989
 [profile:memory] swa_dense_m1024_kv4096_uniform_compact_tp4
-[2026-08-29 18:08:00] [WARNING] [998671] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 18:08:01] [INFO] [1023051] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_memory_w6ojl0at/TENCENT64-124_998671_20260829180800349_ascend_pt
-|/-[2026-08-29 18:08:03] [INFO] [1023060] profiler.py: CANN profiling data parsed in a total time of 0:00:02.037314
-[2026-08-29 18:08:04] [INFO] [1023051] profiler.py: All profiling data parsed in a total time of 0:00:03.067039
-result=ERROR; manifest=/data2/hw_lly/testfiles/welm_attn_result_2qrlrgk9/result.json
+[2026-08-29 18:42:29] [WARNING] [1047597] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 18:42:30] [INFO] [1074970] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_memory_0yql6sy5/TENCENT64-124_1047597_20260829184229639_ascend_pt
+|/-[2026-08-29 18:42:32] [INFO] [1074979] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017473
+\[2026-08-29 18:42:33] [INFO] [1074970] profiler.py: All profiling data parsed in a total time of 0:00:03.155901
+result=ERROR; manifest=/data2/hw_lly/testfiles/welm_attn_result_qw9i7ejd/result.json
