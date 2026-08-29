@@ -2764,11 +2764,15 @@ def swa_paged_prefill_impl(
     sinks_pass = sinks if sink_enabled else torch.empty(1, dtype=q.dtype, device=q.device)
 
     o = torch.zeros_like(q, memory_format=torch.contiguous_format)
+    small_q_per_request = tot_q_toks <= bsz * 4
     if q.dtype == torch.float32:
         BLOCK_M = 64
         BLOCK_N = min(64, triton.next_power_of_2(page_size))
     else:
-        BLOCK_M = 128
+        # Verify/Draft-extend carries D=2/3 rows per request.  Its dedicated
+        # M=16 path matches the Cube micro-tile and keeps the M16/N128/D256
+        # live set below the 248 KiB UB limit.  Normal prefill retains M=128.
+        BLOCK_M = 16 if small_q_per_request else 128
         BLOCK_N = min(128, triton.next_power_of_2(page_size))
 
     BLOCK_D = head_dim
