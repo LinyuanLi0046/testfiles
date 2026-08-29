@@ -3060,7 +3060,7 @@ def _swa_paged_prefill_small_q_grouped_sink_kernel(
         "grouped WeLM SWA small-Q must pad all token/head rows",
     )
     tl.static_assert(
-        BLOCK_M == NUM_Q_HEADS or BLOCK_M == 16 or BLOCK_M == 32,
+        (BLOCK_M == NUM_Q_HEADS or BLOCK_M == 16) or BLOCK_M == 32,
         "grouped WeLM SWA small-Q uses exact D1 or padded D2-D4 rows",
     )
 
