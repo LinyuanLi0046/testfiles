@@ -1,11 +1,11 @@
-time: 2026-08-29T14:41:37+08:00
-command: /usr/local/python3.11.10/bin/python bench_welmv4_prefill_attention_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_attn_result_tlkk46wy
+time: 2026-08-29T15:00:23+08:00
+command: /usr/local/python3.11.10/bin/python bench_welmv4_prefill_attention_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_attn_result_k0raxogm
 return_code: 3
 reason: benchmark exited with status 3
 
 ===== stdout + stderr =====
 WeLMv4 NPU Full/SWA prefill Attention optimization workspace
-device=npu:5 (Ascend950PR_957b), base=b63add58d4fa, baseline=c47f9bdcfb87, candidate=75f0e66bafeb
+device=npu:5 (Ascend950PR_957b), base=160f0721c8f5, baseline=c47f9bdcfb87, candidate=05cab058df28
 [correctness 1/215] full_dense_m1_kv63_uniform_compact_tp4
   PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 2/215] full_dense_m1_kv64_uniform_compact_tp4
@@ -15,22 +15,6 @@ device=npu:5 (Ascend950PR_957b), base=b63add58d4fa, baseline=c47f9bdcfb87, candi
 [correctness 4/215] swa_dense_m1_kv511_uniform_compact_tp4
 /data2/hw_lly/testfiles/welmv4_prefill_attention_baseline.py:2766: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:423.)
   o = torch.zeros_like(q, memory_format=torch.contiguous_format)
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
   PASS: candidate max_abs=0.00195312, pair max_abs=0
 [correctness 5/215] swa_dense_m1_kv512_uniform_compact_tp4
   PASS: candidate max_abs=0.00195312, pair max_abs=0
@@ -133,39 +117,39 @@ device=npu:5 (Ascend950PR_957b), base=b63add58d4fa, baseline=c47f9bdcfb87, candi
 [correctness 54/215] swa_dense_m64_kv4096_uniform_compact_tp4
   PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 55/215] swa_dense_m65_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00195312
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 56/215] swa_dense_m127_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00195312
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 57/215] swa_dense_m128_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 58/215] swa_dense_m129_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 59/215] swa_dense_m191_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 60/215] swa_dense_m192_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 61/215] swa_dense_m255_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 62/215] swa_dense_m256_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 63/215] swa_dense_m257_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 64/215] swa_dense_m511_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 65/215] swa_dense_m512_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.0078125, pair max_abs=0.00390625
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
 [correctness 66/215] swa_dense_m513_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 67/215] swa_dense_m767_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 68/215] swa_dense_m768_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 69/215] swa_dense_m769_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.0078125, pair max_abs=0.00390625
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
 [correctness 70/215] swa_dense_m1023_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 71/215] swa_dense_m1024_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 72/215] full_verify_d2_m2_kv4096_uniform_compact_tp4
   PASS: candidate max_abs=0.000976562, pair max_abs=0
 [correctness 73/215] full_verify_d2_m4_kv4096_uniform_compact_tp4
@@ -454,62 +438,35 @@ device=npu:5 (Ascend950PR_957b), base=b63add58d4fa, baseline=c47f9bdcfb87, candi
   PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 215/215] swa_graph_d3_bcap56_m120_kv4096_ragged_graph_tp4
   PASS: candidate max_abs=0.00390625, pair max_abs=0
-[performance 1/18] full_verify_d2_m2_kv4096_uniform_compact_tp4
-  baseline=101.972 us, candidate=78.874 us, speedup=1.2929, PASS
-[performance 2/18] full_verify_d2_m112_kv4096_uniform_compact_tp4
-  baseline=1125.715 us, candidate=432.076 us, speedup=2.6054, PASS
-[performance 3/18] full_verify_d3_m168_kv4096_uniform_compact_tp4
-  baseline=1127.048 us, candidate=432.327 us, speedup=2.6069, PASS
-[performance 4/18] full_dense_m1024_kv4096_uniform_compact_tp4
-  baseline=175.539 us, candidate=223.048 us, speedup=0.7870, PERF_REGRESSION
-[performance 5/18] full_dense_m1024_kv16896_ragged_compact_tp4
-  baseline=746.090 us, candidate=951.555 us, speedup=0.7841, PERF_REGRESSION
-[performance 6/18] full_ragged_prefill_b16_m257_kv4096_ragged_compact_tp4
-  baseline=371.144 us, candidate=146.215 us, speedup=2.5384, PASS
-[performance 7/18] full_verify_d2_m112_kv11264_ragged_compact_tp4
-  baseline=3063.319 us, candidate=1345.929 us, speedup=2.2760, PASS
-[performance 8/18] full_verify_d2_m112_kv16896_ragged_compact_tp4
-  baseline=4631.045 us, candidate=2072.909 us, speedup=2.2341, PASS
-[performance 9/18] full_verify_d2_m112_kv26624_ragged_compact_tp4
-  baseline=7291.879 us, candidate=3313.471 us, speedup=2.2007, PASS
-[performance 10/18] swa_verify_d2_m2_kv4096_uniform_compact_tp4
-  baseline=70.982 us, candidate=70.991 us, speedup=0.9999, PERF_REGRESSION
-[performance 11/18] swa_verify_d2_m112_kv4096_uniform_compact_tp4
-  baseline=566.642 us, candidate=107.822 us, speedup=5.2554, PASS
-[performance 12/18] swa_verify_d3_m168_kv4096_uniform_compact_tp4
-  baseline=288.118 us, candidate=93.951 us, speedup=3.0667, PASS
-[performance 13/18] swa_dense_m1024_kv4096_uniform_compact_tp4
-  baseline=70.858 us, candidate=71.839 us, speedup=0.9864, PERF_REGRESSION
-[performance 14/18] swa_dense_m1024_kv16896_ragged_compact_tp4
-  baseline=71.498 us, candidate=72.278 us, speedup=0.9892, PERF_REGRESSION
-[performance 15/18] swa_ragged_prefill_b16_m257_kv4096_ragged_compact_tp4
-  baseline=73.464 us, candidate=71.652 us, speedup=1.0253, PERF_REGRESSION
-[performance 16/18] swa_verify_d2_m112_kv11264_ragged_compact_tp4
-  baseline=569.023 us, candidate=109.737 us, speedup=5.1854, PASS
-[performance 17/18] swa_verify_d2_m112_kv16896_ragged_compact_tp4
-  baseline=568.059 us, candidate=108.534 us, speedup=5.2339, PASS
-[performance 18/18] swa_verify_d2_m112_kv26624_ragged_compact_tp4
-  baseline=568.831 us, candidate=108.260 us, speedup=5.2543, PASS
-[msprof-op] full_verify_d2_m2_kv4096_uniform_compact_tp4 baseline
-[msprof-op] full_verify_d2_m2_kv4096_uniform_compact_tp4 candidate
-[msprof-op] full_verify_d2_m112_kv4096_uniform_compact_tp4 baseline
-[msprof-op] full_verify_d2_m112_kv4096_uniform_compact_tp4 candidate
-[msprof-op] full_verify_d3_m168_kv4096_uniform_compact_tp4 baseline
-[msprof-op] full_verify_d3_m168_kv4096_uniform_compact_tp4 candidate
-[msprof-op] full_dense_m1024_kv4096_uniform_compact_tp4 baseline
-[msprof-op] full_dense_m1024_kv4096_uniform_compact_tp4 candidate
-[msprof-op] full_dense_m1024_kv16896_ragged_compact_tp4 baseline
-[msprof-op] full_dense_m1024_kv16896_ragged_compact_tp4 candidate
-[msprof-op] full_ragged_prefill_b16_m257_kv4096_ragged_compact_tp4 baseline
-[msprof-op] full_ragged_prefill_b16_m257_kv4096_ragged_compact_tp4 candidate
-[msprof-op] full_verify_d2_m112_kv11264_ragged_compact_tp4 baseline
-[msprof-op] full_verify_d2_m112_kv11264_ragged_compact_tp4 candidate
-[msprof-op] full_verify_d2_m112_kv16896_ragged_compact_tp4 baseline
-[msprof-op] full_verify_d2_m112_kv16896_ragged_compact_tp4 candidate
-[msprof-op] full_verify_d2_m112_kv26624_ragged_compact_tp4 baseline
-[msprof-op] full_verify_d2_m112_kv26624_ragged_compact_tp4 candidate
+[performance 1/11] swa_verify_d2_m2_kv4096_uniform_compact_tp4
+  baseline=71.016 us, candidate=71.303 us, speedup=0.9960, PASS
+[performance 2/11] swa_verify_d2_m96_kv4096_uniform_compact_tp4
+  baseline=486.457 us, candidate=121.734 us, speedup=3.9961, PASS
+[performance 3/11] swa_verify_d3_m144_kv4096_uniform_compact_tp4
+  baseline=248.707 us, candidate=120.761 us, speedup=2.0595, PASS
+[performance 4/11] swa_verify_d2_m112_kv4096_uniform_compact_tp4
+  baseline=565.704 us, candidate=132.827 us, speedup=4.2589, PASS
+[performance 5/11] swa_verify_d3_m168_kv4096_uniform_compact_tp4
+  baseline=288.568 us, candidate=131.871 us, speedup=2.1883, PASS
+[performance 6/11] swa_dense_m1024_kv4096_uniform_compact_tp4
+  baseline=71.143 us, candidate=71.918 us, speedup=0.9892, PERF_REGRESSION
+[performance 7/11] swa_dense_m1024_kv16896_ragged_compact_tp4
+  baseline=71.779 us, candidate=72.435 us, speedup=0.9909, PERF_REGRESSION
+[performance 8/11] swa_ragged_prefill_b16_m257_kv4096_ragged_compact_tp4
+  baseline=73.940 us, candidate=73.427 us, speedup=1.0070, PASS
+[performance 9/11] swa_verify_d2_m112_kv11264_ragged_compact_tp4
+  baseline=568.751 us, candidate=133.447 us, speedup=4.2620, PASS
+[performance 10/11] swa_verify_d2_m112_kv16896_ragged_compact_tp4
+  baseline=568.525 us, candidate=133.404 us, speedup=4.2617, PASS
+[performance 11/11] swa_verify_d2_m112_kv26624_ragged_compact_tp4
+  baseline=569.539 us, candidate=133.560 us, speedup=4.2643, PASS
+[performance gate] gain_geomean=2.9615, minimum=1.0300, PASS
 [msprof-op] swa_verify_d2_m2_kv4096_uniform_compact_tp4 baseline
 [msprof-op] swa_verify_d2_m2_kv4096_uniform_compact_tp4 candidate
+[msprof-op] swa_verify_d2_m96_kv4096_uniform_compact_tp4 baseline
+[msprof-op] swa_verify_d2_m96_kv4096_uniform_compact_tp4 candidate
+[msprof-op] swa_verify_d3_m144_kv4096_uniform_compact_tp4 baseline
+[msprof-op] swa_verify_d3_m144_kv4096_uniform_compact_tp4 candidate
 [msprof-op] swa_verify_d2_m112_kv4096_uniform_compact_tp4 baseline
 [msprof-op] swa_verify_d2_m112_kv4096_uniform_compact_tp4 candidate
 [msprof-op] swa_verify_d3_m168_kv4096_uniform_compact_tp4 baseline
@@ -537,43 +494,43 @@ device=npu:5 (Ascend950PR_957b), base=b63add58d4fa, baseline=c47f9bdcfb87, candi
 [ir] swa_dense_m129_kv4096_uniform_compact_tp4
 [ir] swa_dense_m1024_kv4096_uniform_compact_tp4
 [profile:pipe_utilization] full_verify_d2_m112_kv16896_ragged_compact_tp4
-[2026-08-29 14:41:02] [WARNING] [820610] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 14:41:02] [INFO] [848777] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_pipe_utilization_uth1yjh4/TENCENT64-124_820610_20260829144102047_ascend_pt
-|/-[2026-08-29 14:41:04] [INFO] [848786] profiler.py: CANN profiling data parsed in a total time of 0:00:02.037471
-[2026-08-29 14:41:05] [INFO] [848777] profiler.py: All profiling data parsed in a total time of 0:00:03.053524
+[2026-08-29 14:59:42] [WARNING] [851192] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 14:59:42] [INFO] [871635] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_pipe_utilization_2um3sic8/TENCENT64-124_851192_20260829145942205_ascend_pt
+|/-[2026-08-29 14:59:44] [INFO] [871644] profiler.py: CANN profiling data parsed in a total time of 0:00:02.016969
+\[2026-08-29 14:59:45] [INFO] [871635] profiler.py: All profiling data parsed in a total time of 0:00:03.120872
 [profile:memory] full_verify_d2_m112_kv16896_ragged_compact_tp4
-[2026-08-29 14:41:05] [WARNING] [820610] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 14:41:06] [INFO] [849047] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_memory_3t4eaxpl/TENCENT64-124_820610_20260829144105802_ascend_pt
-|/-[2026-08-29 14:41:08] [INFO] [849056] profiler.py: CANN profiling data parsed in a total time of 0:00:02.036902
-[2026-08-29 14:41:09] [INFO] [849047] profiler.py: All profiling data parsed in a total time of 0:00:03.034859
+[2026-08-29 14:59:47] [WARNING] [851192] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 14:59:47] [INFO] [871905] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_memory_i16t3fmt/TENCENT64-124_851192_20260829145946937_ascend_pt
+|/-[2026-08-29 14:59:49] [INFO] [871914] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017536
+\[2026-08-29 14:59:50] [INFO] [871905] profiler.py: All profiling data parsed in a total time of 0:00:03.097965
 [profile:pipe_utilization] full_dense_m1024_kv4096_uniform_compact_tp4
-[2026-08-29 14:41:09] [WARNING] [820610] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 14:41:10] [INFO] [849317] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_pipe_utilization_y7srw744/TENCENT64-124_820610_20260829144109658_ascend_pt
-|/-[2026-08-29 14:41:12] [INFO] [849326] profiler.py: CANN profiling data parsed in a total time of 0:00:02.037037
-[2026-08-29 14:41:13] [INFO] [849317] profiler.py: All profiling data parsed in a total time of 0:00:03.043546
+[2026-08-29 14:59:51] [WARNING] [851192] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 14:59:52] [INFO] [872175] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_pipe_utilization_652t3z0w/TENCENT64-124_851192_20260829145951920_ascend_pt
+|/-[2026-08-29 14:59:54] [INFO] [872184] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017111
+\[2026-08-29 14:59:55] [INFO] [872175] profiler.py: All profiling data parsed in a total time of 0:00:03.103049
 [profile:memory] full_dense_m1024_kv4096_uniform_compact_tp4
-[2026-08-29 14:41:13] [WARNING] [820610] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 14:41:14] [INFO] [849587] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_memory_0xlpv0hr/TENCENT64-124_820610_20260829144113359_ascend_pt
-|/-[2026-08-29 14:41:16] [INFO] [849596] profiler.py: CANN profiling data parsed in a total time of 0:00:02.037698
-[2026-08-29 14:41:17] [INFO] [849587] profiler.py: All profiling data parsed in a total time of 0:00:03.048883
+[2026-08-29 14:59:56] [WARNING] [851192] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 14:59:57] [INFO] [872445] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_memory_ckpovsny/TENCENT64-124_851192_20260829145956625_ascend_pt
+|/-[2026-08-29 14:59:59] [INFO] [872454] profiler.py: CANN profiling data parsed in a total time of 0:00:02.016710
+\[2026-08-29 15:00:00] [INFO] [872445] profiler.py: All profiling data parsed in a total time of 0:00:03.107189
 [profile:pipe_utilization] swa_verify_d2_m112_kv16896_ragged_compact_tp4
-[2026-08-29 14:41:17] [WARNING] [820610] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 14:41:17] [INFO] [849857] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_pipe_utilization_c79clflq/TENCENT64-124_820610_20260829144117214_ascend_pt
-|/-[2026-08-29 14:41:19] [INFO] [849866] profiler.py: CANN profiling data parsed in a total time of 0:00:02.037514
-[2026-08-29 14:41:20] [INFO] [849857] profiler.py: All profiling data parsed in a total time of 0:00:03.053754
+[2026-08-29 15:00:01] [WARNING] [851192] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 15:00:02] [INFO] [872715] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_pipe_utilization__bzbkwos/TENCENT64-124_851192_20260829150001514_ascend_pt
+|/-[2026-08-29 15:00:04] [INFO] [872724] profiler.py: CANN profiling data parsed in a total time of 0:00:02.016616
+\[2026-08-29 15:00:05] [INFO] [872715] profiler.py: All profiling data parsed in a total time of 0:00:03.156265
 [profile:memory] swa_verify_d2_m112_kv16896_ragged_compact_tp4
-[2026-08-29 14:41:21] [WARNING] [820610] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 14:41:21] [INFO] [850127] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_memory_wa88cl2v/TENCENT64-124_820610_20260829144120914_ascend_pt
-|/-[2026-08-29 14:41:23] [INFO] [850136] profiler.py: CANN profiling data parsed in a total time of 0:00:02.018113
-[2026-08-29 14:41:24] [INFO] [850127] profiler.py: All profiling data parsed in a total time of 0:00:03.041550
+[2026-08-29 15:00:06] [WARNING] [851192] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 15:00:06] [INFO] [872985] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_memory_g5nb2wc8/TENCENT64-124_851192_20260829150006224_ascend_pt
+|/-[2026-08-29 15:00:09] [INFO] [872994] profiler.py: CANN profiling data parsed in a total time of 0:00:02.036776
+\[2026-08-29 15:00:10] [INFO] [872985] profiler.py: All profiling data parsed in a total time of 0:00:03.168064
 [profile:pipe_utilization] swa_dense_m1024_kv4096_uniform_compact_tp4
-[2026-08-29 14:41:24] [WARNING] [820610] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 14:41:25] [INFO] [850397] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_pipe_utilization_x_zjb_zs/TENCENT64-124_820610_20260829144124796_ascend_pt
-|/-[2026-08-29 14:41:27] [INFO] [850406] profiler.py: CANN profiling data parsed in a total time of 0:00:02.016748
-\[2026-08-29 14:41:28] [INFO] [850397] profiler.py: All profiling data parsed in a total time of 0:00:03.069559
+[2026-08-29 15:00:11] [WARNING] [851192] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 15:00:11] [INFO] [873255] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_pipe_utilization_to82l4xa/TENCENT64-124_851192_20260829150011128_ascend_pt
+|/-[2026-08-29 15:00:13] [INFO] [873264] profiler.py: CANN profiling data parsed in a total time of 0:00:02.016987
+\[2026-08-29 15:00:14] [INFO] [873255] profiler.py: All profiling data parsed in a total time of 0:00:03.134058
 [profile:memory] swa_dense_m1024_kv4096_uniform_compact_tp4
-[2026-08-29 14:41:29] [WARNING] [820610] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 14:41:30] [INFO] [850667] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_memory_e3ixadtl/TENCENT64-124_820610_20260829144129508_ascend_pt
-|/-[2026-08-29 14:41:32] [INFO] [850676] profiler.py: CANN profiling data parsed in a total time of 0:00:02.037227
-\[2026-08-29 14:41:33] [INFO] [850667] profiler.py: All profiling data parsed in a total time of 0:00:03.077321
-result=ERROR; manifest=/data2/hw_lly/testfiles/welm_attn_result_tlkk46wy/result.json
+[2026-08-29 15:00:15] [WARNING] [851192] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-29 15:00:16] [INFO] [873525] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_memory_o6m6t3fj/TENCENT64-124_851192_20260829150015836_ascend_pt
+|/-[2026-08-29 15:00:18] [INFO] [873534] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017144
+\[2026-08-29 15:00:19] [INFO] [873525] profiler.py: All profiling data parsed in a total time of 0:00:03.172147
+result=ERROR; manifest=/data2/hw_lly/testfiles/welm_attn_result_k0raxogm/result.json
