@@ -3292,8 +3292,8 @@ def _swa_paged_prefill_small_q_grouped_sink_kernel(
             dim_offsets = tl.arange(0, BLOCK_D)
             q_ptrs = (
                 q_ptr
-                + (q_start + row_tokens[:, None]) * stride_qt
-                + row_heads[:, None] * stride_qh
+                + q_start * stride_qt
+                + row_ids[:, None] * stride_qh
                 + dim_offsets[None, :] * stride_qd
             )
             q = tl.load(q_ptrs, mask=valid_rows[:, None], other=0.0)
@@ -3442,8 +3442,8 @@ def _swa_paged_prefill_small_q_grouped_sink_kernel(
 
             o_ptrs = (
                 o_ptr
-                + (q_start + row_tokens[:, None]) * stride_ot
-                + row_heads[:, None] * stride_oh
+                + q_start * stride_ot
+                + row_ids[:, None] * stride_oh
                 + dim_offsets[None, :] * stride_od
             )
             tl.store(
