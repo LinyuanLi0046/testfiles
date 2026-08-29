@@ -608,8 +608,8 @@ def paged_prefill_page_aggregation_kernel(
 
 
 @triton.jit
-def _full_verify_grouped_score(q, k_t, mask, m_i, scale):
-    """Compute one six-head score/softmax tile while only K is resident."""
+def _full_verify_grouped_update(q, k_t, v, mask, acc, l_i, m_i, scale):
+    """Update one six-head query token from a KV tile already in UB."""
     qk = tl.dot(q, k_t) * scale
     qk = tl.where(mask[None, :], qk, -1e6)
     m_ij = tl.maximum(
@@ -620,14 +620,10 @@ def _full_verify_grouped_score(q, k_t, mask, m_i, scale):
     p = tl.math.exp(qk - m_ij[:, None])
     l_ij = tl.sum(p, 1)
     alpha = tl.math.exp(m_i - m_ij)
-    return p, l_ij, alpha, m_ij
-
-
-@triton.jit
-def _full_verify_grouped_value(p, v, acc, alpha):
-    """Apply one six-head value tile after K has left its live range."""
+    l_i = l_i * alpha + l_ij
     acc = acc * alpha[:, None]
-    return tl.dot(p.to(v.dtype), v, acc)
+    acc = tl.dot(p.to(k_t.dtype), v, acc)
+    return acc, l_i, m_ij
 
 
 @triton.jit
@@ -675,8 +671,8 @@ def paged_prefill_verify_grouped_kernel(
         "grouped WeLM full verify width must be in [1, 4]",
     )
     tl.static_assert(
-        BLOCK_SIZE_N == 2 * PAGE_SIZE,
-        "grouped WeLM full verify merges exactly two pages per KV tile",
+        PAGE_SIZE == BLOCK_SIZE_N,
+        "grouped WeLM full verify uses one page per KV tile",
     )
 
     pid = tl.program_id(0)
@@ -744,70 +740,54 @@ def paged_prefill_verify_grouped_kernel(
             kv_seq_len = tl.load(seqlens_kv_ptr + b_id).to(tl.int32)
             kv_cache_len = kv_seq_len - q_seq_len
             num_kv_blocks = tl.cdiv(kv_seq_len, BLOCK_SIZE_N)
-            # N=128 is assembled from two physical 64-token pages.  K scoring
-            # finishes before V becomes live, so the conservative D=4 peak is
-            # below 184 KiB of the 248 KiB UB.  join/trans/reshape preserves
-            # page order while keeping a compiler-visible allocation root for
-            # the tensor consumed by tl.dot (insert_slice does not on Ascend).
             for kv_block_id in range(0, num_kv_blocks):
                 kv_block_start = kv_block_id * BLOCK_SIZE_N
-                page0_start = kv_block_start
-                page1_start = kv_block_start + PAGE_SIZE
-                page0_len = min(
-                    max(kv_seq_len - page0_start, 0), PAGE_SIZE
+                kv_block_end = min(
+                    kv_block_start + BLOCK_SIZE_N, kv_seq_len
                 )
-                page1_len = min(
-                    max(kv_seq_len - page1_start, 0), PAGE_SIZE
+                kv_block_len = kv_block_end - kv_block_start
+                logical_page_id = min(
+                    kv_block_start // PAGE_SIZE,
+                    stride_bt_batch - 1,
                 )
-                logical_page0 = min(
-                    page0_start // PAGE_SIZE, stride_bt_batch - 1
-                )
-                logical_page1 = min(
-                    page1_start // PAGE_SIZE, stride_bt_batch - 1
-                )
-                physical_page0 = tl.load(
+                physical_page_id = tl.load(
                     block_tables_ptr
                     + b_id * stride_bt_batch
-                    + logical_page0 * stride_bt_block
-                )
-                physical_page1 = tl.load(
-                    block_tables_ptr
-                    + b_id * stride_bt_batch
-                    + logical_page1 * stride_bt_block
+                    + logical_page_id * stride_bt_block
                 )
 
-                k0_block_ptr = tl.make_block_ptr(
-                    base=key_cache_ptr + physical_page0 * stride_k_block,
-                    shape=(page0_len, HEAD_DIM),
-                    strides=(stride_k_blksz, stride_k_dim),
+                k_t_block_ptr = tl.make_block_ptr(
+                    base=(
+                        key_cache_ptr
+                        + physical_page_id * stride_k_block
+                    ),
+                    shape=(HEAD_DIM, kv_block_len),
+                    strides=(stride_k_dim, stride_k_blksz),
                     offsets=(0, 0),
-                    block_shape=(PAGE_SIZE, BLOCK_SIZE_D),
+                    block_shape=(BLOCK_SIZE_D, BLOCK_SIZE_N),
+                    order=(0, 1),
+                )
+                v_block_ptr = tl.make_block_ptr(
+                    base=(
+                        value_cache_ptr
+                        + physical_page_id * stride_v_block
+                    ),
+                    shape=(kv_block_len, HEAD_DIM),
+                    strides=(stride_v_blksz, stride_v_dim),
+                    offsets=(0, 0),
+                    block_shape=(BLOCK_SIZE_N, BLOCK_SIZE_D),
                     order=(1, 0),
                 )
-                k1_block_ptr = tl.make_block_ptr(
-                    base=key_cache_ptr + physical_page1 * stride_k_block,
-                    shape=(page1_len, HEAD_DIM),
-                    strides=(stride_k_blksz, stride_k_dim),
-                    offsets=(0, 0),
-                    block_shape=(PAGE_SIZE, BLOCK_SIZE_D),
-                    order=(1, 0),
-                )
-                k0 = tl.load(
-                    k0_block_ptr,
+                k_t = tl.load(
+                    k_t_block_ptr,
                     boundary_check=(0, 1),
                     padding_option="zero",
                 )
-                k1 = tl.load(
-                    k1_block_ptr,
+                v = tl.load(
+                    v_block_ptr,
                     boundary_check=(0, 1),
                     padding_option="zero",
                 )
-                k = (
-                    tl.join(k0, k1)
-                    .trans(2, 0, 1)
-                    .reshape(BLOCK_SIZE_N, BLOCK_SIZE_D)
-                )
-                k_t = tl.trans(k)
 
                 key_offsets = tl.arange(0, BLOCK_SIZE_N)
                 key_positions = kv_block_start + key_offsets
@@ -819,80 +799,33 @@ def paged_prefill_verify_grouped_kernel(
                     key_positions.to(tl.float32)
                     <= kv_cache_len.to(tl.float32)
                 )
-                p0, l_ij0, alpha0, m_new0 = _full_verify_grouped_score(
-                    q0, k_t, mask0, m0, softmax_scale
+                acc0, l0, m0 = _full_verify_grouped_update(
+                    q0, k_t, v, mask0, acc0, l0, m0, softmax_scale
                 )
-                l0 = l0 * alpha0 + l_ij0
-                m0 = m_new0
                 if VERIFY_WIDTH >= 2:
                     mask1 = key_valid & (
                         key_positions.to(tl.float32)
                         <= (kv_cache_len + 1).to(tl.float32)
                     )
-                    p1, l_ij1, alpha1, m_new1 = _full_verify_grouped_score(
-                        q1, k_t, mask1, m1, softmax_scale
+                    acc1, l1, m1 = _full_verify_grouped_update(
+                        q1, k_t, v, mask1, acc1, l1, m1, softmax_scale
                     )
-                    l1 = l1 * alpha1 + l_ij1
-                    m1 = m_new1
                 if VERIFY_WIDTH >= 3:
                     mask2 = key_valid & (
                         key_positions.to(tl.float32)
                         <= (kv_cache_len + 2).to(tl.float32)
                     )
-                    p2, l_ij2, alpha2, m_new2 = _full_verify_grouped_score(
-                        q2, k_t, mask2, m2, softmax_scale
+                    acc2, l2, m2 = _full_verify_grouped_update(
+                        q2, k_t, v, mask2, acc2, l2, m2, softmax_scale
                     )
-                    l2 = l2 * alpha2 + l_ij2
-                    m2 = m_new2
                 if VERIFY_WIDTH >= 4:
                     mask3 = key_valid & (
                         key_positions.to(tl.float32)
                         <= (kv_cache_len + 3).to(tl.float32)
                     )
-                    p3, l_ij3, alpha3, m_new3 = _full_verify_grouped_score(
-                        q3, k_t, mask3, m3, softmax_scale
+                    acc3, l3, m3 = _full_verify_grouped_update(
+                        q3, k_t, v, mask3, acc3, l3, m3, softmax_scale
                     )
-                    l3 = l3 * alpha3 + l_ij3
-                    m3 = m_new3
-
-                v0_block_ptr = tl.make_block_ptr(
-                    base=value_cache_ptr + physical_page0 * stride_v_block,
-                    shape=(page0_len, HEAD_DIM),
-                    strides=(stride_v_blksz, stride_v_dim),
-                    offsets=(0, 0),
-                    block_shape=(PAGE_SIZE, BLOCK_SIZE_D),
-                    order=(1, 0),
-                )
-                v1_block_ptr = tl.make_block_ptr(
-                    base=value_cache_ptr + physical_page1 * stride_v_block,
-                    shape=(page1_len, HEAD_DIM),
-                    strides=(stride_v_blksz, stride_v_dim),
-                    offsets=(0, 0),
-                    block_shape=(PAGE_SIZE, BLOCK_SIZE_D),
-                    order=(1, 0),
-                )
-                v0 = tl.load(
-                    v0_block_ptr,
-                    boundary_check=(0, 1),
-                    padding_option="zero",
-                )
-                v1 = tl.load(
-                    v1_block_ptr,
-                    boundary_check=(0, 1),
-                    padding_option="zero",
-                )
-                v = (
-                    tl.join(v0, v1)
-                    .trans(2, 0, 1)
-                    .reshape(BLOCK_SIZE_N, BLOCK_SIZE_D)
-                )
-                acc0 = _full_verify_grouped_value(p0, v, acc0, alpha0)
-                if VERIFY_WIDTH >= 2:
-                    acc1 = _full_verify_grouped_value(p1, v, acc1, alpha1)
-                if VERIFY_WIDTH >= 3:
-                    acc2 = _full_verify_grouped_value(p2, v, acc2, alpha2)
-                if VERIFY_WIDTH >= 4:
-                    acc3 = _full_verify_grouped_value(p3, v, acc3, alpha3)
 
             o0_ptrs = (
                 o_ptr
@@ -1054,9 +987,13 @@ def paged_attention_prefill_impl(
             HEAD_DIM=head_dim,
             PAGE_SIZE=page_size,
             BLOCK_SIZE_D=head_dim,
-            BLOCK_SIZE_N=2 * page_size,
+            BLOCK_SIZE_N=page_size,
             VERIFY_WIDTH=verify_width,
             SINK_ENABLED=sink_enabled,
+            enable_dynamic_cv_pipeline=True,
+            enable_cube_block_merge=True,
+            enable_buffer_insert_optimization=True,
+            enable_ub_refine_opt=True,
         )
         return o
 
