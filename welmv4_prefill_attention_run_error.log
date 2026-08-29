@@ -1,11 +1,11 @@
-time: 2026-08-29T15:18:21+08:00
-command: /usr/local/python3.11.10/bin/python bench_welmv4_prefill_attention_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_attn_result_qbkknkin
-return_code: 3
-reason: benchmark exited with status 3
+time: 2026-08-29T15:27:51+08:00
+command: /usr/local/python3.11.10/bin/python bench_welmv4_prefill_attention_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_attn_result_arxqc_0l
+return_code: 1
+reason: benchmark exited with status 1
 
 ===== stdout + stderr =====
 WeLMv4 NPU Full/SWA prefill Attention optimization workspace
-device=npu:5 (Ascend950PR_957b), base=b091d09e2675, baseline=c47f9bdcfb87, candidate=f70ab89eb4b0
+device=npu:5 (Ascend950PR_957b), base=29edaefc0358, baseline=c47f9bdcfb87, candidate=0fe51e72fab1
 [correctness 1/215] full_dense_m1_kv63_uniform_compact_tp4
   PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 2/215] full_dense_m1_kv64_uniform_compact_tp4
@@ -15,538 +15,57 @@ device=npu:5 (Ascend950PR_957b), base=b091d09e2675, baseline=c47f9bdcfb87, candi
 [correctness 4/215] swa_dense_m1_kv511_uniform_compact_tp4
 /data2/hw_lly/testfiles/welmv4_prefill_attention_baseline.py:2766: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:423.)
   o = torch.zeros_like(q, memory_format=torch.contiguous_format)
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 5/215] swa_dense_m1_kv512_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 6/215] swa_dense_m1_kv513_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 7/215] swa_dense_m1_kv575_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 8/215] swa_dense_m1_kv576_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 9/215] swa_dense_m1_kv577_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 10/215] full_ragged_prefill_b7_m129_kv4096_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 11/215] full_ragged_prefill_b32_m513_kv8192_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 12/215] full_ragged_prefill_b56_m1024_kv4096_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 13/215] swa_ragged_prefill_b7_m129_kv4096_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 14/215] swa_ragged_prefill_b32_m513_kv8192_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 15/215] swa_ragged_prefill_b56_m1024_kv4096_ragged_compact_tp4
-  PASS: candidate max_abs=0.0078125, pair max_abs=0
-[correctness 16/215] full_dense_m1_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 17/215] full_dense_m2_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 18/215] full_dense_m3_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 19/215] full_dense_m7_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 20/215] full_dense_m8_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 21/215] full_dense_m15_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 22/215] full_dense_m16_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 23/215] full_dense_m31_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 24/215] full_dense_m32_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 25/215] full_dense_m63_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 26/215] full_dense_m64_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 27/215] full_dense_m65_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 28/215] full_dense_m127_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 29/215] full_dense_m128_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 30/215] full_dense_m129_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 31/215] full_dense_m191_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 32/215] full_dense_m192_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 33/215] full_dense_m255_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 34/215] full_dense_m256_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 35/215] full_dense_m257_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 36/215] full_dense_m511_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 37/215] full_dense_m512_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 38/215] full_dense_m513_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 39/215] full_dense_m767_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 40/215] full_dense_m768_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 41/215] full_dense_m769_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 42/215] full_dense_m1023_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 43/215] full_dense_m1024_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 44/215] swa_dense_m1_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 45/215] swa_dense_m2_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 46/215] swa_dense_m3_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 47/215] swa_dense_m7_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 48/215] swa_dense_m8_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 49/215] swa_dense_m15_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 50/215] swa_dense_m16_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 51/215] swa_dense_m31_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 52/215] swa_dense_m32_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 53/215] swa_dense_m63_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 54/215] swa_dense_m64_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 55/215] swa_dense_m65_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 56/215] swa_dense_m127_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 57/215] swa_dense_m128_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 58/215] swa_dense_m129_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 59/215] swa_dense_m191_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 60/215] swa_dense_m192_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 61/215] swa_dense_m255_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 62/215] swa_dense_m256_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 63/215] swa_dense_m257_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 64/215] swa_dense_m511_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 65/215] swa_dense_m512_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.0078125, pair max_abs=0
-[correctness 66/215] swa_dense_m513_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 67/215] swa_dense_m767_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 68/215] swa_dense_m768_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 69/215] swa_dense_m769_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.0078125, pair max_abs=0
-[correctness 70/215] swa_dense_m1023_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 71/215] swa_dense_m1024_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 72/215] full_verify_d2_m2_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 73/215] full_verify_d2_m4_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 74/215] full_verify_d2_m8_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 75/215] full_verify_d2_m16_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 76/215] full_verify_d2_m24_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 77/215] full_verify_d2_m32_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 78/215] full_verify_d2_m48_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 79/215] full_verify_d2_m64_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 80/215] full_verify_d2_m72_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 81/215] full_verify_d2_m80_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 82/215] full_verify_d2_m96_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 83/215] full_verify_d2_m112_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 84/215] swa_verify_d2_m2_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 85/215] swa_verify_d2_m4_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 86/215] swa_verify_d2_m8_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 87/215] swa_verify_d2_m16_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 88/215] swa_verify_d2_m24_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 89/215] swa_verify_d2_m32_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 90/215] swa_verify_d2_m48_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 91/215] swa_verify_d2_m64_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 92/215] swa_verify_d2_m72_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 93/215] swa_verify_d2_m80_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 94/215] swa_verify_d2_m96_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 95/215] swa_verify_d2_m112_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 96/215] full_verify_d3_m3_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 97/215] full_verify_d3_m6_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 98/215] full_verify_d3_m12_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 99/215] full_verify_d3_m24_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 100/215] full_verify_d3_m36_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 101/215] full_verify_d3_m48_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 102/215] full_verify_d3_m72_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 103/215] full_verify_d3_m96_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 104/215] full_verify_d3_m108_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 105/215] full_verify_d3_m120_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 106/215] full_verify_d3_m144_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 107/215] full_verify_d3_m168_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 108/215] swa_verify_d3_m3_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 109/215] swa_verify_d3_m6_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 110/215] swa_verify_d3_m12_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 111/215] swa_verify_d3_m24_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 112/215] swa_verify_d3_m36_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 113/215] swa_verify_d3_m48_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 114/215] swa_verify_d3_m72_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 115/215] swa_verify_d3_m96_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 116/215] swa_verify_d3_m108_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 117/215] swa_verify_d3_m120_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 118/215] swa_verify_d3_m144_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 119/215] swa_verify_d3_m168_kv4096_uniform_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 120/215] full_verify_d2_m2_kv64_ragged_compact_tp4
-  PASS: candidate max_abs=0.0078125, pair max_abs=0
-[correctness 121/215] full_verify_d2_m32_kv64_ragged_compact_tp4
-  PASS: candidate max_abs=0.015625, pair max_abs=0
-[correctness 122/215] full_verify_d2_m112_kv64_ragged_compact_tp4
-  PASS: candidate max_abs=0.015625, pair max_abs=0
-[correctness 123/215] full_verify_d2_m2_kv511_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 124/215] full_verify_d2_m32_kv511_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 125/215] full_verify_d2_m112_kv511_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 126/215] full_verify_d2_m2_kv512_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 127/215] full_verify_d2_m32_kv512_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 128/215] full_verify_d2_m112_kv512_ragged_compact_tp4
-  PASS: candidate max_abs=0.0078125, pair max_abs=0
-[correctness 129/215] full_verify_d2_m2_kv513_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 130/215] full_verify_d2_m32_kv513_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 131/215] full_verify_d2_m112_kv513_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 132/215] full_verify_d2_m2_kv8192_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 133/215] full_verify_d2_m32_kv8192_ragged_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 134/215] full_verify_d2_m112_kv8192_ragged_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 135/215] swa_verify_d2_m2_kv64_ragged_compact_tp4
-  PASS: candidate max_abs=0.0078125, pair max_abs=0
-[correctness 136/215] swa_verify_d2_m32_kv64_ragged_compact_tp4
-  PASS: candidate max_abs=0.015625, pair max_abs=0
-[correctness 137/215] swa_verify_d2_m112_kv64_ragged_compact_tp4
-  PASS: candidate max_abs=0.015625, pair max_abs=0
-[correctness 138/215] swa_verify_d2_m2_kv511_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 139/215] swa_verify_d2_m32_kv511_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 140/215] swa_verify_d2_m112_kv511_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 141/215] swa_verify_d2_m2_kv512_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 142/215] swa_verify_d2_m32_kv512_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 143/215] swa_verify_d2_m112_kv512_ragged_compact_tp4
-  PASS: candidate max_abs=0.0078125, pair max_abs=0
-[correctness 144/215] swa_verify_d2_m2_kv513_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 145/215] swa_verify_d2_m32_kv513_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 146/215] swa_verify_d2_m112_kv513_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 147/215] swa_verify_d2_m2_kv8192_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 148/215] swa_verify_d2_m32_kv8192_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 149/215] swa_verify_d2_m112_kv8192_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 150/215] full_verify_d2_m2_kv10240_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 151/215] full_verify_d2_m32_kv10240_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 152/215] full_verify_d2_m112_kv10240_ragged_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 153/215] full_verify_d2_m2_kv11264_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 154/215] full_verify_d2_m32_kv11264_ragged_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 155/215] full_verify_d2_m112_kv11264_ragged_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 156/215] full_verify_d2_m2_kv12288_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 157/215] full_verify_d2_m32_kv12288_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 158/215] full_verify_d2_m112_kv12288_ragged_compact_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 159/215] full_verify_d2_m2_kv15360_ragged_compact_tp4
-  PASS: candidate max_abs=0.000244141, pair max_abs=0
-[correctness 160/215] full_verify_d2_m32_kv15360_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 161/215] full_verify_d2_m112_kv15360_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 162/215] full_verify_d2_m2_kv16896_ragged_compact_tp4
-  PASS: candidate max_abs=0.000244141, pair max_abs=0
-[correctness 163/215] full_verify_d2_m32_kv16896_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 164/215] full_verify_d2_m112_kv16896_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 165/215] full_verify_d2_m2_kv18432_ragged_compact_tp4
-  PASS: candidate max_abs=0.000244141, pair max_abs=0
-[correctness 166/215] full_verify_d2_m32_kv18432_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 167/215] full_verify_d2_m112_kv18432_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 168/215] full_verify_d2_m2_kv24576_ragged_compact_tp4
-  PASS: candidate max_abs=0.000244141, pair max_abs=0
-[correctness 169/215] full_verify_d2_m32_kv24576_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 170/215] full_verify_d2_m112_kv24576_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 171/215] full_verify_d2_m2_kv26624_ragged_compact_tp4
-  PASS: candidate max_abs=0.000244141, pair max_abs=0
-[correctness 172/215] full_verify_d2_m32_kv26624_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 173/215] full_verify_d2_m112_kv26624_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 174/215] full_verify_d2_m2_kv28672_ragged_compact_tp4
-  PASS: candidate max_abs=0.000244141, pair max_abs=0
-[correctness 175/215] full_verify_d2_m32_kv28672_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 176/215] full_verify_d2_m112_kv28672_ragged_compact_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 177/215] swa_verify_d2_m2_kv10240_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 178/215] swa_verify_d2_m32_kv10240_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 179/215] swa_verify_d2_m112_kv10240_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 180/215] swa_verify_d2_m2_kv11264_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 181/215] swa_verify_d2_m32_kv11264_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 182/215] swa_verify_d2_m112_kv11264_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 183/215] swa_verify_d2_m2_kv12288_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 184/215] swa_verify_d2_m32_kv12288_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 185/215] swa_verify_d2_m112_kv12288_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 186/215] swa_verify_d2_m2_kv15360_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 187/215] swa_verify_d2_m32_kv15360_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 188/215] swa_verify_d2_m112_kv15360_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 189/215] swa_verify_d2_m2_kv16896_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 190/215] swa_verify_d2_m32_kv16896_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 191/215] swa_verify_d2_m112_kv16896_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 192/215] swa_verify_d2_m2_kv18432_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 193/215] swa_verify_d2_m32_kv18432_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 194/215] swa_verify_d2_m112_kv18432_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 195/215] swa_verify_d2_m2_kv24576_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 196/215] swa_verify_d2_m32_kv24576_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 197/215] swa_verify_d2_m112_kv24576_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 198/215] swa_verify_d2_m2_kv26624_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 199/215] swa_verify_d2_m32_kv26624_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 200/215] swa_verify_d2_m112_kv26624_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 201/215] swa_verify_d2_m2_kv28672_ragged_compact_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 202/215] swa_verify_d2_m32_kv28672_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 203/215] swa_verify_d2_m112_kv28672_ragged_compact_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 204/215] full_graph_d2_bcap56_m2_kv4096_ragged_graph_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 205/215] full_graph_d2_bcap56_m32_kv4096_ragged_graph_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 206/215] full_graph_d2_bcap56_m80_kv4096_ragged_graph_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 207/215] swa_graph_d2_bcap56_m2_kv4096_ragged_graph_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 208/215] swa_graph_d2_bcap56_m32_kv4096_ragged_graph_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 209/215] swa_graph_d2_bcap56_m80_kv4096_ragged_graph_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 210/215] full_graph_d3_bcap56_m3_kv4096_ragged_graph_tp4
-  PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 211/215] full_graph_d3_bcap56_m48_kv4096_ragged_graph_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 212/215] full_graph_d3_bcap56_m120_kv4096_ragged_graph_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 213/215] swa_graph_d3_bcap56_m3_kv4096_ragged_graph_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 214/215] swa_graph_d3_bcap56_m48_kv4096_ragged_graph_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 215/215] swa_graph_d3_bcap56_m120_kv4096_ragged_graph_tp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[performance 1/11] swa_verify_d2_m2_kv4096_uniform_compact_tp4
-  baseline=66.339 us, candidate=65.944 us, speedup=1.0060, PASS
-[performance 2/11] swa_verify_d2_m96_kv4096_uniform_compact_tp4
-  baseline=486.867 us, candidate=82.393 us, speedup=5.9091, PASS
-[performance 3/11] swa_verify_d3_m144_kv4096_uniform_compact_tp4
-  baseline=248.220 us, candidate=82.674 us, speedup=3.0024, PASS
-[performance 4/11] swa_verify_d2_m112_kv4096_uniform_compact_tp4
-  baseline=566.514 us, candidate=92.773 us, speedup=6.1065, PASS
-[performance 5/11] swa_verify_d3_m168_kv4096_uniform_compact_tp4
-  baseline=288.161 us, candidate=91.281 us, speedup=3.1569, PASS
-[performance 6/11] swa_dense_m1024_kv4096_uniform_compact_tp4
-  baseline=68.110 us, candidate=68.247 us, speedup=0.9980, PASS
-[performance 7/11] swa_dense_m1024_kv16896_ragged_compact_tp4
-  baseline=67.431 us, candidate=67.404 us, speedup=1.0004, PASS
-[performance 8/11] swa_ragged_prefill_b16_m257_kv4096_ragged_compact_tp4
-  baseline=70.298 us, candidate=69.177 us, speedup=1.0162, PASS
-[performance 9/11] swa_verify_d2_m112_kv11264_ragged_compact_tp4
-  baseline=569.212 us, candidate=92.684 us, speedup=6.1414, PASS
-[performance 10/11] swa_verify_d2_m112_kv16896_ragged_compact_tp4
-  baseline=568.278 us, candidate=92.473 us, speedup=6.1453, PASS
-[performance 11/11] swa_verify_d2_m112_kv26624_ragged_compact_tp4
-  baseline=568.506 us, candidate=93.285 us, speedup=6.0943, PASS
-[performance gate] gain_geomean=4.0954, minimum=1.0300, PASS
-[msprof-op] swa_verify_d2_m2_kv4096_uniform_compact_tp4 baseline
-[msprof-op] swa_verify_d2_m2_kv4096_uniform_compact_tp4 candidate
-[msprof-op] swa_verify_d2_m96_kv4096_uniform_compact_tp4 baseline
-[msprof-op] swa_verify_d2_m96_kv4096_uniform_compact_tp4 candidate
-[msprof-op] swa_verify_d3_m144_kv4096_uniform_compact_tp4 baseline
-[msprof-op] swa_verify_d3_m144_kv4096_uniform_compact_tp4 candidate
-[msprof-op] swa_verify_d2_m112_kv4096_uniform_compact_tp4 baseline
-[msprof-op] swa_verify_d2_m112_kv4096_uniform_compact_tp4 candidate
-[msprof-op] swa_verify_d3_m168_kv4096_uniform_compact_tp4 baseline
-[msprof-op] swa_verify_d3_m168_kv4096_uniform_compact_tp4 candidate
-[msprof-op] swa_dense_m1024_kv4096_uniform_compact_tp4 baseline
-[msprof-op] swa_dense_m1024_kv4096_uniform_compact_tp4 candidate
-[msprof-op] swa_dense_m1024_kv16896_ragged_compact_tp4 baseline
-[msprof-op] swa_dense_m1024_kv16896_ragged_compact_tp4 candidate
-[msprof-op] swa_ragged_prefill_b16_m257_kv4096_ragged_compact_tp4 baseline
-[msprof-op] swa_ragged_prefill_b16_m257_kv4096_ragged_compact_tp4 candidate
-[msprof-op] swa_verify_d2_m112_kv11264_ragged_compact_tp4 baseline
-[msprof-op] swa_verify_d2_m112_kv11264_ragged_compact_tp4 candidate
-[msprof-op] swa_verify_d2_m112_kv16896_ragged_compact_tp4 baseline
-[msprof-op] swa_verify_d2_m112_kv16896_ragged_compact_tp4 candidate
-[msprof-op] swa_verify_d2_m112_kv26624_ragged_compact_tp4 baseline
-[msprof-op] swa_verify_d2_m112_kv26624_ragged_compact_tp4 candidate
-[ir] full_verify_d2_m2_kv4096_uniform_compact_tp4
-[ir] full_verify_d2_m112_kv16896_ragged_compact_tp4
-[ir] full_verify_d3_m168_kv4096_uniform_compact_tp4
-[ir] full_dense_m129_kv4096_uniform_compact_tp4
-[ir] full_dense_m1024_kv4096_uniform_compact_tp4
-[ir] swa_verify_d2_m2_kv4096_uniform_compact_tp4
-[ir] swa_verify_d2_m112_kv16896_ragged_compact_tp4
-[ir] swa_verify_d3_m168_kv4096_uniform_compact_tp4
-[ir] swa_dense_m129_kv4096_uniform_compact_tp4
-[ir] swa_dense_m1024_kv4096_uniform_compact_tp4
-[profile:pipe_utilization] full_verify_d2_m112_kv16896_ragged_compact_tp4
-[2026-08-29 15:17:38] [WARNING] [874045] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 15:17:38] [INFO] [894567] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_pipe_utilization_miax6vsj/TENCENT64-124_874045_20260829151738271_ascend_pt
-|/-[2026-08-29 15:17:41] [INFO] [894576] profiler.py: CANN profiling data parsed in a total time of 0:00:02.038161
-\[2026-08-29 15:17:41] [INFO] [894567] profiler.py: All profiling data parsed in a total time of 0:00:03.079977
-[profile:memory] full_verify_d2_m112_kv16896_ragged_compact_tp4
-[2026-08-29 15:17:43] [WARNING] [874045] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 15:17:43] [INFO] [894837] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_memory_3u56k2mm/TENCENT64-124_874045_20260829151742983_ascend_pt
-|/-[2026-08-29 15:17:45] [INFO] [894846] profiler.py: CANN profiling data parsed in a total time of 0:00:02.037647
-\[2026-08-29 15:17:46] [INFO] [894837] profiler.py: All profiling data parsed in a total time of 0:00:03.112143
-[profile:pipe_utilization] full_dense_m1024_kv4096_uniform_compact_tp4
-[2026-08-29 15:17:48] [WARNING] [874045] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 15:17:48] [INFO] [895107] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_pipe_utilization_z9q8fa7m/TENCENT64-124_874045_20260829151747984_ascend_pt
-|/-[2026-08-29 15:17:50] [INFO] [895116] profiler.py: CANN profiling data parsed in a total time of 0:00:02.016523
-\[2026-08-29 15:17:51] [INFO] [895107] profiler.py: All profiling data parsed in a total time of 0:00:03.128080
-[profile:memory] full_dense_m1024_kv4096_uniform_compact_tp4
-[2026-08-29 15:17:52] [WARNING] [874045] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 15:17:53] [INFO] [895377] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_memory_2xwsfq9b/TENCENT64-124_874045_20260829151752712_ascend_pt
-|/-[2026-08-29 15:17:56] [INFO] [895386] profiler.py: CANN profiling data parsed in a total time of 0:00:02.043962
-\[2026-08-29 15:17:57] [INFO] [895377] profiler.py: All profiling data parsed in a total time of 0:00:03.278784
-[profile:pipe_utilization] swa_verify_d2_m112_kv16896_ragged_compact_tp4
-[2026-08-29 15:17:58] [WARNING] [874045] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 15:17:59] [INFO] [895647] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_pipe_utilization_xp_e3hda/TENCENT64-124_874045_20260829151758167_ascend_pt
-|/-[2026-08-29 15:18:01] [INFO] [895656] profiler.py: CANN profiling data parsed in a total time of 0:00:02.040283
-\[2026-08-29 15:18:02] [INFO] [895647] profiler.py: All profiling data parsed in a total time of 0:00:03.098814
-[profile:memory] swa_verify_d2_m112_kv16896_ragged_compact_tp4
-[2026-08-29 15:18:03] [WARNING] [874045] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 15:18:04] [INFO] [895917] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_memory_lb5kmh45/TENCENT64-124_874045_20260829151803419_ascend_pt
-|/-[2026-08-29 15:18:06] [INFO] [895926] profiler.py: CANN profiling data parsed in a total time of 0:00:02.036763
-\[2026-08-29 15:18:07] [INFO] [895917] profiler.py: All profiling data parsed in a total time of 0:00:03.150135
-[profile:pipe_utilization] swa_dense_m1024_kv4096_uniform_compact_tp4
-[2026-08-29 15:18:08] [WARNING] [874045] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 15:18:08] [INFO] [896187] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_pipe_utilization_s0psvixb/TENCENT64-124_874045_20260829151808298_ascend_pt
-|/-[2026-08-29 15:18:11] [INFO] [896196] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017615
-\[2026-08-29 15:18:12] [INFO] [896187] profiler.py: All profiling data parsed in a total time of 0:00:03.161175
-[profile:memory] swa_dense_m1024_kv4096_uniform_compact_tp4
-[2026-08-29 15:18:13] [WARNING] [874045] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-29 15:18:13] [INFO] [896457] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_memory_npys80e4/TENCENT64-124_874045_20260829151813048_ascend_pt
-|/-[2026-08-29 15:18:15] [INFO] [896466] profiler.py: CANN profiling data parsed in a total time of 0:00:02.039550
-\[2026-08-29 15:18:16] [INFO] [896457] profiler.py: All profiling data parsed in a total time of 0:00:03.203573
-result=ERROR; manifest=/data2/hw_lly/testfiles/welm_attn_result_qbkknkin/result.json
+Traceback (most recent call last):
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/compiler/compiler.py", line 289, in compile
+    next_module = compile_ir(module, metadata)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/compiler.py", line 1223, in <lambda>
+    lambda src, metadata: linalg_to_bin_enable_npu_compile_910_95(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/compiler.py", line 654, in linalg_to_bin_enable_npu_compile_910_95
+    ret = subprocess.run(
+          ^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['/usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile', '/tmp/tmpx0wci3xe/kernel.ttadapter.mlir', '--target=Ascend950PR_957b', '--enable-auto-multi-buffer=True', '--enable-auto-bind-sub-block=True', '--disable-ffts', '--set-workspace-multibuffer=0', '--limit-auto-multi-buffer-of-local-buffer=no-limit', '--enable-mixed-cv=True', '--disable-auto-inject-block-sync=True', '--enable-auto-blockify-loop', '--enable-hfusion-compile=true', '--enable-triton-kernel-compile=true', '--append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc', '--mlir-print-ir-after-failure', '--mlir-print-stacktrace-on-diagnostic', '-o', '/tmp/tmpx0wci3xe/kernel', '--enable-vf-merge-level=1']' returned non-zero exit status 1.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/data2/hw_lly/testfiles/bench_welmv4_prefill_attention_npu.py", line 1588, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/data2/hw_lly/testfiles/bench_welmv4_prefill_attention_npu.py", line 1437, in main
+    rows, correctness_failures = run_correctness(harness, cases)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data2/hw_lly/testfiles/bench_welmv4_prefill_attention_npu.py", line 342, in run_correctness
+    outputs[provider] = bound.launch()
+                        ^^^^^^^^^^^^^^
+  File "/data2/hw_lly/testfiles/bench_welmv4_prefill_attention_npu.py", line 270, in launch_swa
+    return module.swa_paged_prefill_impl(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py", line 3081, in swa_paged_prefill_impl
+    _swa_paged_prefill_verify_grouped_sink_kernel[grouped_grid](
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/runtime/jit.py", line 333, in <lambda>
+    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/runtime/jit.py", line 622, in run
+    kernel = self._do_compile(key, signature, device, backend, target, constants, options, configs[0], warmup)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/runtime/jit.py", line 787, in _do_compile
+    kernel = self.compile(src, target=target, options=options.__dict__)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/compiler/compiler.py", line 303, in compile
+    raise MLIRCompilationError(stage_name, error_detail) from e
+triton.compiler.errors.MLIRCompilationError: 
+///------------------[ERROR][Triton][BEG]------------------
+[ConvertLinalgRToBinary] encounters error:
+[WARNING] --enable-mixed-cv is deprecated.
+Invalid elementAlignment!
+UNREACHABLE executed at /usr1/03/workspace/j_9YS0oxzZ/npuir-a5/bishengir/lib/Dialect/HIVMRegbaseIntrins/Utils/RegbaseUtils.cpp:702!
+PLEASE submit a bug report to https://github.com/llvm/llvm-project/issues/ and include the crash backtrace.
+Stack dump:
+0.	Program arguments: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile-a5 /tmp/tmpx0wci3xe/kernel.ttadapter.mlir --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --disable-ffts --set-workspace-multibuffer=0 --limit-auto-multi-buffer-of-local-buffer=no-limit --enable-mixed-cv=True --disable-auto-inject-block-sync=True --enable-auto-blockify-loop --enable-hfusion-compile=true --enable-triton-kernel-compile=true "--append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc" --mlir-print-ir-after-failure --mlir-print-stacktrace-on-diagnostic -o /tmp/tmpx0wci3xe/kernel --enable-vf-merge-level=1
+///------------------[ERROR][Triton][END]------------------
+
+[ERROR] 2026-08-29-15:27:48 (PID:897015, Device:5, RankID:-1) ERR99999 UNKNOWN applicaiton exception
