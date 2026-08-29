@@ -2792,6 +2792,7 @@ def _swa_paged_prefill_verify_grouped_sink_kernel(
     row_tokens = row_ids // NUM_Q_HEADS
     row_heads = row_ids - row_tokens * NUM_Q_HEADS
     key_offsets = tl.arange(0, BLOCK_N * PAGE_AGGREGATION_NUM)
+    dim_offsets = tl.arange(0, BLOCK_D)
 
     for b_id in range(b_begin, b_end):
         q_start = tl.load(cu_q_lens_ptr + b_id).to(tl.int32)
@@ -2803,18 +2804,19 @@ def _swa_paged_prefill_verify_grouped_sink_kernel(
             num_q_rows = q_seq_len * NUM_Q_HEADS
             row_valid = row_ids.to(tl.float32) < num_q_rows.to(tl.float32)
 
-            q_block_ptr = tl.make_block_ptr(
-                base=q_ptr + q_start * stride_qt,
-                shape=(num_q_rows, HEAD_DIM),
-                strides=(stride_qh, stride_qd),
-                offsets=(0, 0),
-                block_shape=(GROUPED_ROWS, BLOCK_D),
-                order=(1, 0),
+            q_ptrs = (
+                q_ptr
+                + (q_start + row_tokens[:, None]) * stride_qt
+                + row_heads[:, None] * stride_qh
+                + dim_offsets[None, :] * stride_qd
             )
             q = tl.load(
-                q_block_ptr,
-                boundary_check=(0, 1),
-                padding_option="zero",
+                q_ptrs,
+                mask=(
+                    row_valid[:, None]
+                    & (dim_offsets[None, :].to(tl.float32) < HEAD_DIM)
+                ),
+                other=0.0,
             )
 
             if SINK_ENABLED:
@@ -3009,19 +3011,20 @@ def _swa_paged_prefill_verify_grouped_sink_kernel(
                     )
                 acc = tl.dot(p_cast, v, acc)
 
-            o_block_ptr = tl.make_block_ptr(
-                base=o_ptr + q_start * stride_ot,
-                shape=(num_q_rows, HEAD_DIM),
-                strides=(stride_oh, stride_od),
-                offsets=(0, 0),
-                block_shape=(GROUPED_ROWS, BLOCK_D),
-                order=(1, 0),
+            o_ptrs = (
+                o_ptr
+                + (q_start + row_tokens[:, None]) * stride_ot
+                + row_heads[:, None] * stride_oh
+                + dim_offsets[None, :] * stride_od
             )
             output = acc / l_i[:, None]
             tl.store(
-                o_block_ptr,
+                o_ptrs,
                 output.to(o_ptr.type.element_ty),
-                boundary_check=(0, 1),
+                mask=(
+                    row_valid[:, None]
+                    & (dim_offsets[None, :].to(tl.float32) < HEAD_DIM)
+                ),
             )
 
 
