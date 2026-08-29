@@ -462,7 +462,7 @@ def paged_prefill_page_aggregation_kernel(
         q_seq_len = q_end_loc - q_start_loc
         # The capture-time task schedule also contains replay-time padding
         # requests, whose q length is represented as zero.
-        if q_seq_len.to(tl.float32) > 0.0:
+        if q_seq_len > 0:
             if seqlens_kv_ptr is None:
                 kv_seq_len = q_seq_len
             else:
@@ -470,7 +470,7 @@ def paged_prefill_page_aggregation_kernel(
             kv_cache_len = kv_seq_len - q_seq_len
 
             if GQA_INTERLEAVE:
-                kv_head_id = q_head_id - (q_head_id // NUM_KV_HEADS) * NUM_KV_HEADS
+                kv_head_id = q_head_id % NUM_KV_HEADS
             else:
                 kv_head_id = q_head_id // (NUM_Q_HEADS // NUM_KV_HEADS)
 
@@ -529,7 +529,7 @@ def paged_prefill_page_aggregation_kernel(
                     kv_block_end = min(kv_block_start + BLOCK_SIZE_N, kv_seq_len)
                     kv_block_len = max(kv_block_end - kv_block_start, 0)
                     logical_page_id = min(kv_block_start // PAGE_SIZE, stride_bt_batch - 1)
-                    kv_block_start_in_page = kv_block_start - (kv_block_start // PAGE_SIZE) * PAGE_SIZE
+                    kv_block_start_in_page = kv_block_start % PAGE_SIZE
                     physical_page_id = tl.load(
                         block_tables_ptr + b_id * stride_bt_batch + logical_page_id * stride_bt_block
                     )
@@ -576,7 +576,7 @@ def paged_prefill_page_aggregation_kernel(
                     kv_block_end = min(kv_block_start + BLOCK_SIZE_N, kv_seq_len)
                     kv_block_len = max(kv_block_end - kv_block_start, 0)
                     logical_page_id = min(kv_block_start // PAGE_SIZE, stride_bt_batch - 1)
-                    kv_block_start_in_page = kv_block_start - (kv_block_start // PAGE_SIZE) * PAGE_SIZE
+                    kv_block_start_in_page = kv_block_start % PAGE_SIZE
                     physical_page_id = tl.load(
                         block_tables_ptr + b_id * stride_bt_batch + logical_page_id * stride_bt_block
                     )
@@ -617,10 +617,7 @@ def paged_attention_prefill_prepare(
     device=None,
 ):
     cube_num = get_num_cores("cube")
-    # WeLM verify carries only 2/3 query rows per request.  A 128-row tile
-    # spends most Cube work on padding and inflates the live FP32 score/acc
-    # footprint.  M=32 keeps the page64, D=256 working set within 248 KiB UB.
-    CHUNK_SIZE = 32
+    CHUNK_SIZE = 128
     BLOCK_SIZE_N = min(128, triton.next_power_of_2(page_size))
 
     task_b, task_q_block, task_q_head, core_task_offsets = _build_lpt_task_schedule(
@@ -691,7 +688,7 @@ def paged_attention_prefill_impl(
     o = torch.zeros_like(q)
     block_tables_i32 = block_tables.to(dtype=torch.int32).contiguous()
 
-    CHUNK_SIZE = 32
+    CHUNK_SIZE = 128
     BLOCK_SIZE_N = min(128, triton.next_power_of_2(page_size))
     cube_num = get_num_cores("cube")
     grid = (cube_num,)
@@ -2572,7 +2569,7 @@ def _swa_paged_prefill_aggregation_sink_kernel(
     SINK_ENABLED: tl.constexpr,
 ):
     tl.static_assert(HEAD_DIM <= BLOCK_D, "BLOCK_SIZE_D should not be less than HEAD_DIM")
-    tl.static_assert(PAGE_SIZE // BLOCK_N * BLOCK_N == PAGE_SIZE, "BLOCK_N must be a divisor of PAGE_SIZE")
+    tl.static_assert(PAGE_SIZE % BLOCK_N == 0, "BLOCK_N must be a divisor of PAGE_SIZE")
 
     pid = tl.program_id(0)
     n_programs = tl.num_programs(0)
@@ -2590,14 +2587,11 @@ def _swa_paged_prefill_aggregation_sink_kernel(
         prev_q_tasks = cu_q_chunks * NUM_Q_HEADS
         cu_q_chunks += num_q_chunks
         new_q_tasks = num_q_chunks * NUM_Q_HEADS
-        prev_task_remainder = prev_q_tasks - (prev_q_tasks // n_programs) * n_programs
-        first_task = n_programs - prev_task_remainder + pid
-        first_task = first_task - (first_task // n_programs) * n_programs
-        for q_task_id in range(first_task, new_q_tasks, n_programs):
+        for q_task_id in range((n_programs - prev_q_tasks % n_programs + pid) % n_programs, new_q_tasks, n_programs):
             q_block_id = q_task_id // NUM_Q_HEADS
-            q_head_id = q_task_id - (q_task_id // NUM_Q_HEADS) * NUM_Q_HEADS
+            q_head_id = q_task_id % NUM_Q_HEADS
             if GQA_INTERLEAVE:
-                kv_head_id = q_head_id - (q_head_id // NUM_KV_HEADS) * NUM_KV_HEADS
+                kv_head_id = q_head_id % NUM_KV_HEADS
             else:
                 kv_head_id = q_head_id // (NUM_Q_HEADS // NUM_KV_HEADS)
 
@@ -2640,7 +2634,7 @@ def _swa_paged_prefill_aggregation_sink_kernel(
             num_calced_blocks = num_global_window_blocks + max(num_total_blocks - non_global_window_start_block, 0)
             num_calced_blocks = min(num_calced_blocks, num_total_blocks)
             for kv_block_iter in range(0, num_calced_blocks, PAGE_AGGREGATION_NUM):
-                cond = kv_block_iter.to(tl.float32) < num_global_window_blocks.to(tl.float32)
+                cond = kv_block_iter < num_global_window_blocks
                 kv_block_id = cond * kv_block_iter + (1 - cond) * (
                         non_global_window_start_block + kv_block_iter - num_global_window_blocks)
                 kv_block_start = kv_block_id * BLOCK_N
@@ -2774,10 +2768,7 @@ def swa_paged_prefill_impl(
         BLOCK_M = 64
         BLOCK_N = min(64, triton.next_power_of_2(page_size))
     else:
-        # With PAGE_AGGREGATION_NUM=2, M=32/N=128/D=256 keeps the
-        # Q/K/V, score/probability and FP32 accumulator working set below
-        # the 248 KiB UB budget while avoiding 128-row verify padding.
-        BLOCK_M = 32
+        BLOCK_M = 128
         BLOCK_N = min(128, triton.next_power_of_2(page_size))
 
     BLOCK_D = head_dim
