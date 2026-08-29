@@ -2776,6 +2776,10 @@ def _swa_paged_prefill_verify_grouped_sink_kernel(
         PAGE_SIZE // BLOCK_N * BLOCK_N == PAGE_SIZE,
         "BLOCK_N must divide PAGE_SIZE",
     )
+    tl.static_assert(
+        NUM_Q_HEADS == 6,
+        "grouped WeLM verify kernel requires six local Q heads",
+    )
 
     pid = tl.program_id(0)
     n_programs = tl.num_programs(0)
@@ -2814,11 +2818,37 @@ def _swa_paged_prefill_verify_grouped_sink_kernel(
             )
 
             if SINK_ENABLED:
-                sink = tl.load(
-                    sinks_ptr + row_heads * stride_sink_head,
-                    mask=row_valid,
-                    other=0.0,
-                ).to(tl.float32)
+                # Avoid an irregular [0..5, 0..5, ...] gather.  The Ascend
+                # backend cannot derive a legal element alignment for that
+                # address tensor; six scalar loads plus vector selects express
+                # the same broadcast with aligned accesses.
+                sink_0 = tl.load(sinks_ptr).to(tl.float32)
+                sink_1 = tl.load(sinks_ptr + stride_sink_head).to(tl.float32)
+                sink_2 = tl.load(sinks_ptr + 2 * stride_sink_head).to(tl.float32)
+                sink_3 = tl.load(sinks_ptr + 3 * stride_sink_head).to(tl.float32)
+                sink_4 = tl.load(sinks_ptr + 4 * stride_sink_head).to(tl.float32)
+                sink_5 = tl.load(sinks_ptr + 5 * stride_sink_head).to(tl.float32)
+                sink = tl.where(
+                    row_heads.to(tl.float32) < 1.0,
+                    sink_0,
+                    tl.where(
+                        row_heads.to(tl.float32) < 2.0,
+                        sink_1,
+                        tl.where(
+                            row_heads.to(tl.float32) < 3.0,
+                            sink_2,
+                            tl.where(
+                                row_heads.to(tl.float32) < 4.0,
+                                sink_3,
+                                tl.where(
+                                    row_heads.to(tl.float32) < 5.0,
+                                    sink_4,
+                                    sink_5,
+                                ),
+                            ),
+                        ),
+                    ),
+                )
                 m_i = tl.where(row_valid, sink, 0.0)
                 l_i = tl.full((GROUPED_ROWS,), 1.0, tl.float32)
             else:
@@ -3070,7 +3100,7 @@ def swa_paged_prefill_impl(
         and local_window_size is not None
         and not gqa_interleave
         and num_kv_heads == 1
-        and num_q_heads * 4 <= 32
+        and num_q_heads == 6
         and q.stride(0) == num_q_heads * q.stride(1)
         and o.stride(0) == num_q_heads * o.stride(1)
         and page_size < 128
