@@ -3030,6 +3030,7 @@ def _swa_paged_prefill_small_q_grouped_sink_kernel(
     LOCAL_WINDOW: tl.constexpr,
     NUM_Q_HEADS: tl.constexpr,
     HEAD_DIM: tl.constexpr,
+    BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
     BLOCK_D: tl.constexpr,
     PAGE_SIZE: tl.constexpr,
@@ -3053,6 +3054,15 @@ def _swa_paged_prefill_small_q_grouped_sink_kernel(
         BLOCK_N == PAGE_SIZE,
         "grouped WeLM small-Q prefill uses one page per KV tile",
     )
+    GROUPED_ROWS: tl.constexpr = NUM_Q_HEADS * MAX_Q_LEN
+    tl.static_assert(
+        BLOCK_M >= GROUPED_ROWS,
+        "grouped WeLM SWA small-Q must pad all token/head rows",
+    )
+    tl.static_assert(
+        BLOCK_M == NUM_Q_HEADS or BLOCK_M == 16 or BLOCK_M == 32,
+        "grouped WeLM SWA small-Q uses exact D1 or padded D2-D4 rows",
+    )
 
     pid = tl.program_id(0)
     n_programs = tl.num_programs(0)
@@ -3068,157 +3078,176 @@ def _swa_paged_prefill_small_q_grouped_sink_kernel(
         if q_seq_len.to(tl.float32) > 0.0:
             kv_seq_len = tl.load(kv_lens_ptr + b_id).to(tl.int32)
             kv_computed_len = kv_seq_len - q_seq_len
-            for q_token_id in range(0, MAX_Q_LEN):
-                active_token = q_token_id < q_seq_len.to(tl.float32)
-                q_head_ids = tl.arange(0, NUM_Q_HEADS)
-                dim_offsets = tl.arange(0, BLOCK_D)
-                q_ptrs = (
-                    q_ptr
-                    + (q_start + q_token_id) * stride_qt
-                    + q_head_ids[:, None] * stride_qh
-                    + dim_offsets[None, :] * stride_qd
-                )
-                q = tl.load(q_ptrs, mask=active_token, other=0.0)
+            row_ids = tl.arange(0, BLOCK_M)
+            row_tokens = row_ids // NUM_Q_HEADS
+            row_heads = row_ids - row_tokens * NUM_Q_HEADS
+            valid_rows = (
+                row_ids.to(tl.float32) < GROUPED_ROWS
+            ) & (
+                row_tokens.to(tl.float32) < q_seq_len.to(tl.float32)
+            )
+            dim_offsets = tl.arange(0, BLOCK_D)
+            q_ptrs = (
+                q_ptr
+                + (q_start + row_tokens[:, None]) * stride_qt
+                + row_heads[:, None] * stride_qh
+                + dim_offsets[None, :] * stride_qd
+            )
+            q = tl.load(q_ptrs, mask=valid_rows[:, None], other=0.0)
 
-                if SINK_ENABLED:
-                    m_i = tl.load(
-                        sinks_ptr + q_head_ids * stride_sink_head
-                    ).to(tl.float32)
-                    l_i = tl.full((NUM_Q_HEADS,), 1.0, tl.float32)
-                else:
-                    m_i = tl.full(
-                        (NUM_Q_HEADS,), -float("inf"), tl.float32
-                    )
-                    l_i = tl.zeros((NUM_Q_HEADS,), dtype=tl.float32)
-                acc = tl.zeros(
-                    (NUM_Q_HEADS, BLOCK_D), dtype=tl.float32
+            if SINK_ENABLED:
+                sink0 = tl.load(sinks_ptr).to(tl.float32)
+                sink1 = tl.load(sinks_ptr + stride_sink_head).to(tl.float32)
+                sink2 = tl.load(sinks_ptr + 2 * stride_sink_head).to(tl.float32)
+                sink3 = tl.load(sinks_ptr + 3 * stride_sink_head).to(tl.float32)
+                sink4 = tl.load(sinks_ptr + 4 * stride_sink_head).to(tl.float32)
+                sink5 = tl.load(sinks_ptr + 5 * stride_sink_head).to(tl.float32)
+                row_heads_fp32 = row_heads.to(tl.float32)
+                row_sink = tl.where(
+                    row_heads_fp32 < 1.0,
+                    sink0,
+                    tl.where(
+                        row_heads_fp32 < 2.0,
+                        sink1,
+                        tl.where(
+                            row_heads_fp32 < 3.0,
+                            sink2,
+                            tl.where(
+                                row_heads_fp32 < 4.0,
+                                sink3,
+                                tl.where(row_heads_fp32 < 5.0, sink4, sink5),
+                            ),
+                        ),
+                    ),
+                )
+                m_i = tl.where(valid_rows, row_sink, -float("inf"))
+                l_i = tl.where(valid_rows, 1.0, 0.0).to(tl.float32)
+            else:
+                m_i = tl.full((BLOCK_M,), -float("inf"), tl.float32)
+                l_i = tl.zeros((BLOCK_M,), dtype=tl.float32)
+            acc = tl.zeros((BLOCK_M, BLOCK_D), dtype=tl.float32)
+
+            (
+                num_global_blocks,
+                local_start_block,
+                num_total_blocks,
+            ) = _swa_split_blocks(
+                kv_computed_len,
+                q_seq_len,
+                kv_seq_len,
+                BLOCK_N,
+                True,
+                GLOBAL_WINDOW,
+                LOCAL_WINDOW,
+            )
+            local_start_block = max(num_global_blocks, local_start_block)
+            num_calced_blocks = num_global_blocks + max(
+                num_total_blocks - local_start_block, 0
+            )
+            num_calced_blocks = min(num_calced_blocks, num_total_blocks)
+
+            query_positions = kv_computed_len + row_tokens
+            for kv_block_iter in range(0, num_calced_blocks):
+                is_global = (
+                    kv_block_iter.to(tl.float32)
+                    < num_global_blocks.to(tl.float32)
+                )
+                kv_block_id = is_global * kv_block_iter + (
+                    1 - is_global
+                ) * (
+                    local_start_block
+                    + kv_block_iter
+                    - num_global_blocks
+                )
+                kv_block_start = kv_block_id * BLOCK_N
+                kv_block_end = min(kv_block_start + BLOCK_N, kv_seq_len)
+                kv_block_len = max(kv_block_end - kv_block_start, 0)
+
+                key_offsets = tl.arange(0, BLOCK_N)
+                key_positions = kv_block_start + key_offsets
+                key_valid = (
+                    key_positions.to(tl.float32)
+                    < kv_seq_len.to(tl.float32)
+                )
+                causal = (
+                    key_positions[None, :].to(tl.float32)
+                    <= query_positions[:, None].to(tl.float32)
+                )
+                in_sink = (
+                    key_positions[None, :].to(tl.float32) < GLOBAL_WINDOW
+                )
+                in_local = (
+                    key_positions[None, :].to(tl.float32) + LOCAL_WINDOW
+                    >= query_positions[:, None].to(tl.float32)
+                )
+                mask = (
+                    valid_rows[:, None]
+                    & key_valid[None, :]
+                    & causal
+                    & (in_sink | in_local)
                 )
 
-                query_position = kv_computed_len + q_token_id
-                (
-                    num_global_blocks,
-                    local_start_block,
-                    num_total_blocks,
-                ) = _swa_split_blocks(
-                    query_position,
-                    1,
-                    kv_seq_len,
-                    BLOCK_N,
-                    True,
-                    GLOBAL_WINDOW,
-                    LOCAL_WINDOW,
+                logical_page_id = min(
+                    kv_block_start // PAGE_SIZE,
+                    stride_block_table_b - 1,
                 )
-                local_start_block = max(
-                    num_global_blocks, local_start_block
+                physical_page_id = tl.load(
+                    block_table_ptr
+                    + b_id * stride_block_table_b
+                    + logical_page_id * stride_block_table_p
                 )
-                num_calced_blocks = num_global_blocks + max(
-                    num_total_blocks - local_start_block, 0
+                k_t_block_ptr = tl.make_block_ptr(
+                    base=k_ptr + physical_page_id * stride_kp,
+                    shape=(HEAD_DIM, kv_block_len),
+                    strides=(stride_kd, stride_kt),
+                    offsets=(0, 0),
+                    block_shape=(BLOCK_D, BLOCK_N),
+                    order=(0, 1),
                 )
-                num_calced_blocks = min(
-                    num_calced_blocks, num_total_blocks
+                v_block_ptr = tl.make_block_ptr(
+                    base=v_ptr + physical_page_id * stride_vp,
+                    shape=(kv_block_len, HEAD_DIM),
+                    strides=(stride_vt, stride_vd),
+                    offsets=(0, 0),
+                    block_shape=(BLOCK_N, BLOCK_D),
+                    order=(1, 0),
                 )
+                k_t = tl.load(
+                    k_t_block_ptr,
+                    boundary_check=(0, 1),
+                    padding_option="zero",
+                )
+                v = tl.load(
+                    v_block_ptr,
+                    boundary_check=(0, 1),
+                    padding_option="zero",
+                )
+                qk = tl.dot(q, k_t) * scale
+                qk = tl.where(mask, qk, -1e6)
+                m_ij = tl.maximum(
+                    m_i,
+                    tl.max(qk, 1, propagate_nan=True),
+                    propagate_nan=tl.PropagateNan.ALL,
+                )
+                p = tl.math.exp(qk - m_ij[:, None])
+                l_ij = tl.sum(p, 1)
+                alpha = tl.math.exp(m_i - m_ij)
+                l_i = l_i * alpha + l_ij
+                acc = acc * alpha[:, None]
+                acc = tl.dot(p.to(k_t.dtype), v, acc)
+                m_i = m_ij
 
-                for kv_block_iter in range(0, num_calced_blocks):
-                    is_global = (
-                        kv_block_iter.to(tl.float32)
-                        < num_global_blocks.to(tl.float32)
-                    )
-                    kv_block_id = is_global * kv_block_iter + (
-                        1 - is_global
-                    ) * (
-                        local_start_block
-                        + kv_block_iter
-                        - num_global_blocks
-                    )
-                    kv_block_start = kv_block_id * BLOCK_N
-                    kv_block_end = min(
-                        kv_block_start + BLOCK_N, kv_seq_len
-                    )
-                    kv_block_len = max(
-                        kv_block_end - kv_block_start, 0
-                    )
-
-                    key_offsets = tl.arange(0, BLOCK_N)
-                    key_positions = kv_block_start + key_offsets
-                    causal = (
-                        key_positions.to(tl.float32)
-                        <= query_position.to(tl.float32)
-                    )
-                    in_sink = (
-                        key_positions.to(tl.float32) < GLOBAL_WINDOW
-                    )
-                    in_local = (
-                        key_positions.to(tl.float32) + LOCAL_WINDOW
-                        >= query_position.to(tl.float32)
-                    )
-                    key_valid = (
-                        key_positions.to(tl.float32)
-                        < kv_seq_len.to(tl.float32)
-                    )
-                    mask = active_token & key_valid & causal & (in_sink | in_local)
-
-                    logical_page_id = min(
-                        kv_block_start // PAGE_SIZE,
-                        stride_block_table_b - 1,
-                    )
-                    physical_page_id = tl.load(
-                        block_table_ptr
-                        + b_id * stride_block_table_b
-                        + logical_page_id * stride_block_table_p
-                    )
-                    k_t_block_ptr = tl.make_block_ptr(
-                        base=k_ptr + physical_page_id * stride_kp,
-                        shape=(HEAD_DIM, kv_block_len),
-                        strides=(stride_kd, stride_kt),
-                        offsets=(0, 0),
-                        block_shape=(BLOCK_D, BLOCK_N),
-                        order=(0, 1),
-                    )
-                    v_block_ptr = tl.make_block_ptr(
-                        base=v_ptr + physical_page_id * stride_vp,
-                        shape=(kv_block_len, HEAD_DIM),
-                        strides=(stride_vt, stride_vd),
-                        offsets=(0, 0),
-                        block_shape=(BLOCK_N, BLOCK_D),
-                        order=(1, 0),
-                    )
-                    k_t = tl.load(
-                        k_t_block_ptr,
-                        boundary_check=(0, 1),
-                        padding_option="zero",
-                    )
-                    v = tl.load(
-                        v_block_ptr,
-                        boundary_check=(0, 1),
-                        padding_option="zero",
-                    )
-                    qk = tl.dot(q, k_t) * scale
-                    qk = tl.where(mask[None, :], qk, -1e6)
-                    m_ij = tl.maximum(
-                        m_i,
-                        tl.max(qk, 1, propagate_nan=True),
-                        propagate_nan=tl.PropagateNan.ALL,
-                    )
-                    p = tl.math.exp(qk - m_ij[:, None])
-                    pv = tl.dot(p.to(k_t.dtype), v)
-                    l_ij = tl.sum(p, 1)
-                    alpha = tl.math.exp(m_i - m_ij)
-                    l_i = l_i * alpha + l_ij
-                    acc = acc * alpha[:, None] + pv
-                    m_i = m_ij
-
-                output = acc / l_i[:, None]
-                o_ptrs = (
-                    o_ptr
-                    + (q_start + q_token_id) * stride_ot
-                    + q_head_ids[:, None] * stride_oh
-                    + dim_offsets[None, :] * stride_od
-                )
-                tl.store(
-                    o_ptrs,
-                    output.to(o_ptr.type.element_ty),
-                    mask=active_token,
-                )
+            o_ptrs = (
+                o_ptr
+                + (q_start + row_tokens[:, None]) * stride_ot
+                + row_heads[:, None] * stride_oh
+                + dim_offsets[None, :] * stride_od
+            )
+            tl.store(
+                o_ptrs,
+                (acc / l_i[:, None]).to(o_ptr.type.element_ty),
+                mask=valid_rows[:, None],
+            )
 
 
 def swa_paged_prefill_impl(
@@ -3307,6 +3336,11 @@ def swa_paged_prefill_impl(
     )
     if use_grouped_small_q:
         grouped_grid = (min(cube_num, bsz),)
+        grouped_block_m = (
+            num_q_heads
+            if max_q_len == 1
+            else (16 if max_q_len == 2 else 32)
+        )
         _swa_paged_prefill_small_q_grouped_sink_kernel[grouped_grid](
             o,
             q,
@@ -3339,6 +3373,7 @@ def swa_paged_prefill_impl(
             LOCAL_WINDOW=local_window_size,
             NUM_Q_HEADS=num_q_heads,
             HEAD_DIM=head_dim,
+            BLOCK_M=grouped_block_m,
             BLOCK_N=BLOCK_N,
             BLOCK_D=BLOCK_D,
             PAGE_SIZE=page_size,
