@@ -140,9 +140,26 @@ class BoundLaunch:
     kernel_name: str
 
 
-def primary_kernel_name(provider: str, case: AttentionCase) -> str:
+def primary_kernel_name(
+    provider: str,
+    case: AttentionCase,
+    num_cube_cores: int | None = None,
+) -> str:
     if case.attention == "full":
-        if provider == "candidate" and 5 <= case.max_q_len <= 128:
+        candidate_mid_q = (
+            provider == "candidate" and 5 <= case.max_q_len <= 128
+        )
+        if (
+            provider == "candidate"
+            and 128 < case.max_q_len <= 256
+            and num_cube_cores is not None
+        ):
+            num_q_blocks = (case.max_q_len + 63) // 64
+            candidate_mid_q = (
+                case.real_batch_size * num_q_blocks * 6
+                <= num_cube_cores
+            )
+        if candidate_mid_q:
             return "paged_prefill_mid_q_grouped_kernel"
         return (
             "paged_prefill_small_q_grouped_kernel"
@@ -290,7 +307,9 @@ class Harness:
             return BoundLaunch(
                 launch_full,
                 host_prepare_submit_ms,
-                primary_kernel_name(provider, case),
+                primary_kernel_name(
+                    provider, case, self.num_cube_cores
+                ),
             )
 
         swa_kwargs = {
@@ -321,7 +340,7 @@ class Harness:
         return BoundLaunch(
             launch_swa,
             0.0,
-            primary_kernel_name(provider, case),
+            primary_kernel_name(provider, case, self.num_cube_cores),
         )
 
 
@@ -1289,7 +1308,12 @@ def capture_msprof_op(
     grouped: dict[tuple[str, str], list[AttentionCase]] = {}
     for provider in ("baseline", "candidate"):
         for case in cases:
-            key = (provider, primary_kernel_name(provider, case))
+            key = (
+                provider,
+                primary_kernel_name(
+                    provider, case, harness.num_cube_cores
+                ),
+            )
             grouped.setdefault(key, []).append(case)
 
     for (provider, kernel_name), group_cases in grouped.items():

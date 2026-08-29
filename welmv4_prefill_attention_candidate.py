@@ -1210,7 +1210,7 @@ def paged_attention_prefill_impl(
         q.dtype != torch.float32
         and seqlens_kv is not None
         and max_q_len is not None
-        and 5 <= max_q_len <= 128
+        and 5 <= max_q_len <= 256
         and not gqa_interleave
         and num_kv_heads == 1
         and num_q_heads == 6
@@ -1230,11 +1230,15 @@ def paged_attention_prefill_impl(
             heads_per_group = 1
         num_head_groups = num_q_heads // heads_per_group
         num_q_blocks = (max_q_len + q_bucket - 1) // q_bucket
+        grouped_task_count = (
+            batch_size * num_q_blocks * num_head_groups
+        )
+        if max_q_len > 128 and grouped_task_count > cube_num:
+            use_grouped_mid_q = False
+
+    if use_grouped_mid_q:
         grouped_grid = (
-            min(
-                cube_num,
-                batch_size * num_q_blocks * num_head_groups,
-            ),
+            min(cube_num, grouped_task_count),
         )
         paged_prefill_mid_q_grouped_kernel[grouped_grid](
             q,

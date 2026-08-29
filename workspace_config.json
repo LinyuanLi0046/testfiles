@@ -232,6 +232,13 @@
           "length_pattern": "ragged"
         },
         {
+          "attention": "full",
+          "topology": "dense",
+          "m_values": [256],
+          "kv_lengths": [11264, 16896, 26624],
+          "length_pattern": "ragged"
+        },
+        {
           "attention": ["full", "swa"],
           "topology": "ragged_prefill",
           "prefill_batch_size": 16,
