@@ -2775,7 +2775,14 @@ def swa_paged_prefill_impl(
     cube_num = get_num_cores("cube")
 
     num_q_chunks = triton.cdiv(tot_q_toks, BLOCK_M)
-    num_tasks = num_q_chunks * num_q_heads
+    # Summing tokens before cdiv severely under-counts verify work: for
+    # B=56,D=2,M=128 it reports one chunk (six head tasks), while every
+    # request owns an independent chunk (336 head tasks).  Keep the dense
+    # estimate and the per-request lower bound, then cap at physical Cube
+    # cores below.  The kernel already distributes these tasks by pid.
+    dense_tasks = num_q_chunks * num_q_heads
+    per_request_tasks = bsz * num_q_heads
+    num_tasks = max(dense_tasks, per_request_tasks)
     n_programs = min(cube_num, num_tasks)
     grid = (n_programs,)
 
