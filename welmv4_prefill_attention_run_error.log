@@ -1,11 +1,11 @@
-time: 2026-08-29T15:27:51+08:00
-command: /usr/local/python3.11.10/bin/python bench_welmv4_prefill_attention_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_attn_result_arxqc_0l
+time: 2026-08-29T15:31:11+08:00
+command: /usr/local/python3.11.10/bin/python bench_welmv4_prefill_attention_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_attn_result_lw57c_tv
 return_code: 1
 reason: benchmark exited with status 1
 
 ===== stdout + stderr =====
 WeLMv4 NPU Full/SWA prefill Attention optimization workspace
-device=npu:5 (Ascend950PR_957b), base=29edaefc0358, baseline=c47f9bdcfb87, candidate=0fe51e72fab1
+device=npu:5 (Ascend950PR_957b), base=bca14c8a5b33, baseline=c47f9bdcfb87, candidate=aeb81610a4fd
 [correctness 1/215] full_dense_m1_kv63_uniform_compact_tp4
   PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 2/215] full_dense_m1_kv64_uniform_compact_tp4
@@ -27,7 +27,7 @@ Traceback (most recent call last):
           ^^^^^^^^^^^^^^^
   File "/usr/local/python3.11.10/lib/python3.11/subprocess.py", line 571, in run
     raise CalledProcessError(retcode, process.args,
-subprocess.CalledProcessError: Command '['/usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile', '/tmp/tmpx0wci3xe/kernel.ttadapter.mlir', '--target=Ascend950PR_957b', '--enable-auto-multi-buffer=True', '--enable-auto-bind-sub-block=True', '--disable-ffts', '--set-workspace-multibuffer=0', '--limit-auto-multi-buffer-of-local-buffer=no-limit', '--enable-mixed-cv=True', '--disable-auto-inject-block-sync=True', '--enable-auto-blockify-loop', '--enable-hfusion-compile=true', '--enable-triton-kernel-compile=true', '--append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc', '--mlir-print-ir-after-failure', '--mlir-print-stacktrace-on-diagnostic', '-o', '/tmp/tmpx0wci3xe/kernel', '--enable-vf-merge-level=1']' returned non-zero exit status 1.
+subprocess.CalledProcessError: Command '['/usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile', '/tmp/tmp5lw8s6lw/kernel.ttadapter.mlir', '--target=Ascend950PR_957b', '--enable-auto-multi-buffer=True', '--enable-auto-bind-sub-block=True', '--disable-ffts', '--set-workspace-multibuffer=0', '--limit-auto-multi-buffer-of-local-buffer=no-limit', '--enable-mixed-cv=True', '--disable-auto-inject-block-sync=True', '--enable-auto-blockify-loop', '--enable-hfusion-compile=true', '--enable-triton-kernel-compile=true', '--append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc', '--mlir-print-ir-after-failure', '--mlir-print-stacktrace-on-diagnostic', '-o', '/tmp/tmp5lw8s6lw/kernel', '--enable-vf-merge-level=1']' returned non-zero exit status 1.
 
 The above exception was the direct cause of the following exception:
 
@@ -44,7 +44,7 @@ Traceback (most recent call last):
   File "/data2/hw_lly/testfiles/bench_welmv4_prefill_attention_npu.py", line 270, in launch_swa
     return module.swa_paged_prefill_impl(
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py", line 3081, in swa_paged_prefill_impl
+  File "/data2/hw_lly/testfiles/welmv4_prefill_attention_candidate.py", line 3111, in swa_paged_prefill_impl
     _swa_paged_prefill_verify_grouped_sink_kernel[grouped_grid](
   File "/usr/local/python3.11.10/lib/python3.11/site-packages/triton/runtime/jit.py", line 333, in <lambda>
     return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)
@@ -65,7 +65,7 @@ Invalid elementAlignment!
 UNREACHABLE executed at /usr1/03/workspace/j_9YS0oxzZ/npuir-a5/bishengir/lib/Dialect/HIVMRegbaseIntrins/Utils/RegbaseUtils.cpp:702!
 PLEASE submit a bug report to https://github.com/llvm/llvm-project/issues/ and include the crash backtrace.
 Stack dump:
-0.	Program arguments: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile-a5 /tmp/tmpx0wci3xe/kernel.ttadapter.mlir --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --disable-ffts --set-workspace-multibuffer=0 --limit-auto-multi-buffer-of-local-buffer=no-limit --enable-mixed-cv=True --disable-auto-inject-block-sync=True --enable-auto-blockify-loop --enable-hfusion-compile=true --enable-triton-kernel-compile=true "--append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc" --mlir-print-ir-after-failure --mlir-print-stacktrace-on-diagnostic -o /tmp/tmpx0wci3xe/kernel --enable-vf-merge-level=1
+0.	Program arguments: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile-a5 /tmp/tmp5lw8s6lw/kernel.ttadapter.mlir --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --disable-ffts --set-workspace-multibuffer=0 --limit-auto-multi-buffer-of-local-buffer=no-limit --enable-mixed-cv=True --disable-auto-inject-block-sync=True --enable-auto-blockify-loop --enable-hfusion-compile=true --enable-triton-kernel-compile=true "--append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc" --mlir-print-ir-after-failure --mlir-print-stacktrace-on-diagnostic -o /tmp/tmp5lw8s6lw/kernel --enable-vf-merge-level=1
 ///------------------[ERROR][Triton][END]------------------
 
-[ERROR] 2026-08-29-15:27:48 (PID:897015, Device:5, RankID:-1) ERR99999 UNKNOWN applicaiton exception
+[ERROR] 2026-08-29-15:31:09 (PID:897618, Device:5, RankID:-1) ERR99999 UNKNOWN applicaiton exception
