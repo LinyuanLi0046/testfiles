@@ -194,6 +194,12 @@ class AttentionCase:
         return tuple(real + [0] * (self.scheduled_batch_size - len(real)))
 
     @property
+    def max_q_len(self) -> int:
+        """Largest live per-request query length used for shape dispatch."""
+
+        return max(self.runtime_q_lens, default=0)
+
+    @property
     def capture_q_lens(self) -> tuple[int, ...]:
         if not self.topology.startswith("graph_"):
             return self.runtime_q_lens
@@ -265,6 +271,7 @@ class AttentionCase:
             "draft_width": self.draft_width or "",
             "real_batch_size": self.real_batch_size,
             "scheduled_batch_size": self.scheduled_batch_size,
+            "max_q_len": self.max_q_len,
             "kv_length": self.kv_length,
             "min_runtime_kv_length": min(
                 (x for x in self.runtime_kv_lens if x), default=0

@@ -37,6 +37,13 @@ At page64/head256 the current Full implementation executes
 aggregation 1. SWA executes `_swa_paged_prefill_aggregation_sink_kernel` with
 the same blocks and page aggregation 2.
 
+The candidate keeps those public Full/SWA prefill entry points. Dispatch is
+based on the largest per-request Query length, not on a verify-only API: a
+`max_q_len<=4` request uses the grouped small-Query branch, while larger Query
+windows use the general prefill branch. This also covers ordinary ragged
+prefill and draft-extend shapes without pretending that total `M` determines
+the per-request layout.
+
 ## M and topology
 
 `M` always means total real Query rows, `sum(q_lens)`. It is not sufficient by
@@ -64,6 +71,14 @@ The remote matrix treats context length as a band, not three exact points. It
 covers roughly 10–12K, 15–18K, and 24–28K tokens, including the observed 11K,
 16.5K, and 26K regions. Ragged per-request lengths also create non-page-aligned
 tails. Exact lengths remain selectable with `--kv-lengths`.
+
+Performance iterations use representative rather than exhaustive M values:
+aligned points, deterministic non-aligned points, and `boundary-1/boundary/
+boundary+1` around candidate tile transitions. The matrix covers dense and
+ragged ordinary prefill from M=1 through 1024 plus D2/D3 verify in the
+M=128..1024 region. Every timed point runs the reference correctness gate
+before timing; a wider manual sweep remains available when a suspicious range
+needs refinement.
 
 ## Remote worker
 

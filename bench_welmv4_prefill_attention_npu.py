@@ -141,21 +141,16 @@ class BoundLaunch:
 
 
 def primary_kernel_name(provider: str, case: AttentionCase) -> str:
-    candidate_verify = provider == "candidate" and case.topology in (
-        "verify_d2",
-        "verify_d3",
-        "graph_d2",
-        "graph_d3",
-    )
+    candidate_small_q = provider == "candidate" and case.max_q_len <= 4
     if case.attention == "full":
         return (
-            "paged_prefill_verify_grouped_kernel"
-            if candidate_verify
+            "paged_prefill_small_q_grouped_kernel"
+            if candidate_small_q
             else "paged_prefill_page_aggregation_kernel"
         )
     return (
-        "_swa_paged_prefill_verify_grouped_sink_kernel"
-        if candidate_verify
+        "_swa_paged_prefill_small_q_grouped_sink_kernel"
+        if candidate_small_q
         else "_swa_paged_prefill_aggregation_sink_kernel"
     )
 
@@ -277,6 +272,7 @@ class Harness:
                     core_task_offsets=schedule[3],
                     softmax_scale=SOFTMAX_SCALE,
                     aux_mask=self.full_aux_mask,
+                    max_q_len=case.max_q_len,
                     sinks=inputs.sinks,
                 )
 
@@ -286,20 +282,29 @@ class Harness:
                 primary_kernel_name(provider, case),
             )
 
+        swa_kwargs = {
+            "q": inputs.q,
+            "k_cache": inputs.key_cache,
+            "v_cache": inputs.value_cache,
+            "cu_q_lens": inputs.runtime_cu_q_lens,
+            "kvlens": inputs.runtime_kv_lens,
+            "block_table": inputs.block_table,
+            "is_causal": True,
+            "local_window_size": SWA_LEFT_WINDOW,
+            "global_window_size": SWA_GLOBAL_WINDOW,
+            "softmax_scale": SOFTMAX_SCALE,
+            "gqa_interleave": False,
+            "sinks": inputs.sinks,
+        }
+        if provider == "candidate":
+            # The production backend already owns CPU query lengths. Passing
+            # their maximum keeps dispatch shape-based and avoids a device
+            # read/synchronization in the operator wrapper.
+            swa_kwargs["max_q_len"] = case.max_q_len
+
         def launch_swa() -> torch.Tensor:
             return module.swa_paged_prefill_impl(
-                q=inputs.q,
-                k_cache=inputs.key_cache,
-                v_cache=inputs.value_cache,
-                cu_q_lens=inputs.runtime_cu_q_lens,
-                kvlens=inputs.runtime_kv_lens,
-                block_table=inputs.block_table,
-                is_causal=True,
-                local_window_size=SWA_LEFT_WINDOW,
-                global_window_size=SWA_GLOBAL_WINDOW,
-                softmax_scale=SOFTMAX_SCALE,
-                gqa_interleave=False,
-                sinks=inputs.sinks,
+                **swa_kwargs,
             )
 
         return BoundLaunch(

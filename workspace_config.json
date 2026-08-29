@@ -35,7 +35,7 @@
     "minimum_speedup": 1.03,
     "minimum_case_speedup": 0.98,
     "gain_topologies": ["verify_d2", "verify_d3"],
-    "performance_focus": ["full"],
+    "performance_focus": ["full", "swa"],
     "decode_reference_targets_us": {
       "48": {"full": 620.0, "swa": 27.0}
     },
@@ -164,6 +164,71 @@
         {"attention": "swa", "topology": "verify_d2", "m": 112, "kv_length": 11264, "length_pattern": "ragged"},
         {"attention": "swa", "topology": "verify_d2", "m": 112, "kv_length": 16896, "length_pattern": "ragged"},
         {"attention": "swa", "topology": "verify_d2", "m": 112, "kv_length": 26624, "length_pattern": "ragged"}
+      ],
+      "performance_groups": [
+        {
+          "attention": ["full", "swa"],
+          "topology": "dense",
+          "m_values": [1, 2, 3, 4, 5, 7, 15, 16, 17, 23, 31, 32, 33, 37, 47, 48, 49, 63, 64, 65, 73, 95, 111, 127, 128],
+          "kv_length": 4096
+        },
+        {
+          "attention": ["full", "swa"],
+          "topology": "dense",
+          "m_values": [129, 191, 192, 193, 255, 256, 257, 383, 511, 512, 513, 641, 767, 1023, 1024],
+          "kv_length": 4096
+        },
+        {
+          "attention": ["full", "swa"],
+          "topology": "ragged_prefill",
+          "prefill_batch_size": 7,
+          "m_values": [15, 37, 63, 127],
+          "kv_length": 4096,
+          "length_pattern": "ragged"
+        },
+        {
+          "attention": ["full", "swa"],
+          "topology": "ragged_prefill",
+          "prefill_batch_size": 16,
+          "m_values": [48, 73, 128, 257, 513, 1024],
+          "kv_length": 4096,
+          "length_pattern": "ragged"
+        },
+        {
+          "attention": ["full", "swa"],
+          "topology": "ragged_prefill",
+          "prefill_batch_size": 56,
+          "m_values": [128, 257, 511, 1024],
+          "kv_length": 4096,
+          "length_pattern": "ragged"
+        },
+        {
+          "attention": ["full", "swa"],
+          "topology": "verify_d2",
+          "m_values": [128, 130, 256, 512, 1024],
+          "kv_length": 4096
+        },
+        {
+          "attention": ["full", "swa"],
+          "topology": "verify_d3",
+          "m_values": [129, 255, 513, 1023],
+          "kv_length": 4096
+        },
+        {
+          "attention": ["full", "swa"],
+          "topology": "dense",
+          "m_values": [64, 257],
+          "kv_lengths": [16896, 26624],
+          "length_pattern": "ragged"
+        },
+        {
+          "attention": ["full", "swa"],
+          "topology": "ragged_prefill",
+          "prefill_batch_size": 16,
+          "m_values": [64, 257],
+          "kv_lengths": [11264, 16896, 26624],
+          "length_pattern": "ragged"
+        }
       ],
       "graph": [
         {"attention": "full", "topology": "graph_d2", "real_batch_size": 40, "bucket_batch_size": 56, "kv_length": 26624, "length_pattern": "ragged", "table_width": "graph"},

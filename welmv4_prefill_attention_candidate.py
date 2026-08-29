@@ -608,7 +608,7 @@ def paged_prefill_page_aggregation_kernel(
 
 
 @triton.jit
-def paged_prefill_verify_grouped_kernel(
+def paged_prefill_small_q_grouped_kernel(
     q_ptr,
     key_cache_ptr,
     value_cache_ptr,
@@ -640,30 +640,30 @@ def paged_prefill_verify_grouped_kernel(
     BLOCK_SIZE_M: tl.constexpr,
     BLOCK_SIZE_D: tl.constexpr,
     BLOCK_SIZE_N: tl.constexpr,
-    VERIFY_WIDTH: tl.constexpr,
+    MAX_Q_LEN: tl.constexpr,
     SINK_ENABLED: tl.constexpr,
 ):
-    """Full verify: all tokens and all six Q heads share one KV scan."""
+    """Group up to four query tokens and all six Q heads per request."""
     tl.static_assert(
         NUM_Q_HEADS == 6,
-        "grouped WeLM full verify requires six local Q heads",
+        "grouped WeLM small-Q prefill requires six local Q heads",
     )
     tl.static_assert(
-        VERIFY_WIDTH >= 1 and VERIFY_WIDTH <= 4,
-        "grouped WeLM full verify width must be in [1, 4]",
+        MAX_Q_LEN >= 1 and MAX_Q_LEN <= 4,
+        "grouped WeLM small-Q prefill max query length must be in [1, 4]",
     )
     tl.static_assert(
         PAGE_SIZE == BLOCK_SIZE_N,
-        "grouped WeLM full verify uses one page per KV tile",
+        "grouped WeLM small-Q prefill uses one page per KV tile",
     )
-    GROUPED_ROWS: tl.constexpr = NUM_Q_HEADS * VERIFY_WIDTH
+    GROUPED_ROWS: tl.constexpr = NUM_Q_HEADS * MAX_Q_LEN
     tl.static_assert(
         BLOCK_SIZE_M >= GROUPED_ROWS,
-        "grouped WeLM full verify must pad all token/head rows",
+        "grouped WeLM small-Q prefill must pad all token/head rows",
     )
     tl.static_assert(
         BLOCK_SIZE_M == 16 or BLOCK_SIZE_M == 32,
-        "grouped WeLM full verify uses Cube-aligned M=16/32",
+        "grouped WeLM small-Q prefill uses Cube-aligned M=16/32",
     )
 
     pid = tl.program_id(0)
@@ -677,9 +677,11 @@ def paged_prefill_verify_grouped_kernel(
         q_seq_len = q_end - q_start
         if q_seq_len.to(tl.float32) > 0.0:
             row_ids = tl.arange(0, BLOCK_SIZE_M)
-            valid_rows = row_ids < GROUPED_ROWS
             row_tokens = row_ids // NUM_Q_HEADS
             row_heads = row_ids - row_tokens * NUM_Q_HEADS
+            valid_rows = (row_ids < GROUPED_ROWS) & (
+                row_tokens.to(tl.float32) < q_seq_len.to(tl.float32)
+            )
             dim_offsets = tl.arange(0, BLOCK_SIZE_D)
 
             q_ptrs = (
@@ -906,17 +908,11 @@ def paged_attention_prefill_impl(
     cube_num = get_num_cores("cube")
     grid = (cube_num,)
 
-    total_q_tokens = q.shape[0]
-    verify_width = total_q_tokens // batch_size if batch_size > 0 else 0
-    has_fixed_verify_width = (
-        verify_width >= 1
-        and verify_width <= 4
-        and verify_width * batch_size == total_q_tokens
-    )
-    use_grouped_verify = (
+    use_grouped_small_q = (
         q.dtype != torch.float32
         and seqlens_kv is not None
-        and has_fixed_verify_width
+        and max_q_len is not None
+        and 1 <= max_q_len <= 4
         and not gqa_interleave
         and num_kv_heads == 1
         and num_q_heads == 6
@@ -924,9 +920,9 @@ def paged_attention_prefill_impl(
         and q.stride(0) == num_q_heads * q.stride(1)
         and o.stride(0) == num_q_heads * o.stride(1)
     )
-    if use_grouped_verify:
+    if use_grouped_small_q:
         grouped_grid = (min(cube_num, batch_size),)
-        paged_prefill_verify_grouped_kernel[grouped_grid](
+        paged_prefill_small_q_grouped_kernel[grouped_grid](
             q,
             key_cache,
             value_cache,
@@ -955,10 +951,10 @@ def paged_attention_prefill_impl(
             NUM_Q_HEADS=num_q_heads,
             HEAD_DIM=head_dim,
             PAGE_SIZE=page_size,
-            BLOCK_SIZE_M=16 if verify_width <= 2 else 32,
+            BLOCK_SIZE_M=16 if max_q_len <= 2 else 32,
             BLOCK_SIZE_D=head_dim,
             BLOCK_SIZE_N=page_size,
-            VERIFY_WIDTH=verify_width,
+            MAX_Q_LEN=max_q_len,
             SINK_ENABLED=sink_enabled,
         )
         return o
@@ -3002,7 +2998,7 @@ def _swa_paged_prefill_aggregation_sink_kernel(
 
 
 @triton.jit
-def _swa_paged_prefill_verify_grouped_sink_kernel(
+def _swa_paged_prefill_small_q_grouped_sink_kernel(
     o_ptr,
     q_ptr,
     k_ptr,
@@ -3037,25 +3033,25 @@ def _swa_paged_prefill_verify_grouped_sink_kernel(
     BLOCK_N: tl.constexpr,
     BLOCK_D: tl.constexpr,
     PAGE_SIZE: tl.constexpr,
-    VERIFY_WIDTH: tl.constexpr,
+    MAX_Q_LEN: tl.constexpr,
     SINK_ENABLED: tl.constexpr,
 ):
-    """Run fixed-width verify like decode, grouping six Q heads per KV head."""
+    """Run up to four query tokens while grouping six Q heads per KV head."""
     tl.static_assert(
         PAGE_SIZE // BLOCK_N * BLOCK_N == PAGE_SIZE,
         "BLOCK_N must divide PAGE_SIZE",
     )
     tl.static_assert(
         NUM_Q_HEADS == 6,
-        "grouped WeLM verify kernel requires six local Q heads",
+        "grouped WeLM small-Q prefill requires six local Q heads",
     )
     tl.static_assert(
-        VERIFY_WIDTH >= 1 and VERIFY_WIDTH <= 4,
-        "grouped WeLM verify width must be in [1, 4]",
+        MAX_Q_LEN >= 1 and MAX_Q_LEN <= 4,
+        "grouped WeLM small-Q prefill max query length must be in [1, 4]",
     )
     tl.static_assert(
         BLOCK_N == PAGE_SIZE,
-        "grouped WeLM verify uses one page per KV tile",
+        "grouped WeLM small-Q prefill uses one page per KV tile",
     )
 
     pid = tl.program_id(0)
@@ -3072,7 +3068,8 @@ def _swa_paged_prefill_verify_grouped_sink_kernel(
         if q_seq_len.to(tl.float32) > 0.0:
             kv_seq_len = tl.load(kv_lens_ptr + b_id).to(tl.int32)
             kv_computed_len = kv_seq_len - q_seq_len
-            for q_token_id in range(0, VERIFY_WIDTH):
+            for q_token_id in range(0, MAX_Q_LEN):
+                active_token = q_token_id < q_seq_len.to(tl.float32)
                 q_head_ids = tl.arange(0, NUM_Q_HEADS)
                 dim_offsets = tl.arange(0, BLOCK_D)
                 q_ptrs = (
@@ -3081,7 +3078,7 @@ def _swa_paged_prefill_verify_grouped_sink_kernel(
                     + q_head_ids[:, None] * stride_qh
                     + dim_offsets[None, :] * stride_qd
                 )
-                q = tl.load(q_ptrs)
+                q = tl.load(q_ptrs, mask=active_token, other=0.0)
 
                 if SINK_ENABLED:
                     m_i = tl.load(
@@ -3158,7 +3155,7 @@ def _swa_paged_prefill_verify_grouped_sink_kernel(
                         key_positions.to(tl.float32)
                         < kv_seq_len.to(tl.float32)
                     )
-                    mask = key_valid & causal & (in_sink | in_local)
+                    mask = active_token & key_valid & causal & (in_sink | in_local)
 
                     logical_page_id = min(
                         kv_block_start // PAGE_SIZE,
@@ -3217,7 +3214,11 @@ def _swa_paged_prefill_verify_grouped_sink_kernel(
                     + q_head_ids[:, None] * stride_oh
                     + dim_offsets[None, :] * stride_od
                 )
-                tl.store(o_ptrs, output.to(o_ptr.type.element_ty))
+                tl.store(
+                    o_ptrs,
+                    output.to(o_ptr.type.element_ty),
+                    mask=active_token,
+                )
 
 
 def swa_paged_prefill_impl(
@@ -3233,6 +3234,7 @@ def swa_paged_prefill_impl(
     softmax_scale: Optional[float] = None,
     gqa_interleave: bool = False,
     sinks: Optional[torch.Tensor] = None,
+    max_q_len: Optional[int] = None,
 ) -> torch.Tensor:
 
     bsz = cu_q_lens.shape[0] - 1
@@ -3253,7 +3255,7 @@ def swa_paged_prefill_impl(
     sinks_pass = sinks if sink_enabled else torch.empty(1, dtype=q.dtype, device=q.device)
 
     o = torch.zeros_like(q, memory_format=torch.contiguous_format)
-    small_q_per_request = tot_q_toks <= bsz * 4
+    small_q_per_request = max_q_len is not None and 1 <= max_q_len <= 4
     if q.dtype == torch.float32:
         BLOCK_M = 64
         BLOCK_N = min(64, triton.next_power_of_2(page_size))
@@ -3282,21 +3284,14 @@ def swa_paged_prefill_impl(
     if global_window_size is None:
         global_window_size = 0
 
-    # WeLM TP=4 has one local KV head shared by six local Q heads.  For fixed
-    # verify width D<=4, group the exact 6*D Q rows and scan each page once.
+    # WeLM TP=4 has one local KV head shared by six local Q heads.  When every
+    # request has at most four query rows, group them and scan each page once.
     # N64 keeps the peak live set around 96 KiB, comfortably below the 248 KiB
     # UB budget and close to the already-proven decode kernel structure.
-    verify_width = tot_q_toks // bsz if bsz > 0 else 0
-    has_fixed_verify_width = (
-        verify_width >= 1
-        and verify_width <= 4
-        and verify_width * bsz == tot_q_toks
-    )
-    use_grouped_verify = (
+    use_grouped_small_q = (
         q.dtype != torch.float32
         and is_causal
         and small_q_per_request
-        and has_fixed_verify_width
         and local_window_size is not None
         and not gqa_interleave
         and num_kv_heads == 1
@@ -3305,9 +3300,9 @@ def swa_paged_prefill_impl(
         and o.stride(0) == num_q_heads * o.stride(1)
         and page_size == 64
     )
-    if use_grouped_verify:
+    if use_grouped_small_q:
         grouped_grid = (min(cube_num, bsz),)
-        _swa_paged_prefill_verify_grouped_sink_kernel[grouped_grid](
+        _swa_paged_prefill_small_q_grouped_sink_kernel[grouped_grid](
             o,
             q,
             k_cache,
@@ -3342,7 +3337,7 @@ def swa_paged_prefill_impl(
             BLOCK_N=BLOCK_N,
             BLOCK_D=BLOCK_D,
             PAGE_SIZE=page_size,
-            VERIFY_WIDTH=verify_width,
+            MAX_Q_LEN=max_q_len,
             SINK_ENABLED=sink_enabled,
         )
         return o
