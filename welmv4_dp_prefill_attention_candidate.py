@@ -2120,7 +2120,20 @@ def paged_attention_prefill_prepare(
     device=None,
 ):
     cube_num = get_num_cores("cube")
-    CHUNK_SIZE = 128
+    cu_q_lens_host = _tensor_to_cpu_list(cu_q_lens)
+    max_q_len = max(
+        (
+            cu_q_lens_host[i + 1] - cu_q_lens_host[i]
+            for i in range(len(cu_q_lens_host) - 1)
+        ),
+        default=0,
+    )
+    use_dp_long_prefill_tile = (
+        not gqa_interleave
+        and num_q_heads == num_kv_heads * 12
+        and max_q_len > 256
+    )
+    CHUNK_SIZE = 64 if use_dp_long_prefill_tile else 128
     BLOCK_SIZE_N = min(128, triton.next_power_of_2(page_size))
 
     task_b, task_q_block, task_q_head, core_task_offsets = _build_lpt_task_schedule(
@@ -2191,7 +2204,13 @@ def paged_attention_prefill_impl(
     o = torch.zeros_like(q)
     block_tables_i32 = block_tables.to(dtype=torch.int32).contiguous()
 
-    CHUNK_SIZE = 128
+    use_dp_long_prefill_tile = (
+        not gqa_interleave
+        and num_q_heads == num_kv_heads * 12
+        and max_q_len is not None
+        and max_q_len > 256
+    )
+    CHUNK_SIZE = 64 if use_dp_long_prefill_tile else 128
     BLOCK_SIZE_N = min(128, triton.next_power_of_2(page_size))
     cube_num = get_num_cores("cube")
     grid = (cube_num,)
@@ -2438,7 +2457,11 @@ def paged_attention_prefill_impl(
         )
     else:
         PAGE_AGGREGATION_NUM = (
-            1 if page_size == 64 and head_dim == 256 else 128 // page_size
+            2
+            if use_dp_long_prefill_tile and page_size == 64
+            else 1
+            if page_size == 64 and head_dim == 256
+            else 128 // page_size
         )
         paged_prefill_page_aggregation_kernel[grid](
             q,
