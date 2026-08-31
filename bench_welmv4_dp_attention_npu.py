@@ -198,6 +198,15 @@ def expected_kernel_names(
         and case.max_q_len <= 4
         and (case.real_batch_size > 1 or case.max_q_len <= 2)
     )
+    use_grouped_dp = (
+        provider == "candidate"
+        and case.local_num_q_heads
+        == case.local_num_kv_heads * 12
+        and case.local_num_kv_heads in (1, 2)
+        and case.max_q_len <= 4
+    )
+    if use_grouped_dp:
+        return ("_swa_paged_prefill_dp_grouped_rows_kernel",)
     if not use_grouped_q6:
         return ("_swa_paged_prefill_aggregation_sink_kernel",)
     if case.max_q_len == 1:
@@ -1174,7 +1183,14 @@ def evaluate_msprof_performance(
         if control is None or current is None:
             continue
         ratio = current / control
-        efficient = ratio <= maximum_normalized_ratio
+        # TP4 is the normalization reference.  The 85% efficiency gate only
+        # applies to Q12/Q24 Attention-DP layouts, never to the reference row
+        # divided by itself.
+        efficient = (
+            True
+            if str(row["layout"]) == "tp4"
+            else ratio <= maximum_normalized_ratio
+        )
         row["normalized_cost_ratio_vs_tp4"] = ratio
         row["maximum_normalized_cost_ratio_vs_tp4"] = maximum_normalized_ratio
         row["normalized_efficiency_pass"] = efficient

@@ -2719,6 +2719,289 @@ def _sdpa_acc_fwd_MxN(
         "stride_block_table_b",
     ]
 )
+def _swa_paged_prefill_dp_grouped_rows_kernel(
+    o_ptr,
+    q_ptr,
+    k_ptr,
+    v_ptr,
+    sinks_ptr,
+    bsz,
+    cu_q_lens_ptr,
+    kv_lens_ptr,
+    block_table_ptr,
+    scale,
+    stride_ot,
+    stride_oh,
+    stride_od,
+    stride_qt,
+    stride_qh,
+    stride_qd,
+    stride_kp,
+    stride_kh,
+    stride_kt,
+    stride_kd,
+    stride_vp,
+    stride_vh,
+    stride_vt,
+    stride_vd,
+    stride_block_table_b,
+    stride_block_table_p,
+    stride_sink_head,
+    GLOBAL_WINDOW: tl.constexpr,
+    LOCAL_WINDOW: tl.constexpr,
+    NUM_Q_HEADS: tl.constexpr,
+    NUM_KV_HEADS: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+    BLOCK_N: tl.constexpr,
+    BLOCK_D: tl.constexpr,
+    PAGE_SIZE: tl.constexpr,
+    MAX_Q_LEN: tl.constexpr,
+    SINK_ENABLED: tl.constexpr,
+):
+    """Merge all short-query DP rows while scanning each SWA page once."""
+    tl.static_assert(
+        NUM_Q_HEADS == NUM_KV_HEADS * 12,
+        "DP SWA grouped rows require 12 Q heads per KV head",
+    )
+    tl.static_assert(
+        MAX_Q_LEN >= 1 and MAX_Q_LEN <= 4,
+        "DP SWA grouped rows support query lengths in [1, 4]",
+    )
+    tl.static_assert(
+        PAGE_SIZE == BLOCK_N,
+        "DP SWA grouped rows use one page per KV tile",
+    )
+    GROUPED_ROWS: tl.constexpr = 12 * MAX_Q_LEN
+    tl.static_assert(
+        BLOCK_M >= GROUPED_ROWS,
+        "DP SWA grouped rows must fit the Cube M tile",
+    )
+    tl.static_assert(
+        BLOCK_M >= 16,
+        "DP SWA grouped rows require at least M16",
+    )
+    tl.static_assert(
+        BLOCK_M <= 64,
+        "DP SWA grouped rows are bounded to M64",
+    )
+
+    pid = tl.program_id(0)
+    n_programs = tl.num_programs(0)
+    num_tasks = bsz * NUM_KV_HEADS
+    task_begin = pid * num_tasks // n_programs
+    task_end = (pid + 1) * num_tasks // n_programs
+
+    for task_id in range(task_begin, task_end):
+        b_id = task_id // NUM_KV_HEADS
+        kv_head_id = task_id - b_id * NUM_KV_HEADS
+        q_start = tl.load(cu_q_lens_ptr + b_id).to(tl.int32)
+        q_end = tl.load(cu_q_lens_ptr + b_id + 1).to(tl.int32)
+        q_seq_len = q_end - q_start
+        if q_seq_len.to(tl.float32) > 0.0:
+            kv_seq_len = tl.load(kv_lens_ptr + b_id).to(tl.int32)
+            kv_computed_len = kv_seq_len - q_seq_len
+            row_ids = tl.arange(0, BLOCK_M)
+            row_tokens = row_ids // 12
+            row_heads = row_ids - row_tokens * 12
+            safe_row_tokens = tl.where(
+                row_tokens.to(tl.float32) < MAX_Q_LEN,
+                row_tokens,
+                MAX_Q_LEN - 1,
+            )
+            valid_rows = (row_ids.to(tl.float32) < GROUPED_ROWS) & (
+                row_tokens.to(tl.float32) < q_seq_len.to(tl.float32)
+            )
+            q_head_base = kv_head_id * 12
+            q_head_ids = q_head_base + row_heads
+            dim_offsets = tl.arange(0, BLOCK_D)
+            q_ptrs = (
+                q_ptr
+                + q_start * stride_qt
+                + safe_row_tokens[:, None] * stride_qt
+                + q_head_ids[:, None] * stride_qh
+                + dim_offsets[None, :] * stride_qd
+            )
+            q = tl.load(q_ptrs, mask=valid_rows[:, None], other=0.0)
+
+            if SINK_ENABLED:
+                s0 = tl.load(sinks_ptr + (q_head_base + 0) * stride_sink_head).to(tl.float32)
+                s1 = tl.load(sinks_ptr + (q_head_base + 1) * stride_sink_head).to(tl.float32)
+                s2 = tl.load(sinks_ptr + (q_head_base + 2) * stride_sink_head).to(tl.float32)
+                s3 = tl.load(sinks_ptr + (q_head_base + 3) * stride_sink_head).to(tl.float32)
+                s4 = tl.load(sinks_ptr + (q_head_base + 4) * stride_sink_head).to(tl.float32)
+                s5 = tl.load(sinks_ptr + (q_head_base + 5) * stride_sink_head).to(tl.float32)
+                s6 = tl.load(sinks_ptr + (q_head_base + 6) * stride_sink_head).to(tl.float32)
+                s7 = tl.load(sinks_ptr + (q_head_base + 7) * stride_sink_head).to(tl.float32)
+                s8 = tl.load(sinks_ptr + (q_head_base + 8) * stride_sink_head).to(tl.float32)
+                s9 = tl.load(sinks_ptr + (q_head_base + 9) * stride_sink_head).to(tl.float32)
+                s10 = tl.load(sinks_ptr + (q_head_base + 10) * stride_sink_head).to(tl.float32)
+                s11 = tl.load(sinks_ptr + (q_head_base + 11) * stride_sink_head).to(tl.float32)
+                low_sink = tl.where(
+                    row_heads < 1,
+                    s0,
+                    tl.where(
+                        row_heads < 2,
+                        s1,
+                        tl.where(
+                            row_heads < 3,
+                            s2,
+                            tl.where(row_heads < 4, s3, tl.where(row_heads < 5, s4, s5)),
+                        ),
+                    ),
+                )
+                high_sink = tl.where(
+                    row_heads < 7,
+                    s6,
+                    tl.where(
+                        row_heads < 8,
+                        s7,
+                        tl.where(
+                            row_heads < 9,
+                            s8,
+                            tl.where(row_heads < 10, s9, tl.where(row_heads < 11, s10, s11)),
+                        ),
+                    ),
+                )
+                row_sink = tl.where(row_heads < 6, low_sink, high_sink)
+                m_i = tl.where(valid_rows, row_sink, -float("inf"))
+                l_i = tl.where(valid_rows, 1.0, 0.0).to(tl.float32)
+            else:
+                m_i = tl.full((BLOCK_M,), -float("inf"), tl.float32)
+                l_i = tl.zeros((BLOCK_M,), dtype=tl.float32)
+            acc = tl.zeros((BLOCK_M, BLOCK_D), dtype=tl.float32)
+
+            (
+                num_global_blocks,
+                local_start_block,
+                num_total_blocks,
+            ) = _swa_split_blocks(
+                kv_computed_len,
+                q_seq_len,
+                kv_seq_len,
+                BLOCK_N,
+                True,
+                GLOBAL_WINDOW,
+                LOCAL_WINDOW,
+            )
+            local_start_block = max(num_global_blocks, local_start_block)
+            num_calced_blocks = num_global_blocks + max(
+                num_total_blocks - local_start_block, 0
+            )
+            num_calced_blocks = min(num_calced_blocks, num_total_blocks)
+
+            for kv_block_iter in range(0, num_calced_blocks):
+                is_global = (
+                    kv_block_iter.to(tl.float32)
+                    < num_global_blocks.to(tl.float32)
+                )
+                kv_block_id = is_global * kv_block_iter + (1 - is_global) * (
+                    local_start_block + kv_block_iter - num_global_blocks
+                )
+                kv_block_start = kv_block_id * BLOCK_N
+                kv_block_end = min(kv_block_start + BLOCK_N, kv_seq_len)
+                kv_block_len = max(kv_block_end - kv_block_start, 0)
+                logical_page_id = min(
+                    kv_block_start // PAGE_SIZE,
+                    stride_block_table_b - 1,
+                )
+                physical_page_id = tl.load(
+                    block_table_ptr
+                    + b_id * stride_block_table_b
+                    + logical_page_id * stride_block_table_p
+                )
+                k_t_block_ptr = tl.make_block_ptr(
+                    base=(
+                        k_ptr
+                        + physical_page_id * stride_kp
+                        + kv_head_id * stride_kh
+                    ),
+                    shape=(HEAD_DIM, kv_block_len),
+                    strides=(stride_kd, stride_kt),
+                    offsets=(0, 0),
+                    block_shape=(BLOCK_D, BLOCK_N),
+                    order=(0, 1),
+                )
+                v_block_ptr = tl.make_block_ptr(
+                    base=(
+                        v_ptr
+                        + physical_page_id * stride_vp
+                        + kv_head_id * stride_vh
+                    ),
+                    shape=(kv_block_len, HEAD_DIM),
+                    strides=(stride_vt, stride_vd),
+                    offsets=(0, 0),
+                    block_shape=(BLOCK_N, BLOCK_D),
+                    order=(1, 0),
+                )
+                k_t = tl.load(
+                    k_t_block_ptr,
+                    boundary_check=(0, 1),
+                    padding_option="zero",
+                )
+                v = tl.load(
+                    v_block_ptr,
+                    boundary_check=(0, 1),
+                    padding_option="zero",
+                )
+                key_offsets = tl.arange(0, BLOCK_N)
+                key_positions = kv_block_start + key_offsets
+                query_positions = kv_computed_len + row_tokens
+                in_sink = key_positions.to(tl.float32) < GLOBAL_WINDOW
+                mask = (
+                    valid_rows[:, None]
+                    & (
+                        key_positions[None, :].to(tl.float32)
+                        < kv_seq_len.to(tl.float32)
+                    )
+                    & (
+                        key_positions[None, :].to(tl.float32)
+                        <= query_positions[:, None].to(tl.float32)
+                    )
+                    & (
+                        in_sink[None, :]
+                        | (
+                            key_positions[None, :].to(tl.float32) + LOCAL_WINDOW
+                            >= query_positions[:, None].to(tl.float32)
+                        )
+                    )
+                )
+                qk = tl.dot(q, k_t) * scale
+                qk = tl.where(mask, qk, -1e6)
+                m_ij = tl.maximum(
+                    m_i,
+                    tl.max(qk, 1, propagate_nan=True),
+                    propagate_nan=tl.PropagateNan.ALL,
+                )
+                p = tl.math.exp(qk - m_ij[:, None])
+                l_ij = tl.sum(p, 1)
+                alpha = tl.math.exp(m_i - m_ij)
+                l_i = l_i * alpha + l_ij
+                acc = acc * alpha[:, None]
+                acc = tl.dot(p.to(k_t.dtype), v, acc)
+                m_i = m_ij
+
+            o_ptrs = (
+                o_ptr
+                + q_start * stride_ot
+                + safe_row_tokens[:, None] * stride_ot
+                + q_head_ids[:, None] * stride_oh
+                + dim_offsets[None, :] * stride_od
+            )
+            tl.store(
+                o_ptrs,
+                (acc / l_i[:, None]).to(o_ptr.type.element_ty),
+                mask=valid_rows[:, None],
+            )
+
+
+@triton.jit(
+    do_not_specialize=[
+        "block_table_ptr",
+        "bsz",
+        "stride_block_table_b",
+    ]
+)
 def _swa_paged_prefill_sink_kernel(
     o_ptr,
     q_ptr,
@@ -4040,6 +4323,63 @@ def swa_paged_prefill_impl(
             LOCAL_WINDOW=local_window_size,
             NUM_Q_HEADS=num_q_heads,
             HEAD_DIM=head_dim,
+            BLOCK_N=BLOCK_N,
+            BLOCK_D=BLOCK_D,
+            PAGE_SIZE=page_size,
+            MAX_Q_LEN=max_q_len,
+            SINK_ENABLED=sink_enabled,
+        )
+        return o
+
+    use_dp_grouped_small_q = (
+        q.dtype != torch.float32
+        and is_causal
+        and small_q_per_request
+        and local_window_size is not None
+        and not gqa_interleave
+        and num_q_heads == num_kv_heads * 12
+        and num_kv_heads in (1, 2)
+        and q.stride(0) == num_q_heads * q.stride(1)
+        and o.stride(0) == num_q_heads * o.stride(1)
+        and page_size == 64
+    )
+    if use_dp_grouped_small_q:
+        grouped_rows = 12 * max_q_len
+        grouped_grid = (min(cube_num, bsz * num_kv_heads),)
+        _swa_paged_prefill_dp_grouped_rows_kernel[grouped_grid](
+            o,
+            q,
+            k_cache,
+            v_cache,
+            sinks_pass,
+            bsz,
+            cu_q_lens,
+            kvlens,
+            block_table,
+            softmax_scale,
+            o.stride(0),
+            o.stride(1),
+            o.stride(2),
+            q.stride(0),
+            q.stride(1),
+            q.stride(2),
+            k_cache.stride(0),
+            k_cache.stride(1),
+            k_cache.stride(2),
+            k_cache.stride(3),
+            v_cache.stride(0),
+            v_cache.stride(1),
+            v_cache.stride(2),
+            v_cache.stride(3),
+            block_table.stride(0),
+            block_table.stride(1),
+            sinks_pass.stride(0),
+            GLOBAL_WINDOW=global_window_size,
+            LOCAL_WINDOW=local_window_size,
+            NUM_Q_HEADS=num_q_heads,
+            NUM_KV_HEADS=num_kv_heads,
+            HEAD_DIM=head_dim,
+            BLOCK_M=max(16, triton.next_power_of_2(grouped_rows)),
             BLOCK_N=BLOCK_N,
             BLOCK_D=BLOCK_D,
             PAGE_SIZE=page_size,
