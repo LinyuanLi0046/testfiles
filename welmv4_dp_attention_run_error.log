@@ -1,11 +1,11 @@
-time: 2026-09-01T06:01:08+08:00
-command: /usr/local/python3.11.10/bin/python bench_welmv4_dp_attention_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_dp_attn_result_x_7sm_jv
-return_code: 2
-reason: benchmark exited with status 2; manifest_status=PERF_REGRESSION
+time: 2026-09-01T06:44:07+08:00
+command: /usr/local/python3.11.10/bin/python bench_welmv4_dp_attention_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_dp_attn_result_5djkf3fx
+return_code: 1
+reason: benchmark exited with status 1; manifest_status=FAIL
 
 ===== stdout + stderr =====
 WeLMv4 NPU Full/SWA DP-Attention optimization workspace
-device=npu:5 (Ascend950PR_957b), base=9573fa66e93e, baseline={'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}, candidate={'prefill': '13c093110997848ef9f5a476a73b1d9d9f72be336eff055b9f18881f6976f939', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}
+device=npu:5 (Ascend950PR_957b), base=331d04312d52, baseline={'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}, candidate={'prefill': '2d3006a1b712998adddf9f6c0c72d677f80c33fc17bd7076ff6a8860d271f441', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}
 [msprof-op batch] provider=baseline, kernel=paged_decode_fd_kernel, cases=1
 [msprof-op batch] provider=baseline, kernel=paged_decode_fd_reduce_kernel, cases=1
 [msprof-op batch] provider=baseline, kernel=_swa_paged_decode_sink_kernel, cases=1
@@ -16,129 +16,521 @@ device=npu:5 (Ascend950PR_957b), base=9573fa66e93e, baseline={'prefill': 'c4166c
 [msprof-op batch] provider=candidate, kernel=_swa_paged_decode_sink_kernel, cases=1
 [msprof-op batch] provider=candidate, kernel=paged_prefill_small_q_grouped_kernel, cases=1
 [msprof-op batch] provider=candidate, kernel=_swa_paged_prefill_dp_grouped_rows_kernel, cases=1
-[correctness 1/66] full_mirror_m1_b1_kv4096_uniform_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 2/66] full_mirror_m4_b4_kv4096_uniform_tp4
+[correctness 1/648] full_decode_m1_b1_kv4096_ragged_tp4
   PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 3/66] full_mirror_m40_b40_kv4096_uniform_tp4
+[correctness 2/648] full_decode_m4_b4_kv4096_ragged_tp4
   PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 4/66] full_mirror_m56_b56_kv4096_uniform_tp4
+[correctness 3/648] full_decode_m8_b8_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 4/648] full_decode_m16_b16_kv4096_ragged_tp4
   PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 5/66] full_verify_d2_m2_b1_kv4096_uniform_tp4
+[correctness 5/648] full_decode_m32_b32_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 6/648] full_decode_m40_b40_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 7/648] full_decode_m56_b56_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 8/648] full_decode_m1_b1_kv4096_ragged_tp4_dp2
   PASS: candidate max_abs=0.000488281, pair max_abs=0
-[correctness 6/66] full_verify_d2_m8_b4_kv4096_uniform_tp4
+[correctness 9/648] full_decode_m4_b4_kv4096_ragged_tp4_dp2
   PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 7/66] full_verify_d2_m80_b40_kv4096_uniform_tp4
+[correctness 10/648] full_decode_m8_b8_kv4096_ragged_tp4_dp2
   PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 8/66] full_verify_d2_m112_b56_kv4096_uniform_tp4
+[correctness 11/648] full_decode_m16_b16_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 12/648] full_decode_m32_b32_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 13/648] full_decode_m40_b40_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 14/648] full_decode_m56_b56_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 15/648] full_decode_m1_b1_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 16/648] full_decode_m4_b4_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 17/648] full_decode_m8_b8_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 18/648] full_decode_m16_b16_kv4096_ragged_tp4_dp4
   PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 9/66] full_verify_d3_m3_b1_kv4096_uniform_tp4
+[correctness 19/648] full_decode_m32_b32_kv4096_ragged_tp4_dp4
   PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 10/66] full_verify_d3_m12_b4_kv4096_uniform_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 11/66] full_verify_d3_m120_b40_kv4096_uniform_tp4
+[correctness 20/648] full_decode_m40_b40_kv4096_ragged_tp4_dp4
   PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 12/66] full_verify_d3_m168_b56_kv4096_uniform_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 13/66] full_verify_d4_m4_b1_kv4096_uniform_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 14/66] full_verify_d4_m16_b4_kv4096_uniform_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 15/66] full_verify_d4_m160_b40_kv4096_uniform_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 16/66] full_verify_d4_m224_b56_kv4096_uniform_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 17/66] full_mirror_m1_b1_kv4096_uniform_tp4_dp2
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 18/66] full_mirror_m4_b4_kv4096_uniform_tp4_dp2
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 19/66] full_mirror_m40_b40_kv4096_uniform_tp4_dp2
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 20/66] full_mirror_m56_b56_kv4096_uniform_tp4_dp2
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 21/66] full_verify_d2_m2_b1_kv4096_uniform_tp4_dp2
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 22/66] full_verify_d2_m8_b4_kv4096_uniform_tp4_dp2
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 23/66] full_verify_d2_m80_b40_kv4096_uniform_tp4_dp2
+[correctness 21/648] full_decode_m56_b56_kv4096_ragged_tp4_dp4
   PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 24/66] full_verify_d2_m112_b56_kv4096_uniform_tp4_dp2
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 25/66] full_verify_d3_m3_b1_kv4096_uniform_tp4_dp2
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 26/66] full_verify_d3_m12_b4_kv4096_uniform_tp4_dp2
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 27/66] full_verify_d3_m120_b40_kv4096_uniform_tp4_dp2
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 28/66] full_verify_d3_m168_b56_kv4096_uniform_tp4_dp2
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 29/66] full_verify_d4_m4_b1_kv4096_uniform_tp4_dp2
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 30/66] full_verify_d4_m16_b4_kv4096_uniform_tp4_dp2
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 31/66] full_verify_d4_m160_b40_kv4096_uniform_tp4_dp2
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 32/66] full_verify_d4_m224_b56_kv4096_uniform_tp4_dp2
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 33/66] full_mirror_m1_b1_kv4096_uniform_tp4_dp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 34/66] full_mirror_m4_b4_kv4096_uniform_tp4_dp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 35/66] full_mirror_m40_b40_kv4096_uniform_tp4_dp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 36/66] full_mirror_m56_b56_kv4096_uniform_tp4_dp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 37/66] full_verify_d2_m2_b1_kv4096_uniform_tp4_dp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 38/66] full_verify_d2_m8_b4_kv4096_uniform_tp4_dp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 39/66] full_verify_d2_m80_b40_kv4096_uniform_tp4_dp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 40/66] full_verify_d2_m112_b56_kv4096_uniform_tp4_dp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 41/66] full_verify_d3_m3_b1_kv4096_uniform_tp4_dp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 42/66] full_verify_d3_m12_b4_kv4096_uniform_tp4_dp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 43/66] full_verify_d3_m120_b40_kv4096_uniform_tp4_dp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 44/66] full_verify_d3_m168_b56_kv4096_uniform_tp4_dp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 45/66] full_verify_d4_m4_b1_kv4096_uniform_tp4_dp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 46/66] full_verify_d4_m16_b4_kv4096_uniform_tp4_dp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 47/66] full_verify_d4_m160_b40_kv4096_uniform_tp4_dp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 48/66] full_verify_d4_m224_b56_kv4096_uniform_tp4_dp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 49/66] full_decode_m40_b40_kv4096_uniform_tp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 50/66] full_decode_m40_b40_kv4096_uniform_tp4_dp2
-  PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 51/66] full_decode_m40_b40_kv4096_uniform_tp4_dp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 52/66] swa_decode_m40_b40_kv4096_uniform_tp4
+[correctness 22/648] swa_decode_m1_b1_kv4096_ragged_tp4
 /data2/hw_lly/testfiles/welmv4_dp_decode_attention_baseline.py:3438: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:423.)
   o = torch.empty_like(q, memory_format=torch.contiguous_format)
   PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 53/66] swa_decode_m40_b40_kv4096_uniform_tp4_dp2
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 54/66] swa_decode_m40_b40_kv4096_uniform_tp4_dp4
-  PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 55/66] full_prefill_dense_m64_b1_kv4096_uniform_tp4
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 56/66] full_prefill_dense_m1024_b1_kv4096_uniform_tp4
+[correctness 23/648] swa_decode_m4_b4_kv4096_ragged_tp4
   PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 57/66] full_prefill_dense_m64_b1_kv4096_uniform_tp4_dp2
-  PASS: candidate max_abs=0.000976562, pair max_abs=0
-[correctness 58/66] full_prefill_dense_m1024_b1_kv4096_uniform_tp4_dp2
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.00195312
-[correctness 59/66] full_prefill_dense_m64_b1_kv4096_uniform_tp4_dp4
+[correctness 24/648] swa_decode_m8_b8_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 25/648] swa_decode_m16_b16_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 26/648] swa_decode_m32_b32_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 27/648] swa_decode_m40_b40_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 28/648] swa_decode_m56_b56_kv4096_ragged_tp4
   PASS: candidate max_abs=0.00195312, pair max_abs=0
-[correctness 60/66] full_prefill_dense_m1024_b1_kv4096_uniform_tp4_dp4
-  PASS: candidate max_abs=0.00195312, pair max_abs=0.00195312
-[correctness 61/66] swa_prefill_dense_m64_b1_kv4096_uniform_tp4
+[correctness 29/648] swa_decode_m1_b1_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 30/648] swa_decode_m4_b4_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 31/648] swa_decode_m8_b8_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 32/648] swa_decode_m16_b16_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 33/648] swa_decode_m32_b32_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 34/648] swa_decode_m40_b40_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 35/648] swa_decode_m56_b56_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 36/648] swa_decode_m1_b1_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 37/648] swa_decode_m4_b4_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 38/648] swa_decode_m8_b8_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 39/648] swa_decode_m16_b16_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 40/648] swa_decode_m32_b32_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 41/648] swa_decode_m40_b40_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 42/648] swa_decode_m56_b56_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 43/648] full_decode_m1_b1_kv8192_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 44/648] full_decode_m1_b1_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 45/648] full_decode_m1_b1_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 46/648] full_decode_m1_b1_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 47/648] full_decode_m16_b16_kv8192_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 48/648] full_decode_m16_b16_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 49/648] full_decode_m16_b16_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 50/648] full_decode_m16_b16_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 51/648] full_decode_m56_b56_kv8192_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 52/648] full_decode_m56_b56_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 53/648] full_decode_m56_b56_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 54/648] full_decode_m56_b56_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 55/648] full_mirror_m1_b1_kv8192_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 56/648] full_mirror_m1_b1_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.000244141, pair max_abs=0
+[correctness 57/648] full_mirror_m1_b1_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 58/648] full_mirror_m1_b1_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.000244141, pair max_abs=0
+[correctness 59/648] full_mirror_m16_b16_kv8192_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 60/648] full_mirror_m16_b16_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 61/648] full_mirror_m16_b16_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 62/648] full_mirror_m16_b16_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 63/648] full_mirror_m56_b56_kv8192_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 64/648] full_mirror_m56_b56_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 65/648] full_mirror_m56_b56_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 66/648] full_mirror_m56_b56_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 67/648] full_decode_m1_b1_kv8192_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 68/648] full_decode_m1_b1_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 69/648] full_decode_m1_b1_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 70/648] full_decode_m1_b1_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 71/648] full_decode_m16_b16_kv8192_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 72/648] full_decode_m16_b16_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 73/648] full_decode_m16_b16_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 74/648] full_decode_m16_b16_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 75/648] full_decode_m56_b56_kv8192_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 76/648] full_decode_m56_b56_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 77/648] full_decode_m56_b56_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 78/648] full_decode_m56_b56_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 79/648] full_mirror_m1_b1_kv8192_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 80/648] full_mirror_m1_b1_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 81/648] full_mirror_m1_b1_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 82/648] full_mirror_m1_b1_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000244141, pair max_abs=0
+[correctness 83/648] full_mirror_m16_b16_kv8192_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 84/648] full_mirror_m16_b16_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 85/648] full_mirror_m16_b16_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 86/648] full_mirror_m16_b16_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 87/648] full_mirror_m56_b56_kv8192_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 88/648] full_mirror_m56_b56_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 89/648] full_mirror_m56_b56_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 90/648] full_mirror_m56_b56_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 91/648] full_decode_m1_b1_kv8192_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 92/648] full_decode_m1_b1_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 93/648] full_decode_m1_b1_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 94/648] full_decode_m1_b1_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 95/648] full_decode_m16_b16_kv8192_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 96/648] full_decode_m16_b16_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 97/648] full_decode_m16_b16_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 98/648] full_decode_m16_b16_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 99/648] full_decode_m56_b56_kv8192_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 100/648] full_decode_m56_b56_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 101/648] full_decode_m56_b56_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 102/648] full_decode_m56_b56_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 103/648] full_mirror_m1_b1_kv8192_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 104/648] full_mirror_m1_b1_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 105/648] full_mirror_m1_b1_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 106/648] full_mirror_m1_b1_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 107/648] full_mirror_m16_b16_kv8192_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 108/648] full_mirror_m16_b16_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 109/648] full_mirror_m16_b16_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 110/648] full_mirror_m16_b16_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 111/648] full_mirror_m56_b56_kv8192_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 112/648] full_mirror_m56_b56_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 113/648] full_mirror_m56_b56_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 114/648] full_mirror_m56_b56_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 115/648] swa_decode_m1_b1_kv8192_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 116/648] swa_decode_m1_b1_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 117/648] swa_decode_m1_b1_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 118/648] swa_decode_m1_b1_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 119/648] swa_decode_m16_b16_kv8192_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 120/648] swa_decode_m16_b16_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 121/648] swa_decode_m16_b16_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 122/648] swa_decode_m16_b16_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 123/648] swa_decode_m56_b56_kv8192_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 124/648] swa_decode_m56_b56_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 125/648] swa_decode_m56_b56_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 126/648] swa_decode_m56_b56_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 127/648] swa_mirror_m1_b1_kv8192_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 128/648] swa_mirror_m1_b1_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 129/648] swa_mirror_m1_b1_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 130/648] swa_mirror_m1_b1_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 131/648] swa_mirror_m16_b16_kv8192_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 132/648] swa_mirror_m16_b16_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 133/648] swa_mirror_m16_b16_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 134/648] swa_mirror_m16_b16_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 135/648] swa_mirror_m56_b56_kv8192_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 136/648] swa_mirror_m56_b56_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 137/648] swa_mirror_m56_b56_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 138/648] swa_mirror_m56_b56_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 139/648] swa_decode_m1_b1_kv8192_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 140/648] swa_decode_m1_b1_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 141/648] swa_decode_m1_b1_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 142/648] swa_decode_m1_b1_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 143/648] swa_decode_m16_b16_kv8192_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 144/648] swa_decode_m16_b16_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 145/648] swa_decode_m16_b16_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 146/648] swa_decode_m16_b16_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 147/648] swa_decode_m56_b56_kv8192_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 148/648] swa_decode_m56_b56_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 149/648] swa_decode_m56_b56_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 150/648] swa_decode_m56_b56_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 151/648] swa_mirror_m1_b1_kv8192_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 152/648] swa_mirror_m1_b1_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 153/648] swa_mirror_m1_b1_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 154/648] swa_mirror_m1_b1_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 155/648] swa_mirror_m16_b16_kv8192_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 156/648] swa_mirror_m16_b16_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 157/648] swa_mirror_m16_b16_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 158/648] swa_mirror_m16_b16_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 159/648] swa_mirror_m56_b56_kv8192_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 160/648] swa_mirror_m56_b56_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 161/648] swa_mirror_m56_b56_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 162/648] swa_mirror_m56_b56_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 163/648] swa_decode_m1_b1_kv8192_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 164/648] swa_decode_m1_b1_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 165/648] swa_decode_m1_b1_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 166/648] swa_decode_m1_b1_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 167/648] swa_decode_m16_b16_kv8192_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 168/648] swa_decode_m16_b16_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 169/648] swa_decode_m16_b16_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 170/648] swa_decode_m16_b16_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 171/648] swa_decode_m56_b56_kv8192_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 172/648] swa_decode_m56_b56_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 173/648] swa_decode_m56_b56_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 174/648] swa_decode_m56_b56_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 175/648] swa_mirror_m1_b1_kv8192_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 176/648] swa_mirror_m1_b1_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 177/648] swa_mirror_m1_b1_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 178/648] swa_mirror_m1_b1_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 179/648] swa_mirror_m16_b16_kv8192_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 180/648] swa_mirror_m16_b16_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 181/648] swa_mirror_m16_b16_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 182/648] swa_mirror_m16_b16_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 183/648] swa_mirror_m56_b56_kv8192_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 184/648] swa_mirror_m56_b56_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 185/648] swa_mirror_m56_b56_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 186/648] swa_mirror_m56_b56_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 187/648] full_verify_d2_m2_b1_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 188/648] full_verify_d2_m8_b4_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 189/648] full_verify_d2_m16_b8_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 190/648] full_verify_d2_m32_b16_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 191/648] full_verify_d2_m64_b32_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 192/648] full_verify_d2_m80_b40_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 193/648] full_verify_d2_m112_b56_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 194/648] full_verify_d3_m3_b1_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 195/648] full_verify_d3_m12_b4_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 196/648] full_verify_d3_m24_b8_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 197/648] full_verify_d3_m48_b16_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 198/648] full_verify_d3_m96_b32_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 199/648] full_verify_d3_m120_b40_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 200/648] full_verify_d3_m168_b56_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 201/648] full_verify_d4_m4_b1_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 202/648] full_verify_d4_m16_b4_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 203/648] full_verify_d4_m32_b8_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 204/648] full_verify_d4_m64_b16_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 205/648] full_verify_d4_m128_b32_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 206/648] full_verify_d4_m160_b40_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 207/648] full_verify_d4_m224_b56_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 208/648] full_verify_d2_m2_b1_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 209/648] full_verify_d2_m8_b4_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 210/648] full_verify_d2_m16_b8_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 211/648] full_verify_d2_m32_b16_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 212/648] full_verify_d2_m64_b32_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 213/648] full_verify_d2_m80_b40_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 214/648] full_verify_d2_m112_b56_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 215/648] full_verify_d3_m3_b1_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 216/648] full_verify_d3_m12_b4_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 217/648] full_verify_d3_m24_b8_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 218/648] full_verify_d3_m48_b16_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 219/648] full_verify_d3_m96_b32_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 220/648] full_verify_d3_m120_b40_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 221/648] full_verify_d3_m168_b56_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 222/648] full_verify_d4_m4_b1_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 223/648] full_verify_d4_m16_b4_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 224/648] full_verify_d4_m32_b8_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 225/648] full_verify_d4_m64_b16_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 226/648] full_verify_d4_m128_b32_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 227/648] full_verify_d4_m160_b40_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 228/648] full_verify_d4_m224_b56_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 229/648] full_verify_d2_m2_b1_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 230/648] full_verify_d2_m8_b4_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 231/648] full_verify_d2_m16_b8_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 232/648] full_verify_d2_m32_b16_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 233/648] full_verify_d2_m64_b32_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 234/648] full_verify_d2_m80_b40_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 235/648] full_verify_d2_m112_b56_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 236/648] full_verify_d3_m3_b1_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 237/648] full_verify_d3_m12_b4_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 238/648] full_verify_d3_m24_b8_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 239/648] full_verify_d3_m48_b16_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 240/648] full_verify_d3_m96_b32_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 241/648] full_verify_d3_m120_b40_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 242/648] full_verify_d3_m168_b56_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 243/648] full_verify_d4_m4_b1_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 244/648] full_verify_d4_m16_b4_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 245/648] full_verify_d4_m32_b8_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 246/648] full_verify_d4_m64_b16_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 247/648] full_verify_d4_m128_b32_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 248/648] full_verify_d4_m160_b40_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 249/648] full_verify_d4_m224_b56_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 250/648] swa_verify_d2_m2_b1_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 251/648] swa_verify_d2_m8_b4_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 252/648] swa_verify_d2_m16_b8_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 253/648] swa_verify_d2_m32_b16_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 254/648] swa_verify_d2_m64_b32_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 255/648] swa_verify_d2_m80_b40_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 256/648] swa_verify_d2_m112_b56_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 257/648] swa_verify_d3_m3_b1_kv4096_ragged_tp4
 /usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
   warnings.warn(
 /usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
@@ -156,141 +548,898 @@ device=npu:5 (Ascend950PR_957b), base=9573fa66e93e, baseline={'prefill': 'c4166c
 /usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
   warnings.warn(
   PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 62/66] swa_prefill_dense_m1024_b1_kv4096_uniform_tp4
+[correctness 258/648] swa_verify_d3_m12_b4_kv4096_ragged_tp4
   PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 63/66] swa_prefill_dense_m64_b1_kv4096_uniform_tp4_dp2
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
+[correctness 259/648] swa_verify_d3_m24_b8_kv4096_ragged_tp4
   PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 64/66] swa_prefill_dense_m1024_b1_kv4096_uniform_tp4_dp2
+[correctness 260/648] swa_verify_d3_m48_b16_kv4096_ragged_tp4
   PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 65/66] swa_prefill_dense_m64_b1_kv4096_uniform_tp4_dp4
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
+[correctness 261/648] swa_verify_d3_m96_b32_kv4096_ragged_tp4
   PASS: candidate max_abs=0.00390625, pair max_abs=0
-[correctness 66/66] swa_prefill_dense_m1024_b1_kv4096_uniform_tp4_dp4
+[correctness 262/648] swa_verify_d3_m120_b40_kv4096_ragged_tp4
   PASS: candidate max_abs=0.00390625, pair max_abs=0
-[performance 1/30] full_decode_m40_b40_kv4096_uniform_tp4
-[performance 2/30] full_decode_m40_b40_kv4096_uniform_tp4_dp2
-[performance 3/30] full_decode_m40_b40_kv4096_uniform_tp4_dp4
-[performance 4/30] swa_decode_m40_b40_kv4096_uniform_tp4
-[performance 5/30] swa_decode_m40_b40_kv4096_uniform_tp4_dp2
-[performance 6/30] swa_decode_m40_b40_kv4096_uniform_tp4_dp4
-[performance 7/30] full_decode_m1_b1_kv16896_ragged_tp4
-[performance 8/30] full_decode_m1_b1_kv16896_ragged_tp4_dp2
-[performance 9/30] full_decode_m1_b1_kv16896_ragged_tp4_dp4
-[performance 10/30] swa_decode_m1_b1_kv16896_ragged_tp4
-[performance 11/30] swa_decode_m1_b1_kv16896_ragged_tp4_dp2
-[performance 12/30] swa_decode_m1_b1_kv16896_ragged_tp4_dp4
-[performance 13/30] full_verify_d2_m80_b40_kv11264_ragged_tp4
-[performance 14/30] full_verify_d2_m80_b40_kv11264_ragged_tp4_dp2
-[performance 15/30] full_verify_d2_m80_b40_kv11264_ragged_tp4_dp4
-[performance 16/30] swa_verify_d2_m80_b40_kv11264_ragged_tp4
-[performance 17/30] swa_verify_d2_m80_b40_kv11264_ragged_tp4_dp2
-[performance 18/30] swa_verify_d2_m80_b40_kv11264_ragged_tp4_dp4
-[performance 19/30] full_prefill_dense_m64_b1_kv64_uniform_tp4
-[performance 20/30] full_prefill_dense_m16896_b1_kv16896_uniform_tp4
-[performance 21/30] full_prefill_dense_m64_b1_kv64_uniform_tp4_dp2
-[performance 22/30] full_prefill_dense_m16896_b1_kv16896_uniform_tp4_dp2
-[performance 23/30] full_prefill_dense_m64_b1_kv64_uniform_tp4_dp4
-[performance 24/30] full_prefill_dense_m16896_b1_kv16896_uniform_tp4_dp4
-[performance 25/30] swa_prefill_dense_m64_b1_kv64_uniform_tp4
-[performance 26/30] swa_prefill_dense_m16896_b1_kv16896_uniform_tp4
-[performance 27/30] swa_prefill_dense_m64_b1_kv64_uniform_tp4_dp2
-[performance 28/30] swa_prefill_dense_m16896_b1_kv16896_uniform_tp4_dp2
-[performance 29/30] swa_prefill_dense_m64_b1_kv64_uniform_tp4_dp4
-[performance 30/30] swa_prefill_dense_m16896_b1_kv16896_uniform_tp4_dp4
-[msprof-op batch] provider=baseline, kernel=paged_decode_kernel, cases=3
-[msprof-op batch] provider=baseline, kernel=_swa_paged_decode_sink_kernel, cases=6
-[msprof-op batch] provider=baseline, kernel=paged_decode_fd_kernel, cases=3
-[msprof-op batch] provider=baseline, kernel=paged_decode_fd_reduce_kernel, cases=3
-[msprof-op batch] provider=baseline, kernel=paged_prefill_small_q_grouped_kernel, cases=1
-[msprof-op batch] provider=baseline, kernel=paged_prefill_page_aggregation_kernel, cases=7
-[msprof-op batch] provider=baseline, kernel=_swa_paged_prefill_small_q_grouped_sink_kernel, cases=1
-[msprof-op batch] provider=baseline, kernel=_swa_paged_prefill_aggregation_sink_kernel, cases=8
-[msprof-op batch] provider=baseline, kernel=paged_prefill_mid_q_grouped_kernel, cases=1
-[msprof-op batch] provider=candidate, kernel=paged_decode_kernel, cases=3
-[msprof-op batch] provider=candidate, kernel=_swa_paged_decode_sink_kernel, cases=6
-[msprof-op batch] provider=candidate, kernel=paged_decode_fd_kernel, cases=3
-[msprof-op batch] provider=candidate, kernel=paged_decode_fd_reduce_kernel, cases=3
-[msprof-op batch] provider=candidate, kernel=paged_prefill_small_q_grouped_kernel, cases=3
-[msprof-op batch] provider=candidate, kernel=_swa_paged_prefill_small_q_grouped_sink_kernel, cases=1
-[msprof-op batch] provider=candidate, kernel=_swa_paged_prefill_dp_grouped_rows_kernel, cases=2
-[msprof-op batch] provider=candidate, kernel=paged_prefill_mid_q_grouped_kernel, cases=1
-[msprof-op batch] provider=candidate, kernel=paged_prefill_page_aggregation_kernel, cases=5
-[msprof-op batch] provider=candidate, kernel=_swa_paged_prefill_aggregation_sink_kernel, cases=6
-[ir] full_decode_m40_b40_kv16896_ragged_tp4
-[ir] full_decode_m40_b40_kv16896_ragged_tp4_dp4
-[ir] swa_decode_m40_b40_kv4096_uniform_tp4_dp4
-[ir] full_prefill_dense_m64_b1_kv4096_uniform_tp4
-[ir] full_prefill_dense_m64_b1_kv4096_uniform_tp4_dp4
-[ir] swa_verify_d2_m80_b40_kv4096_uniform_tp4_dp4
-[profile:pipe_utilization] full_decode_m40_b40_kv16896_ragged_tp4_dp4
-[2026-09-01 06:00:33] [WARNING] [2615457] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-09-01 06:00:34] [INFO] [2649185] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_pipe_utilization_mhdwdcad/TENCENT64-124_2615457_20260901060033649_ascend_pt
-|/-[2026-09-01 06:00:36] [INFO] [2649194] profiler.py: CANN profiling data parsed in a total time of 0:00:02.038314
-[2026-09-01 06:00:37] [INFO] [2649185] profiler.py: All profiling data parsed in a total time of 0:00:03.006303
-[profile:memory] full_decode_m40_b40_kv16896_ragged_tp4_dp4
-[2026-09-01 06:00:37] [WARNING] [2615457] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-09-01 06:00:37] [INFO] [2649455] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_memory_h40c9wf7/TENCENT64-124_2615457_20260901060037304_ascend_pt
-|/-[2026-09-01 06:00:40] [INFO] [2649464] profiler.py: CANN profiling data parsed in a total time of 0:00:02.037693
-[2026-09-01 06:00:40] [INFO] [2649455] profiler.py: All profiling data parsed in a total time of 0:00:03.007560
-[profile:pipe_utilization] swa_decode_m40_b40_kv4096_uniform_tp4_dp4
-[2026-09-01 06:00:41] [WARNING] [2615457] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-09-01 06:00:41] [INFO] [2649725] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_pipe_utilization_26i69z3z/TENCENT64-124_2615457_20260901060041172_ascend_pt
-|/-[2026-09-01 06:00:43] [INFO] [2649734] profiler.py: CANN profiling data parsed in a total time of 0:00:02.036792
-[2026-09-01 06:00:44] [INFO] [2649725] profiler.py: All profiling data parsed in a total time of 0:00:03.034128
-[profile:memory] swa_decode_m40_b40_kv4096_uniform_tp4_dp4
-[2026-09-01 06:00:45] [WARNING] [2615457] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-09-01 06:00:45] [INFO] [2649995] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_memory_c793c3pr/TENCENT64-124_2615457_20260901060044879_ascend_pt
-|/-[2026-09-01 06:00:47] [INFO] [2650004] profiler.py: CANN profiling data parsed in a total time of 0:00:02.016651
-[2026-09-01 06:00:48] [INFO] [2649995] profiler.py: All profiling data parsed in a total time of 0:00:03.045952
-[profile:pipe_utilization] full_prefill_dense_m64_b1_kv4096_uniform_tp4_dp4
-[2026-09-01 06:00:48] [WARNING] [2615457] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-09-01 06:00:49] [INFO] [2650265] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_pipe_utilization_68yhjf6u/TENCENT64-124_2615457_20260901060048769_ascend_pt
-|/-[2026-09-01 06:00:51] [INFO] [2650274] profiler.py: CANN profiling data parsed in a total time of 0:00:02.018092
-[2026-09-01 06:00:52] [INFO] [2650265] profiler.py: All profiling data parsed in a total time of 0:00:03.052399
-[profile:memory] full_prefill_dense_m64_b1_kv4096_uniform_tp4_dp4
-[2026-09-01 06:00:52] [WARNING] [2615457] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-09-01 06:00:53] [INFO] [2650535] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_memory_qdm667o8/TENCENT64-124_2615457_20260901060052465_ascend_pt
-|/-[2026-09-01 06:00:55] [INFO] [2650544] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017783
-[2026-09-01 06:00:56] [INFO] [2650535] profiler.py: All profiling data parsed in a total time of 0:00:03.034941
-[profile:pipe_utilization] swa_verify_d2_m80_b40_kv4096_uniform_tp4_dp4
-[2026-09-01 06:00:56] [WARNING] [2615457] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-09-01 06:00:57] [INFO] [2650805] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_pipe_utilization_hgcrh1xs/TENCENT64-124_2615457_20260901060056534_ascend_pt
-|/-[2026-09-01 06:00:59] [INFO] [2650814] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017770
-\[2026-09-01 06:01:00] [INFO] [2650805] profiler.py: All profiling data parsed in a total time of 0:00:03.077274
-[profile:memory] swa_verify_d2_m80_b40_kv4096_uniform_tp4_dp4
-[2026-09-01 06:01:01] [WARNING] [2615457] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-09-01 06:01:01] [INFO] [2651075] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_memory_9y6k3r7g/TENCENT64-124_2615457_20260901060101239_ascend_pt
-|/-[2026-09-01 06:01:04] [INFO] [2651084] profiler.py: CANN profiling data parsed in a total time of 0:00:02.037932
-\[2026-09-01 06:01:04] [INFO] [2651075] profiler.py: All profiling data parsed in a total time of 0:00:03.078354
-result=PERF_REGRESSION; manifest=/data2/hw_lly/testfiles/welm_dp_attn_result_x_7sm_jv/result.json
+[correctness 263/648] swa_verify_d3_m168_b56_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 264/648] swa_verify_d4_m4_b1_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 265/648] swa_verify_d4_m16_b4_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 266/648] swa_verify_d4_m32_b8_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 267/648] swa_verify_d4_m64_b16_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 268/648] swa_verify_d4_m128_b32_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 269/648] swa_verify_d4_m160_b40_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 270/648] swa_verify_d4_m224_b56_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 271/648] swa_verify_d2_m2_b1_kv4096_ragged_tp4_dp2
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 272/648] swa_verify_d2_m8_b4_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 273/648] swa_verify_d2_m16_b8_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 274/648] swa_verify_d2_m32_b16_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 275/648] swa_verify_d2_m64_b32_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 276/648] swa_verify_d2_m80_b40_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00195312
+[correctness 277/648] swa_verify_d2_m112_b56_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 278/648] swa_verify_d3_m3_b1_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 279/648] swa_verify_d3_m12_b4_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 280/648] swa_verify_d3_m24_b8_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 281/648] swa_verify_d3_m48_b16_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 282/648] swa_verify_d3_m96_b32_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 283/648] swa_verify_d3_m120_b40_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 284/648] swa_verify_d3_m168_b56_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 285/648] swa_verify_d4_m4_b1_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 286/648] swa_verify_d4_m16_b4_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 287/648] swa_verify_d4_m32_b8_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 288/648] swa_verify_d4_m64_b16_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 289/648] swa_verify_d4_m128_b32_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 290/648] swa_verify_d4_m160_b40_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 291/648] swa_verify_d4_m224_b56_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 292/648] swa_verify_d2_m2_b1_kv4096_ragged_tp4_dp4
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 293/648] swa_verify_d2_m8_b4_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 294/648] swa_verify_d2_m16_b8_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 295/648] swa_verify_d2_m32_b16_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00195312
+[correctness 296/648] swa_verify_d2_m64_b32_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 297/648] swa_verify_d2_m80_b40_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 298/648] swa_verify_d2_m112_b56_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 299/648] swa_verify_d3_m3_b1_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 300/648] swa_verify_d3_m12_b4_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 301/648] swa_verify_d3_m24_b8_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 302/648] swa_verify_d3_m48_b16_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0.00390625
+[correctness 303/648] swa_verify_d3_m96_b32_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 304/648] swa_verify_d3_m120_b40_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 305/648] swa_verify_d3_m168_b56_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 306/648] swa_verify_d4_m4_b1_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 307/648] swa_verify_d4_m16_b4_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 308/648] swa_verify_d4_m32_b8_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 309/648] swa_verify_d4_m64_b16_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 310/648] swa_verify_d4_m128_b32_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 311/648] swa_verify_d4_m160_b40_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 312/648] swa_verify_d4_m224_b56_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0.00390625
+[correctness 313/648] full_verify_d2_m2_b1_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 314/648] full_verify_d2_m2_b1_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 315/648] full_verify_d2_m2_b1_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 316/648] full_verify_d2_m80_b40_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 317/648] full_verify_d2_m80_b40_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 318/648] full_verify_d2_m80_b40_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 319/648] full_verify_d2_m112_b56_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 320/648] full_verify_d2_m112_b56_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 321/648] full_verify_d2_m112_b56_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 322/648] full_verify_d3_m3_b1_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 323/648] full_verify_d3_m3_b1_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 324/648] full_verify_d3_m3_b1_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 325/648] full_verify_d3_m120_b40_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 326/648] full_verify_d3_m120_b40_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 327/648] full_verify_d3_m120_b40_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 328/648] full_verify_d3_m168_b56_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 329/648] full_verify_d3_m168_b56_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 330/648] full_verify_d3_m168_b56_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 331/648] full_verify_d4_m4_b1_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 332/648] full_verify_d4_m4_b1_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 333/648] full_verify_d4_m4_b1_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 334/648] full_verify_d4_m160_b40_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 335/648] full_verify_d4_m160_b40_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 336/648] full_verify_d4_m160_b40_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 337/648] full_verify_d4_m224_b56_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 338/648] full_verify_d4_m224_b56_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 339/648] full_verify_d4_m224_b56_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 340/648] full_verify_d2_m2_b1_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 341/648] full_verify_d2_m2_b1_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 342/648] full_verify_d2_m2_b1_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 343/648] full_verify_d2_m80_b40_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 344/648] full_verify_d2_m80_b40_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 345/648] full_verify_d2_m80_b40_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 346/648] full_verify_d2_m112_b56_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 347/648] full_verify_d2_m112_b56_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 348/648] full_verify_d2_m112_b56_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 349/648] full_verify_d3_m3_b1_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 350/648] full_verify_d3_m3_b1_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 351/648] full_verify_d3_m3_b1_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 352/648] full_verify_d3_m120_b40_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 353/648] full_verify_d3_m120_b40_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 354/648] full_verify_d3_m120_b40_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 355/648] full_verify_d3_m168_b56_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 356/648] full_verify_d3_m168_b56_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 357/648] full_verify_d3_m168_b56_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 358/648] full_verify_d4_m4_b1_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 359/648] full_verify_d4_m4_b1_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 360/648] full_verify_d4_m4_b1_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 361/648] full_verify_d4_m160_b40_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 362/648] full_verify_d4_m160_b40_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 363/648] full_verify_d4_m160_b40_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 364/648] full_verify_d4_m224_b56_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 365/648] full_verify_d4_m224_b56_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 366/648] full_verify_d4_m224_b56_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 367/648] full_verify_d2_m2_b1_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 368/648] full_verify_d2_m2_b1_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 369/648] full_verify_d2_m2_b1_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 370/648] full_verify_d2_m80_b40_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 371/648] full_verify_d2_m80_b40_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 372/648] full_verify_d2_m80_b40_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 373/648] full_verify_d2_m112_b56_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 374/648] full_verify_d2_m112_b56_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 375/648] full_verify_d2_m112_b56_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 376/648] full_verify_d3_m3_b1_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 377/648] full_verify_d3_m3_b1_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 378/648] full_verify_d3_m3_b1_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 379/648] full_verify_d3_m120_b40_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 380/648] full_verify_d3_m120_b40_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 381/648] full_verify_d3_m120_b40_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 382/648] full_verify_d3_m168_b56_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 383/648] full_verify_d3_m168_b56_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 384/648] full_verify_d3_m168_b56_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 385/648] full_verify_d4_m4_b1_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 386/648] full_verify_d4_m4_b1_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 387/648] full_verify_d4_m4_b1_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 388/648] full_verify_d4_m160_b40_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 389/648] full_verify_d4_m160_b40_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 390/648] full_verify_d4_m160_b40_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 391/648] full_verify_d4_m224_b56_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 392/648] full_verify_d4_m224_b56_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 393/648] full_verify_d4_m224_b56_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 394/648] swa_verify_d2_m2_b1_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 395/648] swa_verify_d2_m2_b1_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 396/648] swa_verify_d2_m2_b1_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 397/648] swa_verify_d2_m80_b40_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 398/648] swa_verify_d2_m80_b40_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 399/648] swa_verify_d2_m80_b40_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 400/648] swa_verify_d2_m112_b56_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 401/648] swa_verify_d2_m112_b56_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 402/648] swa_verify_d2_m112_b56_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 403/648] swa_verify_d3_m3_b1_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 404/648] swa_verify_d3_m3_b1_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 405/648] swa_verify_d3_m3_b1_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 406/648] swa_verify_d3_m120_b40_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 407/648] swa_verify_d3_m120_b40_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 408/648] swa_verify_d3_m120_b40_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 409/648] swa_verify_d3_m168_b56_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 410/648] swa_verify_d3_m168_b56_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 411/648] swa_verify_d3_m168_b56_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 412/648] swa_verify_d4_m4_b1_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 413/648] swa_verify_d4_m4_b1_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 414/648] swa_verify_d4_m4_b1_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 415/648] swa_verify_d4_m160_b40_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 416/648] swa_verify_d4_m160_b40_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 417/648] swa_verify_d4_m160_b40_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 418/648] swa_verify_d4_m224_b56_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 419/648] swa_verify_d4_m224_b56_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 420/648] swa_verify_d4_m224_b56_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 421/648] swa_verify_d2_m2_b1_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 422/648] swa_verify_d2_m2_b1_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 423/648] swa_verify_d2_m2_b1_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 424/648] swa_verify_d2_m80_b40_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 425/648] swa_verify_d2_m80_b40_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 426/648] swa_verify_d2_m80_b40_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 427/648] swa_verify_d2_m112_b56_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 428/648] swa_verify_d2_m112_b56_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 429/648] swa_verify_d2_m112_b56_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 430/648] swa_verify_d3_m3_b1_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 431/648] swa_verify_d3_m3_b1_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 432/648] swa_verify_d3_m3_b1_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 433/648] swa_verify_d3_m120_b40_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 434/648] swa_verify_d3_m120_b40_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 435/648] swa_verify_d3_m120_b40_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0.0078125
+[correctness 436/648] swa_verify_d3_m168_b56_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 437/648] swa_verify_d3_m168_b56_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 438/648] swa_verify_d3_m168_b56_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 439/648] swa_verify_d4_m4_b1_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 440/648] swa_verify_d4_m4_b1_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 441/648] swa_verify_d4_m4_b1_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 442/648] swa_verify_d4_m160_b40_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 443/648] swa_verify_d4_m160_b40_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 444/648] swa_verify_d4_m160_b40_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 445/648] swa_verify_d4_m224_b56_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 446/648] swa_verify_d4_m224_b56_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0.00390625
+[correctness 447/648] swa_verify_d4_m224_b56_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 448/648] swa_verify_d2_m2_b1_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 449/648] swa_verify_d2_m2_b1_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 450/648] swa_verify_d2_m2_b1_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 451/648] swa_verify_d2_m80_b40_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0.0078125
+[correctness 452/648] swa_verify_d2_m80_b40_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 453/648] swa_verify_d2_m80_b40_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 454/648] swa_verify_d2_m112_b56_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 455/648] swa_verify_d2_m112_b56_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 456/648] swa_verify_d2_m112_b56_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 457/648] swa_verify_d3_m3_b1_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 458/648] swa_verify_d3_m3_b1_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 459/648] swa_verify_d3_m3_b1_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 460/648] swa_verify_d3_m120_b40_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 461/648] swa_verify_d3_m120_b40_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 462/648] swa_verify_d3_m120_b40_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 463/648] swa_verify_d3_m168_b56_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 464/648] swa_verify_d3_m168_b56_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 465/648] swa_verify_d3_m168_b56_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 466/648] swa_verify_d4_m4_b1_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 467/648] swa_verify_d4_m4_b1_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 468/648] swa_verify_d4_m4_b1_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 469/648] swa_verify_d4_m160_b40_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 470/648] swa_verify_d4_m160_b40_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 471/648] swa_verify_d4_m160_b40_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0.00390625
+[correctness 472/648] swa_verify_d4_m224_b56_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.0078125
+[correctness 473/648] swa_verify_d4_m224_b56_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 474/648] swa_verify_d4_m224_b56_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.00390625
+[correctness 475/648] full_prefill_dense_m1_b1_kv1_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 476/648] full_prefill_dense_m2_b1_kv2_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 477/648] full_prefill_dense_m3_b1_kv3_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 478/648] full_prefill_dense_m4_b1_kv4_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 479/648] full_prefill_dense_m5_b1_kv5_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 480/648] full_prefill_dense_m8_b1_kv8_uniform_tp4
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 481/648] full_prefill_dense_m16_b1_kv16_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 482/648] full_prefill_dense_m32_b1_kv32_uniform_tp4
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 483/648] full_prefill_dense_m64_b1_kv64_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 484/648] full_prefill_dense_m128_b1_kv128_uniform_tp4
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 485/648] full_prefill_dense_m257_b1_kv257_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 486/648] full_prefill_dense_m513_b1_kv513_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 487/648] full_prefill_dense_m1024_b1_kv1024_uniform_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 488/648] full_prefill_dense_m4096_b1_kv4096_uniform_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 489/648] full_prefill_dense_m8192_b1_kv8192_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 490/648] full_prefill_dense_m9616_b1_kv9616_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 491/648] full_prefill_dense_m10880_b1_kv10880_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 492/648] full_prefill_dense_m11264_b1_kv11264_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 493/648] full_prefill_dense_m11648_b1_kv11648_uniform_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 494/648] full_prefill_dense_m16000_b1_kv16000_uniform_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 495/648] full_prefill_dense_m16896_b1_kv16896_uniform_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 496/648] full_prefill_dense_m17408_b1_kv17408_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 497/648] full_prefill_dense_m1_b1_kv1_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 498/648] full_prefill_dense_m2_b1_kv2_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 499/648] full_prefill_dense_m3_b1_kv3_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 500/648] full_prefill_dense_m4_b1_kv4_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 501/648] full_prefill_dense_m5_b1_kv5_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 502/648] full_prefill_dense_m8_b1_kv8_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 503/648] full_prefill_dense_m16_b1_kv16_uniform_tp4_dp2
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 504/648] full_prefill_dense_m32_b1_kv32_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 505/648] full_prefill_dense_m64_b1_kv64_uniform_tp4_dp2
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 506/648] full_prefill_dense_m128_b1_kv128_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 507/648] full_prefill_dense_m257_b1_kv257_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0.0078125
+[correctness 508/648] full_prefill_dense_m513_b1_kv513_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0.0078125
+[correctness 509/648] full_prefill_dense_m1024_b1_kv1024_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0.0078125
+[correctness 510/648] full_prefill_dense_m4096_b1_kv4096_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0.0078125
+[correctness 511/648] full_prefill_dense_m8192_b1_kv8192_uniform_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.0078125
+[correctness 512/648] full_prefill_dense_m9616_b1_kv9616_uniform_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.0078125
+[correctness 513/648] full_prefill_dense_m10880_b1_kv10880_uniform_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.0078125
+[correctness 514/648] full_prefill_dense_m11264_b1_kv11264_uniform_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.0078125
+[correctness 515/648] full_prefill_dense_m11648_b1_kv11648_uniform_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.0078125
+[correctness 516/648] full_prefill_dense_m16000_b1_kv16000_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0.0078125
+[correctness 517/648] full_prefill_dense_m16896_b1_kv16896_uniform_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.0078125
+[correctness 518/648] full_prefill_dense_m17408_b1_kv17408_uniform_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.0078125
+[correctness 519/648] full_prefill_dense_m1_b1_kv1_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 520/648] full_prefill_dense_m2_b1_kv2_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 521/648] full_prefill_dense_m3_b1_kv3_uniform_tp4_dp4
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 522/648] full_prefill_dense_m4_b1_kv4_uniform_tp4_dp4
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 523/648] full_prefill_dense_m5_b1_kv5_uniform_tp4_dp4
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 524/648] full_prefill_dense_m8_b1_kv8_uniform_tp4_dp4
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 525/648] full_prefill_dense_m16_b1_kv16_uniform_tp4_dp4
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 526/648] full_prefill_dense_m32_b1_kv32_uniform_tp4_dp4
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 527/648] full_prefill_dense_m64_b1_kv64_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 528/648] full_prefill_dense_m128_b1_kv128_uniform_tp4_dp4
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 529/648] full_prefill_dense_m257_b1_kv257_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0.0078125
+[correctness 530/648] full_prefill_dense_m513_b1_kv513_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0.0078125
+[correctness 531/648] full_prefill_dense_m1024_b1_kv1024_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0.0078125
+[correctness 532/648] full_prefill_dense_m4096_b1_kv4096_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0.0078125
+[correctness 533/648] full_prefill_dense_m8192_b1_kv8192_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0.0078125
+[correctness 534/648] full_prefill_dense_m9616_b1_kv9616_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0.0078125
+[correctness 535/648] full_prefill_dense_m10880_b1_kv10880_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0.0078125
+[correctness 536/648] full_prefill_dense_m11264_b1_kv11264_uniform_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0.0078125
+[correctness 537/648] full_prefill_dense_m11648_b1_kv11648_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0.0078125
+[correctness 538/648] full_prefill_dense_m16000_b1_kv16000_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0.0078125
+[correctness 539/648] full_prefill_dense_m16896_b1_kv16896_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0.0078125
+[correctness 540/648] full_prefill_dense_m17408_b1_kv17408_uniform_tp4_dp4
+  FAIL: candidate max_abs=0.0078125, pair max_abs=0.015625
+[correctness 541/648] swa_prefill_dense_m1_b1_kv1_uniform_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 542/648] swa_prefill_dense_m2_b1_kv2_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 543/648] swa_prefill_dense_m3_b1_kv3_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 544/648] swa_prefill_dense_m4_b1_kv4_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 545/648] swa_prefill_dense_m5_b1_kv5_uniform_tp4
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 546/648] swa_prefill_dense_m8_b1_kv8_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 547/648] swa_prefill_dense_m16_b1_kv16_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 548/648] swa_prefill_dense_m32_b1_kv32_uniform_tp4
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 549/648] swa_prefill_dense_m64_b1_kv64_uniform_tp4
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 550/648] swa_prefill_dense_m128_b1_kv128_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 551/648] swa_prefill_dense_m257_b1_kv257_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 552/648] swa_prefill_dense_m513_b1_kv513_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 553/648] swa_prefill_dense_m1024_b1_kv1024_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 554/648] swa_prefill_dense_m4096_b1_kv4096_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 555/648] swa_prefill_dense_m8192_b1_kv8192_uniform_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 556/648] swa_prefill_dense_m9616_b1_kv9616_uniform_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 557/648] swa_prefill_dense_m10880_b1_kv10880_uniform_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 558/648] swa_prefill_dense_m11264_b1_kv11264_uniform_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 559/648] swa_prefill_dense_m11648_b1_kv11648_uniform_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 560/648] swa_prefill_dense_m16000_b1_kv16000_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 561/648] swa_prefill_dense_m16896_b1_kv16896_uniform_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 562/648] swa_prefill_dense_m17408_b1_kv17408_uniform_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 563/648] swa_prefill_dense_m1_b1_kv1_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 564/648] swa_prefill_dense_m2_b1_kv2_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 565/648] swa_prefill_dense_m3_b1_kv3_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 566/648] swa_prefill_dense_m4_b1_kv4_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 567/648] swa_prefill_dense_m5_b1_kv5_uniform_tp4_dp2
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 568/648] swa_prefill_dense_m8_b1_kv8_uniform_tp4_dp2
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 569/648] swa_prefill_dense_m16_b1_kv16_uniform_tp4_dp2
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 570/648] swa_prefill_dense_m32_b1_kv32_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 571/648] swa_prefill_dense_m64_b1_kv64_uniform_tp4_dp2
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 572/648] swa_prefill_dense_m128_b1_kv128_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 573/648] swa_prefill_dense_m257_b1_kv257_uniform_tp4_dp2
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 574/648] swa_prefill_dense_m513_b1_kv513_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 575/648] swa_prefill_dense_m1024_b1_kv1024_uniform_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 576/648] swa_prefill_dense_m4096_b1_kv4096_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 577/648] swa_prefill_dense_m8192_b1_kv8192_uniform_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 578/648] swa_prefill_dense_m9616_b1_kv9616_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 579/648] swa_prefill_dense_m10880_b1_kv10880_uniform_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 580/648] swa_prefill_dense_m11264_b1_kv11264_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 581/648] swa_prefill_dense_m11648_b1_kv11648_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 582/648] swa_prefill_dense_m16000_b1_kv16000_uniform_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 583/648] swa_prefill_dense_m16896_b1_kv16896_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 584/648] swa_prefill_dense_m17408_b1_kv17408_uniform_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 585/648] swa_prefill_dense_m1_b1_kv1_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 586/648] swa_prefill_dense_m2_b1_kv2_uniform_tp4_dp4
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 587/648] swa_prefill_dense_m3_b1_kv3_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 588/648] swa_prefill_dense_m4_b1_kv4_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 589/648] swa_prefill_dense_m5_b1_kv5_uniform_tp4_dp4
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 590/648] swa_prefill_dense_m8_b1_kv8_uniform_tp4_dp4
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 591/648] swa_prefill_dense_m16_b1_kv16_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 592/648] swa_prefill_dense_m32_b1_kv32_uniform_tp4_dp4
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 593/648] swa_prefill_dense_m64_b1_kv64_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 594/648] swa_prefill_dense_m128_b1_kv128_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 595/648] swa_prefill_dense_m257_b1_kv257_uniform_tp4_dp4
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
+  warnings.warn(
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 596/648] swa_prefill_dense_m513_b1_kv513_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 597/648] swa_prefill_dense_m1024_b1_kv1024_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 598/648] swa_prefill_dense_m4096_b1_kv4096_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 599/648] swa_prefill_dense_m8192_b1_kv8192_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 600/648] swa_prefill_dense_m9616_b1_kv9616_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 601/648] swa_prefill_dense_m10880_b1_kv10880_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 602/648] swa_prefill_dense_m11264_b1_kv11264_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 603/648] swa_prefill_dense_m11648_b1_kv11648_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 604/648] swa_prefill_dense_m16000_b1_kv16000_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 605/648] swa_prefill_dense_m16896_b1_kv16896_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 606/648] swa_prefill_dense_m17408_b1_kv17408_uniform_tp4_dp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 607/648] full_prefill_ragged_m64_b56_kv64_ragged_tp4
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 608/648] full_prefill_ragged_m257_b56_kv257_ragged_tp4
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 609/648] full_prefill_ragged_m1024_b56_kv1024_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 610/648] full_prefill_ragged_m4096_b56_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 611/648] full_prefill_ragged_m9616_b56_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 612/648] full_prefill_ragged_m11264_b56_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0
+[correctness 613/648] full_prefill_ragged_m16896_b56_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 614/648] full_prefill_ragged_m64_b56_kv64_ragged_tp4_dp2
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 615/648] full_prefill_ragged_m257_b56_kv257_ragged_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 616/648] full_prefill_ragged_m1024_b56_kv1024_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 617/648] full_prefill_ragged_m4096_b56_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 618/648] full_prefill_ragged_m9616_b56_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 619/648] full_prefill_ragged_m11264_b56_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 620/648] full_prefill_ragged_m16896_b56_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.000488281, pair max_abs=0.00195312
+[correctness 621/648] full_prefill_ragged_m64_b56_kv64_ragged_tp4_dp4
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 622/648] full_prefill_ragged_m257_b56_kv257_ragged_tp4_dp4
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 623/648] full_prefill_ragged_m1024_b56_kv1024_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 624/648] full_prefill_ragged_m4096_b56_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 625/648] full_prefill_ragged_m9616_b56_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 626/648] full_prefill_ragged_m11264_b56_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000976562, pair max_abs=0
+[correctness 627/648] full_prefill_ragged_m16896_b56_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.000488281, pair max_abs=0.000976562
+[correctness 628/648] swa_prefill_ragged_m64_b56_kv64_ragged_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 629/648] swa_prefill_ragged_m257_b56_kv257_ragged_tp4
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 630/648] swa_prefill_ragged_m1024_b56_kv1024_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 631/648] swa_prefill_ragged_m4096_b56_kv4096_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 632/648] swa_prefill_ragged_m9616_b56_kv9616_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 633/648] swa_prefill_ragged_m11264_b56_kv11264_ragged_tp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 634/648] swa_prefill_ragged_m16896_b56_kv16896_ragged_tp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 635/648] swa_prefill_ragged_m64_b56_kv64_ragged_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 636/648] swa_prefill_ragged_m257_b56_kv257_ragged_tp4_dp2
+  PASS: candidate max_abs=0.0078125, pair max_abs=0
+[correctness 637/648] swa_prefill_ragged_m1024_b56_kv1024_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 638/648] swa_prefill_ragged_m4096_b56_kv4096_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 639/648] swa_prefill_ragged_m9616_b56_kv9616_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 640/648] swa_prefill_ragged_m11264_b56_kv11264_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 641/648] swa_prefill_ragged_m16896_b56_kv16896_ragged_tp4_dp2
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 642/648] swa_prefill_ragged_m64_b56_kv64_ragged_tp4_dp4
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 643/648] swa_prefill_ragged_m257_b56_kv257_ragged_tp4_dp4
+  PASS: candidate max_abs=0.015625, pair max_abs=0
+[correctness 644/648] swa_prefill_ragged_m1024_b56_kv1024_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 645/648] swa_prefill_ragged_m4096_b56_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 646/648] swa_prefill_ragged_m9616_b56_kv9616_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 647/648] swa_prefill_ragged_m11264_b56_kv11264_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 648/648] swa_prefill_ragged_m16896_b56_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+result=FAIL; manifest=/data2/hw_lly/testfiles/welm_dp_attn_result_5djkf3fx/result.json
