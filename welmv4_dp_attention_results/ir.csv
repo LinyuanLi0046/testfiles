@@ -1,7 +1,7 @@
 attention,baseline_sha256,batch_size,benchmark_base,block_table_width,cache_layout,candidate_sha256,cann_version,capture_log_tail,capture_returncode,case,causal,device,device_index,device_name,dp_size,draft_width,dtype,family,gqa_interleave,head_dim,kv_length,layout,length_pattern,m,max_kv_len_hint,max_q_len,min_runtime_kv_length,num_cube_cores,num_kv_heads,num_q_heads,num_vector_cores,page_size,path,python_version,q_head_scale,record_type,runtime_kv_lens,runtime_q_lens,schema_version,seed,sha256,sink_dtype,size_bytes,softmax_scale,status,swa_left_window,topology,torch_npu_version,torch_version,triton_version,uncompressed_size_bytes,workload_id,workspace_commit
-full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",40,fac5d76d7b7f02eedcad150dd72f93018aaa1993,264,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'd8d94e75bea451908cd0b58b60c08503c030cf5d15e491d7694f6706aa094a90', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"Compiling one candidate Attention call with Triton IR dumps enabled
+full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",40,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0,264,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'dd0440b74995d37f5e6aa92ad1fa274e4c528e3c3158925d838a89b10063014a', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"Compiling one candidate Attention call with Triton IR dumps enabled
 Dumping intermediate results to /root/.triton/dump/uCBrmg5Rb3HvKr8XrHR9u1Dd6OGwm85631NYyctgOk4
-[DEBUG] cmd_list: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile /tmp/tmp1eeq6bv_/kernel.ttadapter.mlir --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --disable-ffts --enable-debug-info=true --set-workspace-multibuffer=0 --limit-auto-multi-buffer-of-local-buffer=no-limit --enable-mixed-cv=True --disable-auto-inject-block-sync=True --enable-auto-blockify-loop --enable-hfusion-compile=true --enable-triton-kernel-compile=true --append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc --mlir-print-ir-after-failure --mlir-print-stacktrace-on-diagnostic --bishengir-print-ir-after=hivm-graph-sync-solver -o /tmp/tmp1eeq6bv_/kernel --enable-vf-merge-level=1
+[DEBUG] cmd_list: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile /tmp/tmpf5dnxcw_/kernel.ttadapter.mlir --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --disable-ffts --enable-debug-info=true --set-workspace-multibuffer=0 --limit-auto-multi-buffer-of-local-buffer=no-limit --enable-mixed-cv=True --disable-auto-inject-block-sync=True --enable-auto-blockify-loop --enable-hfusion-compile=true --enable-triton-kernel-compile=true --append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc --mlir-print-ir-after-failure --mlir-print-stacktrace-on-diagnostic --bishengir-print-ir-after=hivm-graph-sync-solver -o /tmp/tmpf5dnxcw_/kernel --enable-vf-merge-level=1
 Dumping precompiled.h to /root/.triton/dump/L025CebgQVoRhxyOU9NgUMeI2Zvs_MYr3bsQXwS3AmI
 Dumping launcher_cxx11abi1.cxx to /root/.triton/dump/L025CebgQVoRhxyOU9NgUMeI2Zvs_MYr3bsQXwS3AmI
 compile-only launch complete: provider=candidate, case=full_decode_m40_b40_kv16896_ragged_tp4, kernel=paged_decode_kernel, iterations=1
@@ -10,10 +10,10 @@ IR capture complete: kernels=1
   01_paged_decode_kernel_ttadapter.mlir 48099 bytes
   01_paged_decode_kernel_last_pass.mlir 138824 bytes
   01_paged_decode_kernel_ttir.mlir 19500 bytes
-",0,full_decode_m40_b40_kv16896_ragged_tp4,True,npu:5,5,Ascend950PR_957b,1,,bfloat16,decode,False,256,16896,tp4,ragged,40,16879,1,16649,28,1,6,56,64,ir/full/full_decode_m40_b40_kv16896_ragged_tp4/01_paged_decode_kernel_last_pass.mlir.gz,3.11.10,1.0,compiler_ir,"[16879, 16842, 16805, 16768, 16731, 16694, 16657, 16877, 16840, 16803, 16766, 16729, 16692, 16655, 16875, 16838, 16801, 16764, 16727, 16690, 16653, 16873, 16836, 16799, 16762, 16725, 16688, 16651, 16871, 16834, 16797, 16760, 16723, 16686, 16649, 16869, 16832, 16795, 16758, 16721]","[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]",1,20260829,52b2ddb9ffcbd1feef1c260d9efb857eed15a43fd5e3cb4b5f38e5dfc0f9ead4,float32,14202,0.09119556747428784,CAPTURED,,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,138824,full_decode_m40_b40_kv16896_ragged,fac5d76d7b7f02eedcad150dd72f93018aaa1993
-full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",40,fac5d76d7b7f02eedcad150dd72f93018aaa1993,264,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'd8d94e75bea451908cd0b58b60c08503c030cf5d15e491d7694f6706aa094a90', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"Compiling one candidate Attention call with Triton IR dumps enabled
+",0,full_decode_m40_b40_kv16896_ragged_tp4,True,npu:5,5,Ascend950PR_957b,1,,bfloat16,decode,False,256,16896,tp4,ragged,40,16879,1,16649,28,1,6,56,64,ir/full/full_decode_m40_b40_kv16896_ragged_tp4/01_paged_decode_kernel_last_pass.mlir.gz,3.11.10,1.0,compiler_ir,"[16879, 16842, 16805, 16768, 16731, 16694, 16657, 16877, 16840, 16803, 16766, 16729, 16692, 16655, 16875, 16838, 16801, 16764, 16727, 16690, 16653, 16873, 16836, 16799, 16762, 16725, 16688, 16651, 16871, 16834, 16797, 16760, 16723, 16686, 16649, 16869, 16832, 16795, 16758, 16721]","[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]",1,20260829,b7182cfe317437c2909764201b4e8395b294824ca17a3cd7d9ade6241fd0166d,float32,14201,0.09119556747428784,CAPTURED,,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,138824,full_decode_m40_b40_kv16896_ragged,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0
+full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",40,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0,264,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'dd0440b74995d37f5e6aa92ad1fa274e4c528e3c3158925d838a89b10063014a', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"Compiling one candidate Attention call with Triton IR dumps enabled
 Dumping intermediate results to /root/.triton/dump/uCBrmg5Rb3HvKr8XrHR9u1Dd6OGwm85631NYyctgOk4
-[DEBUG] cmd_list: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile /tmp/tmp1eeq6bv_/kernel.ttadapter.mlir --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --disable-ffts --enable-debug-info=true --set-workspace-multibuffer=0 --limit-auto-multi-buffer-of-local-buffer=no-limit --enable-mixed-cv=True --disable-auto-inject-block-sync=True --enable-auto-blockify-loop --enable-hfusion-compile=true --enable-triton-kernel-compile=true --append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc --mlir-print-ir-after-failure --mlir-print-stacktrace-on-diagnostic --bishengir-print-ir-after=hivm-graph-sync-solver -o /tmp/tmp1eeq6bv_/kernel --enable-vf-merge-level=1
+[DEBUG] cmd_list: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile /tmp/tmpf5dnxcw_/kernel.ttadapter.mlir --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --disable-ffts --enable-debug-info=true --set-workspace-multibuffer=0 --limit-auto-multi-buffer-of-local-buffer=no-limit --enable-mixed-cv=True --disable-auto-inject-block-sync=True --enable-auto-blockify-loop --enable-hfusion-compile=true --enable-triton-kernel-compile=true --append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc --mlir-print-ir-after-failure --mlir-print-stacktrace-on-diagnostic --bishengir-print-ir-after=hivm-graph-sync-solver -o /tmp/tmpf5dnxcw_/kernel --enable-vf-merge-level=1
 Dumping precompiled.h to /root/.triton/dump/L025CebgQVoRhxyOU9NgUMeI2Zvs_MYr3bsQXwS3AmI
 Dumping launcher_cxx11abi1.cxx to /root/.triton/dump/L025CebgQVoRhxyOU9NgUMeI2Zvs_MYr3bsQXwS3AmI
 compile-only launch complete: provider=candidate, case=full_decode_m40_b40_kv16896_ragged_tp4, kernel=paged_decode_kernel, iterations=1
@@ -22,10 +22,10 @@ IR capture complete: kernels=1
   01_paged_decode_kernel_ttadapter.mlir 48099 bytes
   01_paged_decode_kernel_last_pass.mlir 138824 bytes
   01_paged_decode_kernel_ttir.mlir 19500 bytes
-",0,full_decode_m40_b40_kv16896_ragged_tp4,True,npu:5,5,Ascend950PR_957b,1,,bfloat16,decode,False,256,16896,tp4,ragged,40,16879,1,16649,28,1,6,56,64,ir/full/full_decode_m40_b40_kv16896_ragged_tp4/01_paged_decode_kernel_ttadapter.mlir.gz,3.11.10,1.0,compiler_ir,"[16879, 16842, 16805, 16768, 16731, 16694, 16657, 16877, 16840, 16803, 16766, 16729, 16692, 16655, 16875, 16838, 16801, 16764, 16727, 16690, 16653, 16873, 16836, 16799, 16762, 16725, 16688, 16651, 16871, 16834, 16797, 16760, 16723, 16686, 16649, 16869, 16832, 16795, 16758, 16721]","[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]",1,20260829,ca93805095ffde1c72543e1a836b2e8cc733357ac47ddc1a7b6ef169e70786a4,float32,6405,0.09119556747428784,CAPTURED,,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,48099,full_decode_m40_b40_kv16896_ragged,fac5d76d7b7f02eedcad150dd72f93018aaa1993
-full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",40,fac5d76d7b7f02eedcad150dd72f93018aaa1993,264,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'd8d94e75bea451908cd0b58b60c08503c030cf5d15e491d7694f6706aa094a90', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"Compiling one candidate Attention call with Triton IR dumps enabled
+",0,full_decode_m40_b40_kv16896_ragged_tp4,True,npu:5,5,Ascend950PR_957b,1,,bfloat16,decode,False,256,16896,tp4,ragged,40,16879,1,16649,28,1,6,56,64,ir/full/full_decode_m40_b40_kv16896_ragged_tp4/01_paged_decode_kernel_ttadapter.mlir.gz,3.11.10,1.0,compiler_ir,"[16879, 16842, 16805, 16768, 16731, 16694, 16657, 16877, 16840, 16803, 16766, 16729, 16692, 16655, 16875, 16838, 16801, 16764, 16727, 16690, 16653, 16873, 16836, 16799, 16762, 16725, 16688, 16651, 16871, 16834, 16797, 16760, 16723, 16686, 16649, 16869, 16832, 16795, 16758, 16721]","[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]",1,20260829,b506a8f86067be5dadd6dc50e1ad3e1d70ef4c58fc76e7f2d7e0cc6f6e631671,float32,6405,0.09119556747428784,CAPTURED,,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,48099,full_decode_m40_b40_kv16896_ragged,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0
+full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",40,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0,264,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'dd0440b74995d37f5e6aa92ad1fa274e4c528e3c3158925d838a89b10063014a', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"Compiling one candidate Attention call with Triton IR dumps enabled
 Dumping intermediate results to /root/.triton/dump/uCBrmg5Rb3HvKr8XrHR9u1Dd6OGwm85631NYyctgOk4
-[DEBUG] cmd_list: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile /tmp/tmp1eeq6bv_/kernel.ttadapter.mlir --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --disable-ffts --enable-debug-info=true --set-workspace-multibuffer=0 --limit-auto-multi-buffer-of-local-buffer=no-limit --enable-mixed-cv=True --disable-auto-inject-block-sync=True --enable-auto-blockify-loop --enable-hfusion-compile=true --enable-triton-kernel-compile=true --append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc --mlir-print-ir-after-failure --mlir-print-stacktrace-on-diagnostic --bishengir-print-ir-after=hivm-graph-sync-solver -o /tmp/tmp1eeq6bv_/kernel --enable-vf-merge-level=1
+[DEBUG] cmd_list: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile /tmp/tmpf5dnxcw_/kernel.ttadapter.mlir --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --disable-ffts --enable-debug-info=true --set-workspace-multibuffer=0 --limit-auto-multi-buffer-of-local-buffer=no-limit --enable-mixed-cv=True --disable-auto-inject-block-sync=True --enable-auto-blockify-loop --enable-hfusion-compile=true --enable-triton-kernel-compile=true --append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc --mlir-print-ir-after-failure --mlir-print-stacktrace-on-diagnostic --bishengir-print-ir-after=hivm-graph-sync-solver -o /tmp/tmpf5dnxcw_/kernel --enable-vf-merge-level=1
 Dumping precompiled.h to /root/.triton/dump/L025CebgQVoRhxyOU9NgUMeI2Zvs_MYr3bsQXwS3AmI
 Dumping launcher_cxx11abi1.cxx to /root/.triton/dump/L025CebgQVoRhxyOU9NgUMeI2Zvs_MYr3bsQXwS3AmI
 compile-only launch complete: provider=candidate, case=full_decode_m40_b40_kv16896_ragged_tp4, kernel=paged_decode_kernel, iterations=1
@@ -34,10 +34,10 @@ IR capture complete: kernels=1
   01_paged_decode_kernel_ttadapter.mlir 48099 bytes
   01_paged_decode_kernel_last_pass.mlir 138824 bytes
   01_paged_decode_kernel_ttir.mlir 19500 bytes
-",0,full_decode_m40_b40_kv16896_ragged_tp4,True,npu:5,5,Ascend950PR_957b,1,,bfloat16,decode,False,256,16896,tp4,ragged,40,16879,1,16649,28,1,6,56,64,ir/full/full_decode_m40_b40_kv16896_ragged_tp4/01_paged_decode_kernel_ttir.mlir.gz,3.11.10,1.0,compiler_ir,"[16879, 16842, 16805, 16768, 16731, 16694, 16657, 16877, 16840, 16803, 16766, 16729, 16692, 16655, 16875, 16838, 16801, 16764, 16727, 16690, 16653, 16873, 16836, 16799, 16762, 16725, 16688, 16651, 16871, 16834, 16797, 16760, 16723, 16686, 16649, 16869, 16832, 16795, 16758, 16721]","[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]",1,20260829,7cb99cd0ba0a00873d48af6bd971eee2b3e99fd46ec9a648dca2c332688c5fc0,float32,2972,0.09119556747428784,CAPTURED,,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,19500,full_decode_m40_b40_kv16896_ragged,fac5d76d7b7f02eedcad150dd72f93018aaa1993
-full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",40,fac5d76d7b7f02eedcad150dd72f93018aaa1993,264,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'd8d94e75bea451908cd0b58b60c08503c030cf5d15e491d7694f6706aa094a90', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"Compiling one candidate Attention call with Triton IR dumps enabled
+",0,full_decode_m40_b40_kv16896_ragged_tp4,True,npu:5,5,Ascend950PR_957b,1,,bfloat16,decode,False,256,16896,tp4,ragged,40,16879,1,16649,28,1,6,56,64,ir/full/full_decode_m40_b40_kv16896_ragged_tp4/01_paged_decode_kernel_ttir.mlir.gz,3.11.10,1.0,compiler_ir,"[16879, 16842, 16805, 16768, 16731, 16694, 16657, 16877, 16840, 16803, 16766, 16729, 16692, 16655, 16875, 16838, 16801, 16764, 16727, 16690, 16653, 16873, 16836, 16799, 16762, 16725, 16688, 16651, 16871, 16834, 16797, 16760, 16723, 16686, 16649, 16869, 16832, 16795, 16758, 16721]","[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]",1,20260829,6560a0740155c857c561c97654ed388790cb60d2d2b40d792f6ea16dfaab144a,float32,2972,0.09119556747428784,CAPTURED,,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,19500,full_decode_m40_b40_kv16896_ragged,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0
+full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",40,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0,264,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'dd0440b74995d37f5e6aa92ad1fa274e4c528e3c3158925d838a89b10063014a', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"Compiling one candidate Attention call with Triton IR dumps enabled
 Dumping intermediate results to /root/.triton/dump/V3j1Q6dI274EqVWEce-MDbM0fMFTk6tNYS-IFATS2EY
-[DEBUG] cmd_list: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile /tmp/tmp0re2ykoj/kernel.ttadapter.mlir --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --disable-ffts --enable-debug-info=true --set-workspace-multibuffer=0 --limit-auto-multi-buffer-of-local-buffer=no-limit --enable-mixed-cv=True --disable-auto-inject-block-sync=True --enable-auto-blockify-loop --enable-hfusion-compile=true --enable-triton-kernel-compile=true --append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc --mlir-print-ir-after-failure --mlir-print-stacktrace-on-diagnostic --bishengir-print-ir-after=hivm-graph-sync-solver -o /tmp/tmp0re2ykoj/kernel --enable-vf-merge-level=1
+[DEBUG] cmd_list: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile /tmp/tmp1nhmknqo/kernel.ttadapter.mlir --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --disable-ffts --enable-debug-info=true --set-workspace-multibuffer=0 --limit-auto-multi-buffer-of-local-buffer=no-limit --enable-mixed-cv=True --disable-auto-inject-block-sync=True --enable-auto-blockify-loop --enable-hfusion-compile=true --enable-triton-kernel-compile=true --append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc --mlir-print-ir-after-failure --mlir-print-stacktrace-on-diagnostic --bishengir-print-ir-after=hivm-graph-sync-solver -o /tmp/tmp1nhmknqo/kernel --enable-vf-merge-level=1
 Dumping precompiled.h to /root/.triton/dump/L025CebgQVoRhxyOU9NgUMeI2Zvs_MYr3bsQXwS3AmI
 Dumping launcher_cxx11abi1.cxx to /root/.triton/dump/L025CebgQVoRhxyOU9NgUMeI2Zvs_MYr3bsQXwS3AmI
 compile-only launch complete: provider=candidate, case=full_decode_m40_b40_kv16896_ragged_tp4_dp4, kernel=paged_decode_kernel, iterations=1
@@ -46,10 +46,10 @@ IR capture complete: kernels=1
   01_paged_decode_kernel_ttadapter.mlir 51357 bytes
   01_paged_decode_kernel_last_pass.mlir 141613 bytes
   01_paged_decode_kernel_ttir.mlir 20752 bytes
-",0,full_decode_m40_b40_kv16896_ragged_tp4_dp4,True,npu:5,5,Ascend950PR_957b,4,,bfloat16,decode,False,256,16896,tp4_dp4,ragged,40,16879,1,16649,28,2,24,56,64,ir/full/full_decode_m40_b40_kv16896_ragged_tp4_dp4/01_paged_decode_kernel_last_pass.mlir.gz,3.11.10,4.0,compiler_ir,"[16879, 16842, 16805, 16768, 16731, 16694, 16657, 16877, 16840, 16803, 16766, 16729, 16692, 16655, 16875, 16838, 16801, 16764, 16727, 16690, 16653, 16873, 16836, 16799, 16762, 16725, 16688, 16651, 16871, 16834, 16797, 16760, 16723, 16686, 16649, 16869, 16832, 16795, 16758, 16721]","[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]",1,20260829,7f6156311a3a32cc9367b50e235038570b6d0c55a9d263dd1dabf5d7ee91b64f,float32,14629,0.09119556747428784,CAPTURED,,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,141613,full_decode_m40_b40_kv16896_ragged,fac5d76d7b7f02eedcad150dd72f93018aaa1993
-full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",40,fac5d76d7b7f02eedcad150dd72f93018aaa1993,264,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'd8d94e75bea451908cd0b58b60c08503c030cf5d15e491d7694f6706aa094a90', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"Compiling one candidate Attention call with Triton IR dumps enabled
+",0,full_decode_m40_b40_kv16896_ragged_tp4_dp4,True,npu:5,5,Ascend950PR_957b,4,,bfloat16,decode,False,256,16896,tp4_dp4,ragged,40,16879,1,16649,28,2,24,56,64,ir/full/full_decode_m40_b40_kv16896_ragged_tp4_dp4/01_paged_decode_kernel_last_pass.mlir.gz,3.11.10,4.0,compiler_ir,"[16879, 16842, 16805, 16768, 16731, 16694, 16657, 16877, 16840, 16803, 16766, 16729, 16692, 16655, 16875, 16838, 16801, 16764, 16727, 16690, 16653, 16873, 16836, 16799, 16762, 16725, 16688, 16651, 16871, 16834, 16797, 16760, 16723, 16686, 16649, 16869, 16832, 16795, 16758, 16721]","[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]",1,20260829,3dc78534c6b14a0e47957ccfb2c65835c113f5eb416c244361c608e243bb7dd4,float32,14628,0.09119556747428784,CAPTURED,,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,141613,full_decode_m40_b40_kv16896_ragged,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0
+full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",40,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0,264,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'dd0440b74995d37f5e6aa92ad1fa274e4c528e3c3158925d838a89b10063014a', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"Compiling one candidate Attention call with Triton IR dumps enabled
 Dumping intermediate results to /root/.triton/dump/V3j1Q6dI274EqVWEce-MDbM0fMFTk6tNYS-IFATS2EY
-[DEBUG] cmd_list: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile /tmp/tmp0re2ykoj/kernel.ttadapter.mlir --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --disable-ffts --enable-debug-info=true --set-workspace-multibuffer=0 --limit-auto-multi-buffer-of-local-buffer=no-limit --enable-mixed-cv=True --disable-auto-inject-block-sync=True --enable-auto-blockify-loop --enable-hfusion-compile=true --enable-triton-kernel-compile=true --append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc --mlir-print-ir-after-failure --mlir-print-stacktrace-on-diagnostic --bishengir-print-ir-after=hivm-graph-sync-solver -o /tmp/tmp0re2ykoj/kernel --enable-vf-merge-level=1
+[DEBUG] cmd_list: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile /tmp/tmp1nhmknqo/kernel.ttadapter.mlir --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --disable-ffts --enable-debug-info=true --set-workspace-multibuffer=0 --limit-auto-multi-buffer-of-local-buffer=no-limit --enable-mixed-cv=True --disable-auto-inject-block-sync=True --enable-auto-blockify-loop --enable-hfusion-compile=true --enable-triton-kernel-compile=true --append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc --mlir-print-ir-after-failure --mlir-print-stacktrace-on-diagnostic --bishengir-print-ir-after=hivm-graph-sync-solver -o /tmp/tmp1nhmknqo/kernel --enable-vf-merge-level=1
 Dumping precompiled.h to /root/.triton/dump/L025CebgQVoRhxyOU9NgUMeI2Zvs_MYr3bsQXwS3AmI
 Dumping launcher_cxx11abi1.cxx to /root/.triton/dump/L025CebgQVoRhxyOU9NgUMeI2Zvs_MYr3bsQXwS3AmI
 compile-only launch complete: provider=candidate, case=full_decode_m40_b40_kv16896_ragged_tp4_dp4, kernel=paged_decode_kernel, iterations=1
@@ -58,10 +58,10 @@ IR capture complete: kernels=1
   01_paged_decode_kernel_ttadapter.mlir 51357 bytes
   01_paged_decode_kernel_last_pass.mlir 141613 bytes
   01_paged_decode_kernel_ttir.mlir 20752 bytes
-",0,full_decode_m40_b40_kv16896_ragged_tp4_dp4,True,npu:5,5,Ascend950PR_957b,4,,bfloat16,decode,False,256,16896,tp4_dp4,ragged,40,16879,1,16649,28,2,24,56,64,ir/full/full_decode_m40_b40_kv16896_ragged_tp4_dp4/01_paged_decode_kernel_ttadapter.mlir.gz,3.11.10,4.0,compiler_ir,"[16879, 16842, 16805, 16768, 16731, 16694, 16657, 16877, 16840, 16803, 16766, 16729, 16692, 16655, 16875, 16838, 16801, 16764, 16727, 16690, 16653, 16873, 16836, 16799, 16762, 16725, 16688, 16651, 16871, 16834, 16797, 16760, 16723, 16686, 16649, 16869, 16832, 16795, 16758, 16721]","[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]",1,20260829,564c58712eff50ade2e1dcf2068e52d83a6d38b9aa154e3c4383d2358de53d8c,float32,6848,0.09119556747428784,CAPTURED,,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,51357,full_decode_m40_b40_kv16896_ragged,fac5d76d7b7f02eedcad150dd72f93018aaa1993
-full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",40,fac5d76d7b7f02eedcad150dd72f93018aaa1993,264,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'd8d94e75bea451908cd0b58b60c08503c030cf5d15e491d7694f6706aa094a90', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"Compiling one candidate Attention call with Triton IR dumps enabled
+",0,full_decode_m40_b40_kv16896_ragged_tp4_dp4,True,npu:5,5,Ascend950PR_957b,4,,bfloat16,decode,False,256,16896,tp4_dp4,ragged,40,16879,1,16649,28,2,24,56,64,ir/full/full_decode_m40_b40_kv16896_ragged_tp4_dp4/01_paged_decode_kernel_ttadapter.mlir.gz,3.11.10,4.0,compiler_ir,"[16879, 16842, 16805, 16768, 16731, 16694, 16657, 16877, 16840, 16803, 16766, 16729, 16692, 16655, 16875, 16838, 16801, 16764, 16727, 16690, 16653, 16873, 16836, 16799, 16762, 16725, 16688, 16651, 16871, 16834, 16797, 16760, 16723, 16686, 16649, 16869, 16832, 16795, 16758, 16721]","[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]",1,20260829,0747b53542217e5388ac617cca6895b7147e92519205116923914178d8ca2e25,float32,6848,0.09119556747428784,CAPTURED,,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,51357,full_decode_m40_b40_kv16896_ragged,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0
+full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",40,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0,264,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'dd0440b74995d37f5e6aa92ad1fa274e4c528e3c3158925d838a89b10063014a', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"Compiling one candidate Attention call with Triton IR dumps enabled
 Dumping intermediate results to /root/.triton/dump/V3j1Q6dI274EqVWEce-MDbM0fMFTk6tNYS-IFATS2EY
-[DEBUG] cmd_list: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile /tmp/tmp0re2ykoj/kernel.ttadapter.mlir --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --disable-ffts --enable-debug-info=true --set-workspace-multibuffer=0 --limit-auto-multi-buffer-of-local-buffer=no-limit --enable-mixed-cv=True --disable-auto-inject-block-sync=True --enable-auto-blockify-loop --enable-hfusion-compile=true --enable-triton-kernel-compile=true --append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc --mlir-print-ir-after-failure --mlir-print-stacktrace-on-diagnostic --bishengir-print-ir-after=hivm-graph-sync-solver -o /tmp/tmp0re2ykoj/kernel --enable-vf-merge-level=1
+[DEBUG] cmd_list: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile /tmp/tmp1nhmknqo/kernel.ttadapter.mlir --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --disable-ffts --enable-debug-info=true --set-workspace-multibuffer=0 --limit-auto-multi-buffer-of-local-buffer=no-limit --enable-mixed-cv=True --disable-auto-inject-block-sync=True --enable-auto-blockify-loop --enable-hfusion-compile=true --enable-triton-kernel-compile=true --append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc --mlir-print-ir-after-failure --mlir-print-stacktrace-on-diagnostic --bishengir-print-ir-after=hivm-graph-sync-solver -o /tmp/tmp1nhmknqo/kernel --enable-vf-merge-level=1
 Dumping precompiled.h to /root/.triton/dump/L025CebgQVoRhxyOU9NgUMeI2Zvs_MYr3bsQXwS3AmI
 Dumping launcher_cxx11abi1.cxx to /root/.triton/dump/L025CebgQVoRhxyOU9NgUMeI2Zvs_MYr3bsQXwS3AmI
 compile-only launch complete: provider=candidate, case=full_decode_m40_b40_kv16896_ragged_tp4_dp4, kernel=paged_decode_kernel, iterations=1
@@ -70,12 +70,12 @@ IR capture complete: kernels=1
   01_paged_decode_kernel_ttadapter.mlir 51357 bytes
   01_paged_decode_kernel_last_pass.mlir 141613 bytes
   01_paged_decode_kernel_ttir.mlir 20752 bytes
-",0,full_decode_m40_b40_kv16896_ragged_tp4_dp4,True,npu:5,5,Ascend950PR_957b,4,,bfloat16,decode,False,256,16896,tp4_dp4,ragged,40,16879,1,16649,28,2,24,56,64,ir/full/full_decode_m40_b40_kv16896_ragged_tp4_dp4/01_paged_decode_kernel_ttir.mlir.gz,3.11.10,4.0,compiler_ir,"[16879, 16842, 16805, 16768, 16731, 16694, 16657, 16877, 16840, 16803, 16766, 16729, 16692, 16655, 16875, 16838, 16801, 16764, 16727, 16690, 16653, 16873, 16836, 16799, 16762, 16725, 16688, 16651, 16871, 16834, 16797, 16760, 16723, 16686, 16649, 16869, 16832, 16795, 16758, 16721]","[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]",1,20260829,7251f8c13411f86647425172f44151222bd82c027577cda08e5a7eef32d271f7,float32,3132,0.09119556747428784,CAPTURED,,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,20752,full_decode_m40_b40_kv16896_ragged,fac5d76d7b7f02eedcad150dd72f93018aaa1993
-swa,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",40,fac5d76d7b7f02eedcad150dd72f93018aaa1993,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'd8d94e75bea451908cd0b58b60c08503c030cf5d15e491d7694f6706aa094a90', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"Compiling one candidate Attention call with Triton IR dumps enabled
+",0,full_decode_m40_b40_kv16896_ragged_tp4_dp4,True,npu:5,5,Ascend950PR_957b,4,,bfloat16,decode,False,256,16896,tp4_dp4,ragged,40,16879,1,16649,28,2,24,56,64,ir/full/full_decode_m40_b40_kv16896_ragged_tp4_dp4/01_paged_decode_kernel_ttir.mlir.gz,3.11.10,4.0,compiler_ir,"[16879, 16842, 16805, 16768, 16731, 16694, 16657, 16877, 16840, 16803, 16766, 16729, 16692, 16655, 16875, 16838, 16801, 16764, 16727, 16690, 16653, 16873, 16836, 16799, 16762, 16725, 16688, 16651, 16871, 16834, 16797, 16760, 16723, 16686, 16649, 16869, 16832, 16795, 16758, 16721]","[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]",1,20260829,41ac42afdeb2e975cb20810fc0b1817909fc519bcb09ff6f27d2d889991c1bef,float32,3132,0.09119556747428784,CAPTURED,,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,20752,full_decode_m40_b40_kv16896_ragged,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0
+swa,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",40,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'dd0440b74995d37f5e6aa92ad1fa274e4c528e3c3158925d838a89b10063014a', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"Compiling one candidate Attention call with Triton IR dumps enabled
 /data2/hw_lly/testfiles/welmv4_dp_decode_attention_candidate.py:3438: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:423.)
   o = torch.empty_like(q, memory_format=torch.contiguous_format)
 Dumping intermediate results to /root/.triton/dump/WlVNloWIGJi8ukG8Up3d1U3lL1zC-If7zn3zA7WCy8w
-[DEBUG] cmd_list: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile /tmp/tmpg6mazoqm/kernel.ttadapter.mlir --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --disable-ffts --enable-debug-info=true --set-workspace-multibuffer=0 --limit-auto-multi-buffer-of-local-buffer=no-limit --enable-mixed-cv=True --disable-auto-inject-block-sync=True --enable-auto-blockify-loop --enable-hfusion-compile=true --enable-triton-kernel-compile=true --append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc --mlir-print-ir-after-failure --mlir-print-stacktrace-on-diagnostic --bishengir-print-ir-after=hivm-graph-sync-solver -o /tmp/tmpg6mazoqm/kernel --enable-vf-merge-level=1
+[DEBUG] cmd_list: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile /tmp/tmpf90no298/kernel.ttadapter.mlir --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --disable-ffts --enable-debug-info=true --set-workspace-multibuffer=0 --limit-auto-multi-buffer-of-local-buffer=no-limit --enable-mixed-cv=True --disable-auto-inject-block-sync=True --enable-auto-blockify-loop --enable-hfusion-compile=true --enable-triton-kernel-compile=true --append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc --mlir-print-ir-after-failure --mlir-print-stacktrace-on-diagnostic --bishengir-print-ir-after=hivm-graph-sync-solver -o /tmp/tmpf90no298/kernel --enable-vf-merge-level=1
 Dumping precompiled.h to /root/.triton/dump/L025CebgQVoRhxyOU9NgUMeI2Zvs_MYr3bsQXwS3AmI
 Dumping launcher_cxx11abi1.cxx to /root/.triton/dump/L025CebgQVoRhxyOU9NgUMeI2Zvs_MYr3bsQXwS3AmI
 compile-only launch complete: provider=candidate, case=swa_decode_m40_b40_kv4096_uniform_tp4_dp4, kernel=_swa_paged_decode_sink_kernel, iterations=1
@@ -84,12 +84,12 @@ IR capture complete: kernels=1
   01__swa_paged_decode_sink_kernel_ttir.mlir 34048 bytes
   01__swa_paged_decode_sink_kernel_last_pass.mlir 216185 bytes
   01__swa_paged_decode_sink_kernel_ttadapter.mlir 96235 bytes
-",0,swa_decode_m40_b40_kv4096_uniform_tp4_dp4,True,npu:5,5,Ascend950PR_957b,4,,bfloat16,decode,False,256,4096,tp4_dp4,uniform,40,4096,1,4096,28,2,24,56,64,ir/swa/swa_decode_m40_b40_kv4096_uniform_tp4_dp4/01__swa_paged_decode_sink_kernel_last_pass.mlir.gz,3.11.10,4.0,compiler_ir,"[4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096]","[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]",1,20260829,ec140cb187ffa9ecadb85db43861e82c7201fdfaaffa4ce9d158a4e29e0dcdbd,float32,21205,0.09119556747428784,CAPTURED,511,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,216185,swa_decode_m40_b40_kv4096_uniform,fac5d76d7b7f02eedcad150dd72f93018aaa1993
-swa,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",40,fac5d76d7b7f02eedcad150dd72f93018aaa1993,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'd8d94e75bea451908cd0b58b60c08503c030cf5d15e491d7694f6706aa094a90', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"Compiling one candidate Attention call with Triton IR dumps enabled
+",0,swa_decode_m40_b40_kv4096_uniform_tp4_dp4,True,npu:5,5,Ascend950PR_957b,4,,bfloat16,decode,False,256,4096,tp4_dp4,uniform,40,4096,1,4096,28,2,24,56,64,ir/swa/swa_decode_m40_b40_kv4096_uniform_tp4_dp4/01__swa_paged_decode_sink_kernel_last_pass.mlir.gz,3.11.10,4.0,compiler_ir,"[4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096]","[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]",1,20260829,336501a6facb2f2bff049dd82735751cdc9b9b6384b9d711b943364bc2a93025,float32,21204,0.09119556747428784,CAPTURED,511,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,216185,swa_decode_m40_b40_kv4096_uniform,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0
+swa,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",40,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'dd0440b74995d37f5e6aa92ad1fa274e4c528e3c3158925d838a89b10063014a', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"Compiling one candidate Attention call with Triton IR dumps enabled
 /data2/hw_lly/testfiles/welmv4_dp_decode_attention_candidate.py:3438: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:423.)
   o = torch.empty_like(q, memory_format=torch.contiguous_format)
 Dumping intermediate results to /root/.triton/dump/WlVNloWIGJi8ukG8Up3d1U3lL1zC-If7zn3zA7WCy8w
-[DEBUG] cmd_list: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile /tmp/tmpg6mazoqm/kernel.ttadapter.mlir --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --disable-ffts --enable-debug-info=true --set-workspace-multibuffer=0 --limit-auto-multi-buffer-of-local-buffer=no-limit --enable-mixed-cv=True --disable-auto-inject-block-sync=True --enable-auto-blockify-loop --enable-hfusion-compile=true --enable-triton-kernel-compile=true --append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc --mlir-print-ir-after-failure --mlir-print-stacktrace-on-diagnostic --bishengir-print-ir-after=hivm-graph-sync-solver -o /tmp/tmpg6mazoqm/kernel --enable-vf-merge-level=1
+[DEBUG] cmd_list: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile /tmp/tmpf90no298/kernel.ttadapter.mlir --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --disable-ffts --enable-debug-info=true --set-workspace-multibuffer=0 --limit-auto-multi-buffer-of-local-buffer=no-limit --enable-mixed-cv=True --disable-auto-inject-block-sync=True --enable-auto-blockify-loop --enable-hfusion-compile=true --enable-triton-kernel-compile=true --append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc --mlir-print-ir-after-failure --mlir-print-stacktrace-on-diagnostic --bishengir-print-ir-after=hivm-graph-sync-solver -o /tmp/tmpf90no298/kernel --enable-vf-merge-level=1
 Dumping precompiled.h to /root/.triton/dump/L025CebgQVoRhxyOU9NgUMeI2Zvs_MYr3bsQXwS3AmI
 Dumping launcher_cxx11abi1.cxx to /root/.triton/dump/L025CebgQVoRhxyOU9NgUMeI2Zvs_MYr3bsQXwS3AmI
 compile-only launch complete: provider=candidate, case=swa_decode_m40_b40_kv4096_uniform_tp4_dp4, kernel=_swa_paged_decode_sink_kernel, iterations=1
@@ -98,12 +98,12 @@ IR capture complete: kernels=1
   01__swa_paged_decode_sink_kernel_ttir.mlir 34048 bytes
   01__swa_paged_decode_sink_kernel_last_pass.mlir 216185 bytes
   01__swa_paged_decode_sink_kernel_ttadapter.mlir 96235 bytes
-",0,swa_decode_m40_b40_kv4096_uniform_tp4_dp4,True,npu:5,5,Ascend950PR_957b,4,,bfloat16,decode,False,256,4096,tp4_dp4,uniform,40,4096,1,4096,28,2,24,56,64,ir/swa/swa_decode_m40_b40_kv4096_uniform_tp4_dp4/01__swa_paged_decode_sink_kernel_ttadapter.mlir.gz,3.11.10,4.0,compiler_ir,"[4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096]","[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]",1,20260829,6e2dfce12a33edc8d1bb73da2e46ef5b30a7a4cac2177e8576da0334b51931c8,float32,11205,0.09119556747428784,CAPTURED,511,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,96235,swa_decode_m40_b40_kv4096_uniform,fac5d76d7b7f02eedcad150dd72f93018aaa1993
-swa,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",40,fac5d76d7b7f02eedcad150dd72f93018aaa1993,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'd8d94e75bea451908cd0b58b60c08503c030cf5d15e491d7694f6706aa094a90', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"Compiling one candidate Attention call with Triton IR dumps enabled
+",0,swa_decode_m40_b40_kv4096_uniform_tp4_dp4,True,npu:5,5,Ascend950PR_957b,4,,bfloat16,decode,False,256,4096,tp4_dp4,uniform,40,4096,1,4096,28,2,24,56,64,ir/swa/swa_decode_m40_b40_kv4096_uniform_tp4_dp4/01__swa_paged_decode_sink_kernel_ttadapter.mlir.gz,3.11.10,4.0,compiler_ir,"[4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096]","[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]",1,20260829,48b9ff7338c740c9cd78b13523239b2a2277a7caf686df2ff07ffa0dba1259d9,float32,11203,0.09119556747428784,CAPTURED,511,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,96235,swa_decode_m40_b40_kv4096_uniform,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0
+swa,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",40,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'dd0440b74995d37f5e6aa92ad1fa274e4c528e3c3158925d838a89b10063014a', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"Compiling one candidate Attention call with Triton IR dumps enabled
 /data2/hw_lly/testfiles/welmv4_dp_decode_attention_candidate.py:3438: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:423.)
   o = torch.empty_like(q, memory_format=torch.contiguous_format)
 Dumping intermediate results to /root/.triton/dump/WlVNloWIGJi8ukG8Up3d1U3lL1zC-If7zn3zA7WCy8w
-[DEBUG] cmd_list: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile /tmp/tmpg6mazoqm/kernel.ttadapter.mlir --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --disable-ffts --enable-debug-info=true --set-workspace-multibuffer=0 --limit-auto-multi-buffer-of-local-buffer=no-limit --enable-mixed-cv=True --disable-auto-inject-block-sync=True --enable-auto-blockify-loop --enable-hfusion-compile=true --enable-triton-kernel-compile=true --append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc --mlir-print-ir-after-failure --mlir-print-stacktrace-on-diagnostic --bishengir-print-ir-after=hivm-graph-sync-solver -o /tmp/tmpg6mazoqm/kernel --enable-vf-merge-level=1
+[DEBUG] cmd_list: /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/bishengir/bin/bishengir-compile /tmp/tmpf90no298/kernel.ttadapter.mlir --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --disable-ffts --enable-debug-info=true --set-workspace-multibuffer=0 --limit-auto-multi-buffer-of-local-buffer=no-limit --enable-mixed-cv=True --disable-auto-inject-block-sync=True --enable-auto-blockify-loop --enable-hfusion-compile=true --enable-triton-kernel-compile=true --append-bisheng-options=-cce-link-aicore-ll-module /usr/local/python3.11.10/lib/python3.11/site-packages/triton/backends/ascend/lib/libdevice.10.bc --mlir-print-ir-after-failure --mlir-print-stacktrace-on-diagnostic --bishengir-print-ir-after=hivm-graph-sync-solver -o /tmp/tmpf90no298/kernel --enable-vf-merge-level=1
 Dumping precompiled.h to /root/.triton/dump/L025CebgQVoRhxyOU9NgUMeI2Zvs_MYr3bsQXwS3AmI
 Dumping launcher_cxx11abi1.cxx to /root/.triton/dump/L025CebgQVoRhxyOU9NgUMeI2Zvs_MYr3bsQXwS3AmI
 compile-only launch complete: provider=candidate, case=swa_decode_m40_b40_kv4096_uniform_tp4_dp4, kernel=_swa_paged_decode_sink_kernel, iterations=1
@@ -112,8 +112,8 @@ IR capture complete: kernels=1
   01__swa_paged_decode_sink_kernel_ttir.mlir 34048 bytes
   01__swa_paged_decode_sink_kernel_last_pass.mlir 216185 bytes
   01__swa_paged_decode_sink_kernel_ttadapter.mlir 96235 bytes
-",0,swa_decode_m40_b40_kv4096_uniform_tp4_dp4,True,npu:5,5,Ascend950PR_957b,4,,bfloat16,decode,False,256,4096,tp4_dp4,uniform,40,4096,1,4096,28,2,24,56,64,ir/swa/swa_decode_m40_b40_kv4096_uniform_tp4_dp4/01__swa_paged_decode_sink_kernel_ttir.mlir.gz,3.11.10,4.0,compiler_ir,"[4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096]","[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]",1,20260829,b5adaf66e67a0050cb8fb37c64a8169da95770dfc274425eb039912b694a7b1d,float32,4510,0.09119556747428784,CAPTURED,511,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,34048,swa_decode_m40_b40_kv4096_uniform,fac5d76d7b7f02eedcad150dd72f93018aaa1993
-full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",1,fac5d76d7b7f02eedcad150dd72f93018aaa1993,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'd8d94e75bea451908cd0b58b60c08503c030cf5d15e491d7694f6706aa094a90', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,", %48, %60 : f32
+",0,swa_decode_m40_b40_kv4096_uniform_tp4_dp4,True,npu:5,5,Ascend950PR_957b,4,,bfloat16,decode,False,256,4096,tp4_dp4,uniform,40,4096,1,4096,28,2,24,56,64,ir/swa/swa_decode_m40_b40_kv4096_uniform_tp4_dp4/01__swa_paged_decode_sink_kernel_ttir.mlir.gz,3.11.10,4.0,compiler_ir,"[4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096]","[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]",1,20260829,2130f9200c3c88c143db4baa3e042ebcea07c434f9016590bf1a15d142a3a7df,float32,4510,0.09119556747428784,CAPTURED,511,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,34048,swa_decode_m40_b40_kv4096_uniform,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0
+full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",1,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'dd0440b74995d37f5e6aa92ad1fa274e4c528e3c3158925d838a89b10063014a', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,", %48, %60 : f32
         %62 = arith.select %53, %47, %61 : f32
         %alloc_12 = memref.alloc() {alignment = 64 : i64} : memref<64xf32, #hivm.address_space<ub>>
         %alloc_13 = memref.alloc() {alignment = 64 : i64} : memref<64xf32, #hivm.address_space<ub>>
@@ -305,8 +305,8 @@ loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":1867:0)
 loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":1867:0): error: ub overflow, requires 4206848 bits while 1769472 bits available!
 [ERROR] Failed to run BiShengIR pipeline
 [ERROR] Executing: /usr/local/Ascend/cann-9.1.0/bin/bishengir-compile-a5 --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --enable-hfusion-compile=true --enable-hivm-compile=true --enable-triton-kernel-compile=true --mlir-print-ir-after-all kernel.ttadapter.mlir
-",1,full_prefill_dense_m64_b1_kv4096_uniform_tp4,True,npu:5,5,Ascend950PR_957b,1,,bfloat16,prefill,False,256,4096,tp4,uniform,64,,64,4096,28,1,6,56,64,ir/full/full_prefill_dense_m64_b1_kv4096_uniform_tp4/01_paged_prefill_mid_q_grouped_kernel_ttadapter.mlir.gz,3.11.10,1.0,compiler_ir,[4096],[64],1,20260829,a815936998639be53af554f2158f7b4cf4d980c633c2360765c5486034b309d8,float32,8960,0.09119556747428784,CAPTURED_PARTIAL,,prefill_dense,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,69738,full_prefill_dense_m64_b1_kv4096_uniform,fac5d76d7b7f02eedcad150dd72f93018aaa1993
-full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",1,fac5d76d7b7f02eedcad150dd72f93018aaa1993,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'd8d94e75bea451908cd0b58b60c08503c030cf5d15e491d7694f6706aa094a90', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,", %48, %60 : f32
+",1,full_prefill_dense_m64_b1_kv4096_uniform_tp4,True,npu:5,5,Ascend950PR_957b,1,,bfloat16,prefill,False,256,4096,tp4,uniform,64,,64,4096,28,1,6,56,64,ir/full/full_prefill_dense_m64_b1_kv4096_uniform_tp4/01_paged_prefill_mid_q_grouped_kernel_ttadapter.mlir.gz,3.11.10,1.0,compiler_ir,[4096],[64],1,20260829,d5670582841c796f5947215772485838e37dc788376c6a27ceae23ff4ac4f00f,float32,8960,0.09119556747428784,CAPTURED_PARTIAL,,prefill_dense,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,69738,full_prefill_dense_m64_b1_kv4096_uniform,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0
+full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",1,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'dd0440b74995d37f5e6aa92ad1fa274e4c528e3c3158925d838a89b10063014a', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,", %48, %60 : f32
         %62 = arith.select %53, %47, %61 : f32
         %alloc_12 = memref.alloc() {alignment = 64 : i64} : memref<64xf32, #hivm.address_space<ub>>
         %alloc_13 = memref.alloc() {alignment = 64 : i64} : memref<64xf32, #hivm.address_space<ub>>
@@ -498,8 +498,8 @@ loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":1867:0)
 loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":1867:0): error: ub overflow, requires 4206848 bits while 1769472 bits available!
 [ERROR] Failed to run BiShengIR pipeline
 [ERROR] Executing: /usr/local/Ascend/cann-9.1.0/bin/bishengir-compile-a5 --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --enable-hfusion-compile=true --enable-hivm-compile=true --enable-triton-kernel-compile=true --mlir-print-ir-after-all kernel.ttadapter.mlir
-",1,full_prefill_dense_m64_b1_kv4096_uniform_tp4,True,npu:5,5,Ascend950PR_957b,1,,bfloat16,prefill,False,256,4096,tp4,uniform,64,,64,4096,28,1,6,56,64,ir/full/full_prefill_dense_m64_b1_kv4096_uniform_tp4/01_paged_prefill_mid_q_grouped_kernel_ttir.mlir.gz,3.11.10,1.0,compiler_ir,[4096],[64],1,20260829,951a40c715cf40112fc37bcc3f2ba69a97b6d59be7403f751d3780510c0a2fda,float32,4155,0.09119556747428784,CAPTURED_PARTIAL,,prefill_dense,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,29730,full_prefill_dense_m64_b1_kv4096_uniform,fac5d76d7b7f02eedcad150dd72f93018aaa1993
-full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",1,fac5d76d7b7f02eedcad150dd72f93018aaa1993,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'd8d94e75bea451908cd0b58b60c08503c030cf5d15e491d7694f6706aa094a90', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"i32 : i32
+",1,full_prefill_dense_m64_b1_kv4096_uniform_tp4,True,npu:5,5,Ascend950PR_957b,1,,bfloat16,prefill,False,256,4096,tp4,uniform,64,,64,4096,28,1,6,56,64,ir/full/full_prefill_dense_m64_b1_kv4096_uniform_tp4/01_paged_prefill_mid_q_grouped_kernel_ttir.mlir.gz,3.11.10,1.0,compiler_ir,[4096],[64],1,20260829,04c094a56b00d870e0f36e62aed438e7e90164f289d4d5ffcb0ee9069166839c,float32,4155,0.09119556747428784,CAPTURED_PARTIAL,,prefill_dense,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,29730,full_prefill_dense_m64_b1_kv4096_uniform,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0
+full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",1,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'dd0440b74995d37f5e6aa92ad1fa274e4c528e3c3158925d838a89b10063014a', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"i32 : i32
         %49 = arith.subi %43, %41 : i32
         %50 = arith.addi %33, %41 : i32
         %51 = arith.index_cast %49 : i32 to index
@@ -546,7 +546,7 @@ full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3
         hivm.hir.copy ins(%collapse_shape : memref<32768xf32, #hivm.address_space<ub>>) outs(%collapse_shape_23 : memref<32768xf32, #hivm.address_space<ub>>)
         %64:9 = scf.for %arg33 = %c0_i32 to %63 step %c1_i32 iter_args(%arg34 = %alloc_21, %arg35 = %alloc_22, %arg36 = %alloc_10, %arg37 = %c0_i32, %arg38 = %c0_i32, %arg39 = %c0_i32, %arg40 = %c0_i32, %arg41 = %c0_i32, %arg42 = %c0_i32) -> (memref<128xf32, #hivm.address_space<ub>>, memref<128x256xf32, #hivm.address_space<ub>>, memref<128xf32, #hivm.address_space<ub>>, i32, i32, i32, i32, i32, i32)  : i32 {
           hivm.hir.sync_block_wait[<VECTOR>, <PIPE_S>, <PIPE_S>] flag = 15
-          %67 = arith.cmpi slt, %arg41, %c2_i32 : i32
+          %67 = arith.cmpi slt, %arg40, %c2_i32 : i32
           %68 = arith.cmpi slt, %arg37, %48 : i32
           %69 = arith.andi %67, %68 : i1
           %70:2 = scf.if %69 -> (i32, i32) {
@@ -571,11 +571,11 @@ full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3
               %collapse_shape_30 = memref.collapse_shape %alloc_20 [[0, 1]] : memref<128x64xi8, #hivm.address_space<ub>> into memref<8192xi8, #hivm.address_space<ub>>
               hivm.hir.copy ins(%collapse_shape_29 : memref<8192xi8, #hivm.address_space<ub>>) outs(%collapse_shape_30 : memref<8192xi8, #hivm.address_space<ub>>)
             }
-            %103 = arith.addi %arg41, %c1_i32 : i32
+            %103 = arith.addi %arg40, %c1_i32 : i32
             %104 = arith.addi %arg37, %c1_i32 : i32
             scf.yield %103, %104 : i32, i32
           } else {
-            scf.yield %arg41, %arg37 : i32, i32
+            scf.yield %arg40, %arg37 : i32, i32
           } {hivm.matmul_limited_in_cube, ssbuffer.if = 13 : i32}
           %71 = llvm.load volatile %22 : !llvm.ptr<11> -> i32
           %72 = arith.cmpi sgt, %71, %c0_i32 : i32
@@ -583,7 +583,7 @@ full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3
           %74 = arith.cmpi slt, %73, %c1_i32 : i32
           %75 = arith.andi %72, %74 : i1
           %76 = arith.cmpi sgt, %70#0, %c0_i32 : i32
-          %77 = arith.cmpi slt, %arg40, %c2_i32 : i32
+          %77 = arith.cmpi slt, %arg41, %c2_i32 : i32
           %78 = arith.cmpi slt, %arg42, %c2_i32 : i32
           %79 = arith.andi %76, %77 : i1
           %80 = arith.andi %79, %78 : i1
@@ -634,18 +634,18 @@ full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3
             %102 = arith.addi %101, %c1_i32 : i32
             llvm.store volatile %102, %24 : i32, !llvm.ptr<11>
             %103 = arith.addi %arg42, %c1_i32 : i32
-            %104 = arith.addi %arg40, %c1_i32 : i32
-            %105 = arith.subi %70#0, %c1_i32 : i32
+            %104 = arith.subi %70#0, %c1_i32 : i32
+            %105 = arith.addi %arg41, %c1_i32 : i32
             %106 = arith.addi %arg38, %c1_i32 : i32
             scf.yield %alloc_29, %103, %104, %105, %106 : memref<128xf32, #hivm.address_space<ub>>, i32, i32, i32, i32
           } else {
             %alloc_27 = memref.alloc() {alignment = 64 : i64} : memref<128xf32, #hivm.address_space<ub>>
             hivm.hir.copy ins(%arg36 : memref<128xf32, #hivm.address_space<ub>>) outs(%alloc_27 : memref<128xf32, #hivm.address_space<ub>>)
-            scf.yield %alloc_27, %arg42, %arg40, %70#0, %arg38 : memref<128xf32, #hivm.address_space<ub>>, i32, i32, i32, i32
+            scf.yield %alloc_27, %arg42, %70#0, %arg41, %arg38 : memref<128xf32, #hivm.address_space<ub>>, i32, i32, i32, i32
           }
           %85 = llvm.load volatile %21 : !llvm.ptr<11> -> i32
           %86 = arith.cmpi sgt, %85, %c0_i32 : i32
-          %87 = arith.cmpi sgt, %84#2, %c0_i32 : i32
+          %87 = arith.cmpi sgt, %84#3, %c0_i32 : i32
           %88 = arith.cmpi sgt, %84#1, %c0_i32 : i32
           %89 = arith.andi %87, %88 : i1
           %90 = arith.cmpi slt, %arg39, %48 : i32
@@ -668,16 +668,16 @@ full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3
             %99 = arith.subi %98, %c1_i32 : i32
             llvm.store volatile %99, %21 : i32, !llvm.ptr<11>
             %100 = arith.subi %84#1, %c1_i32 : i32
-            %101 = arith.subi %84#2, %c1_i32 : i32
+            %101 = arith.subi %84#3, %c1_i32 : i32
             %102 = arith.addi %arg39, %c1_i32 : i32
             scf.yield %alloc_30, %alloc_29, %100, %101, %102 : memref<128xf32, #hivm.address_space<ub>>, memref<128x256xf32, #hivm.address_space<ub>>, i32, i32, i32
           } else {
-            scf.yield %arg34, %arg35, %84#1, %84#2, %arg39 : memref<128xf32, #hivm.address_space<ub>>, memref<128x256xf32, #hivm.address_space<ub>>, i32, i32, i32
+            scf.yield %arg34, %arg35, %84#1, %84#3, %arg39 : memref<128xf32, #hivm.address_space<ub>>, memref<128x256xf32, #hivm.address_space<ub>>, i32, i32, i32
           }
           hivm.hir.sync_block_set[<VECTOR>, <PIPE_S>, <PIPE_S>] flag = 15
           %alloc_26 = memref.alloc() {alignment = 64 : i64} : memref<128xf32, #hivm.address_space<ub>>
           hivm.hir.copy ins(%84#0 : memref<128xf32, #hivm.address_space<ub>>) outs(%alloc_26 : memref<128xf32, #hivm.address_space<ub>>)
-          scf.yield %93#0, %93#1, %alloc_26, %70#1, %84#4, %93#4, %93#3, %84#3, %93#2 : memref<128xf32, #hivm.address_space<ub>>, memref<128x256xf32, #hivm.address_space<ub>>, memref<128xf32, #hivm.address_space<ub>>, i32, i32, i32, i32, i32, i32
+          scf.yield %93#0, %93#1, %alloc_26, %70#1, %84#4, %93#4, %84#2, %93#3, %93#2 : memref<128xf32, #hivm.address_space<ub>>, memref<128x256xf32, #hivm.address_space<ub>>, memref<128xf32, #hivm.address_space<ub>>, i32, i32, i32, i32, i32, i32
         }
         hivm.hir.sync_block_wait[<VECTOR>, <PIPE_M>, <PIPE_MTE3>] flag = 1
         %alloc_24 = memref.alloc() {alignment = 64 : i64} : memref<128x256xbf16, #hivm.address_space<ub>>
@@ -709,8 +709,8 @@ loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":425:0):
 loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":425:0): error: ub overflow, requires 4792576 bits while 2031616 bits available!
 [ERROR] Failed to run BiShengIR pipeline
 [ERROR] Executing: /usr/local/Ascend/cann-9.1.0/bin/bishengir-compile-a5 --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --enable-hfusion-compile=true --enable-hivm-compile=true --enable-triton-kernel-compile=true --mlir-print-ir-after-all kernel.ttadapter.mlir
-",1,full_prefill_dense_m64_b1_kv4096_uniform_tp4_dp4,True,npu:5,5,Ascend950PR_957b,4,,bfloat16,prefill,False,256,4096,tp4_dp4,uniform,64,,64,4096,28,2,24,56,64,ir/full/full_prefill_dense_m64_b1_kv4096_uniform_tp4_dp4/01_paged_prefill_page_aggregation_kernel_ttadapter.mlir.gz,3.11.10,4.0,compiler_ir,[4096],[64],1,20260829,36062b2ff07dabb12425841af8ef93ca680dabeadb1ab226544a4a6ce7e9cdc4,float32,8470,0.09119556747428784,CAPTURED_PARTIAL,,prefill_dense,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,69853,full_prefill_dense_m64_b1_kv4096_uniform,fac5d76d7b7f02eedcad150dd72f93018aaa1993
-full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",1,fac5d76d7b7f02eedcad150dd72f93018aaa1993,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'd8d94e75bea451908cd0b58b60c08503c030cf5d15e491d7694f6706aa094a90', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"i32 : i32
+",1,full_prefill_dense_m64_b1_kv4096_uniform_tp4_dp4,True,npu:5,5,Ascend950PR_957b,4,,bfloat16,prefill,False,256,4096,tp4_dp4,uniform,64,,64,4096,28,2,24,56,64,ir/full/full_prefill_dense_m64_b1_kv4096_uniform_tp4_dp4/01_paged_prefill_page_aggregation_kernel_ttadapter.mlir.gz,3.11.10,4.0,compiler_ir,[4096],[64],1,20260829,b9a3af22cd438d1ad4efbc483608be17a4b62f59f985d67d1e1178d1b8936df1,float32,8469,0.09119556747428784,CAPTURED_PARTIAL,,prefill_dense,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,69853,full_prefill_dense_m64_b1_kv4096_uniform,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0
+full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",1,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'dd0440b74995d37f5e6aa92ad1fa274e4c528e3c3158925d838a89b10063014a', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"i32 : i32
         %49 = arith.subi %43, %41 : i32
         %50 = arith.addi %33, %41 : i32
         %51 = arith.index_cast %49 : i32 to index
@@ -757,7 +757,7 @@ full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3
         hivm.hir.copy ins(%collapse_shape : memref<32768xf32, #hivm.address_space<ub>>) outs(%collapse_shape_23 : memref<32768xf32, #hivm.address_space<ub>>)
         %64:9 = scf.for %arg33 = %c0_i32 to %63 step %c1_i32 iter_args(%arg34 = %alloc_21, %arg35 = %alloc_22, %arg36 = %alloc_10, %arg37 = %c0_i32, %arg38 = %c0_i32, %arg39 = %c0_i32, %arg40 = %c0_i32, %arg41 = %c0_i32, %arg42 = %c0_i32) -> (memref<128xf32, #hivm.address_space<ub>>, memref<128x256xf32, #hivm.address_space<ub>>, memref<128xf32, #hivm.address_space<ub>>, i32, i32, i32, i32, i32, i32)  : i32 {
           hivm.hir.sync_block_wait[<VECTOR>, <PIPE_S>, <PIPE_S>] flag = 15
-          %67 = arith.cmpi slt, %arg41, %c2_i32 : i32
+          %67 = arith.cmpi slt, %arg40, %c2_i32 : i32
           %68 = arith.cmpi slt, %arg37, %48 : i32
           %69 = arith.andi %67, %68 : i1
           %70:2 = scf.if %69 -> (i32, i32) {
@@ -782,11 +782,11 @@ full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3
               %collapse_shape_30 = memref.collapse_shape %alloc_20 [[0, 1]] : memref<128x64xi8, #hivm.address_space<ub>> into memref<8192xi8, #hivm.address_space<ub>>
               hivm.hir.copy ins(%collapse_shape_29 : memref<8192xi8, #hivm.address_space<ub>>) outs(%collapse_shape_30 : memref<8192xi8, #hivm.address_space<ub>>)
             }
-            %103 = arith.addi %arg41, %c1_i32 : i32
+            %103 = arith.addi %arg40, %c1_i32 : i32
             %104 = arith.addi %arg37, %c1_i32 : i32
             scf.yield %103, %104 : i32, i32
           } else {
-            scf.yield %arg41, %arg37 : i32, i32
+            scf.yield %arg40, %arg37 : i32, i32
           } {hivm.matmul_limited_in_cube, ssbuffer.if = 13 : i32}
           %71 = llvm.load volatile %22 : !llvm.ptr<11> -> i32
           %72 = arith.cmpi sgt, %71, %c0_i32 : i32
@@ -794,7 +794,7 @@ full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3
           %74 = arith.cmpi slt, %73, %c1_i32 : i32
           %75 = arith.andi %72, %74 : i1
           %76 = arith.cmpi sgt, %70#0, %c0_i32 : i32
-          %77 = arith.cmpi slt, %arg40, %c2_i32 : i32
+          %77 = arith.cmpi slt, %arg41, %c2_i32 : i32
           %78 = arith.cmpi slt, %arg42, %c2_i32 : i32
           %79 = arith.andi %76, %77 : i1
           %80 = arith.andi %79, %78 : i1
@@ -845,18 +845,18 @@ full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3
             %102 = arith.addi %101, %c1_i32 : i32
             llvm.store volatile %102, %24 : i32, !llvm.ptr<11>
             %103 = arith.addi %arg42, %c1_i32 : i32
-            %104 = arith.addi %arg40, %c1_i32 : i32
-            %105 = arith.subi %70#0, %c1_i32 : i32
+            %104 = arith.subi %70#0, %c1_i32 : i32
+            %105 = arith.addi %arg41, %c1_i32 : i32
             %106 = arith.addi %arg38, %c1_i32 : i32
             scf.yield %alloc_29, %103, %104, %105, %106 : memref<128xf32, #hivm.address_space<ub>>, i32, i32, i32, i32
           } else {
             %alloc_27 = memref.alloc() {alignment = 64 : i64} : memref<128xf32, #hivm.address_space<ub>>
             hivm.hir.copy ins(%arg36 : memref<128xf32, #hivm.address_space<ub>>) outs(%alloc_27 : memref<128xf32, #hivm.address_space<ub>>)
-            scf.yield %alloc_27, %arg42, %arg40, %70#0, %arg38 : memref<128xf32, #hivm.address_space<ub>>, i32, i32, i32, i32
+            scf.yield %alloc_27, %arg42, %70#0, %arg41, %arg38 : memref<128xf32, #hivm.address_space<ub>>, i32, i32, i32, i32
           }
           %85 = llvm.load volatile %21 : !llvm.ptr<11> -> i32
           %86 = arith.cmpi sgt, %85, %c0_i32 : i32
-          %87 = arith.cmpi sgt, %84#2, %c0_i32 : i32
+          %87 = arith.cmpi sgt, %84#3, %c0_i32 : i32
           %88 = arith.cmpi sgt, %84#1, %c0_i32 : i32
           %89 = arith.andi %87, %88 : i1
           %90 = arith.cmpi slt, %arg39, %48 : i32
@@ -879,16 +879,16 @@ full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3
             %99 = arith.subi %98, %c1_i32 : i32
             llvm.store volatile %99, %21 : i32, !llvm.ptr<11>
             %100 = arith.subi %84#1, %c1_i32 : i32
-            %101 = arith.subi %84#2, %c1_i32 : i32
+            %101 = arith.subi %84#3, %c1_i32 : i32
             %102 = arith.addi %arg39, %c1_i32 : i32
             scf.yield %alloc_30, %alloc_29, %100, %101, %102 : memref<128xf32, #hivm.address_space<ub>>, memref<128x256xf32, #hivm.address_space<ub>>, i32, i32, i32
           } else {
-            scf.yield %arg34, %arg35, %84#1, %84#2, %arg39 : memref<128xf32, #hivm.address_space<ub>>, memref<128x256xf32, #hivm.address_space<ub>>, i32, i32, i32
+            scf.yield %arg34, %arg35, %84#1, %84#3, %arg39 : memref<128xf32, #hivm.address_space<ub>>, memref<128x256xf32, #hivm.address_space<ub>>, i32, i32, i32
           }
           hivm.hir.sync_block_set[<VECTOR>, <PIPE_S>, <PIPE_S>] flag = 15
           %alloc_26 = memref.alloc() {alignment = 64 : i64} : memref<128xf32, #hivm.address_space<ub>>
           hivm.hir.copy ins(%84#0 : memref<128xf32, #hivm.address_space<ub>>) outs(%alloc_26 : memref<128xf32, #hivm.address_space<ub>>)
-          scf.yield %93#0, %93#1, %alloc_26, %70#1, %84#4, %93#4, %93#3, %84#3, %93#2 : memref<128xf32, #hivm.address_space<ub>>, memref<128x256xf32, #hivm.address_space<ub>>, memref<128xf32, #hivm.address_space<ub>>, i32, i32, i32, i32, i32, i32
+          scf.yield %93#0, %93#1, %alloc_26, %70#1, %84#4, %93#4, %84#2, %93#3, %93#2 : memref<128xf32, #hivm.address_space<ub>>, memref<128x256xf32, #hivm.address_space<ub>>, memref<128xf32, #hivm.address_space<ub>>, i32, i32, i32, i32, i32, i32
         }
         hivm.hir.sync_block_wait[<VECTOR>, <PIPE_M>, <PIPE_MTE3>] flag = 1
         %alloc_24 = memref.alloc() {alignment = 64 : i64} : memref<128x256xbf16, #hivm.address_space<ub>>
@@ -920,8 +920,8 @@ loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":425:0):
 loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":425:0): error: ub overflow, requires 4792576 bits while 2031616 bits available!
 [ERROR] Failed to run BiShengIR pipeline
 [ERROR] Executing: /usr/local/Ascend/cann-9.1.0/bin/bishengir-compile-a5 --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --enable-hfusion-compile=true --enable-hivm-compile=true --enable-triton-kernel-compile=true --mlir-print-ir-after-all kernel.ttadapter.mlir
-",1,full_prefill_dense_m64_b1_kv4096_uniform_tp4_dp4,True,npu:5,5,Ascend950PR_957b,4,,bfloat16,prefill,False,256,4096,tp4_dp4,uniform,64,,64,4096,28,2,24,56,64,ir/full/full_prefill_dense_m64_b1_kv4096_uniform_tp4_dp4/01_paged_prefill_page_aggregation_kernel_ttir.mlir.gz,3.11.10,4.0,compiler_ir,[4096],[64],1,20260829,9f5cc0f4ecbefcbfc7c7e91a0f4fbed2796c05427ab1aef33688c7beed86cdb5,float32,3706,0.09119556747428784,CAPTURED_PARTIAL,,prefill_dense,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,26197,full_prefill_dense_m64_b1_kv4096_uniform,fac5d76d7b7f02eedcad150dd72f93018aaa1993
-swa,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",40,fac5d76d7b7f02eedcad150dd72f93018aaa1993,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'd8d94e75bea451908cd0b58b60c08503c030cf5d15e491d7694f6706aa094a90', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"ubi %80, %86 : i32
+",1,full_prefill_dense_m64_b1_kv4096_uniform_tp4_dp4,True,npu:5,5,Ascend950PR_957b,4,,bfloat16,prefill,False,256,4096,tp4_dp4,uniform,64,,64,4096,28,2,24,56,64,ir/full/full_prefill_dense_m64_b1_kv4096_uniform_tp4_dp4/01_paged_prefill_page_aggregation_kernel_ttir.mlir.gz,3.11.10,4.0,compiler_ir,[4096],[64],1,20260829,fcf52c546301f7ff92a9c7a5f91e130de1a035369b957738803ea6355dd6ee0c,float32,3706,0.09119556747428784,CAPTURED_PARTIAL,,prefill_dense,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,26197,full_prefill_dense_m64_b1_kv4096_uniform,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0
+swa,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",40,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'dd0440b74995d37f5e6aa92ad1fa274e4c528e3c3158925d838a89b10063014a', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"ubi %80, %86 : i32
         %88 = arith.maxsi %87, %c0_i32 : i32
         %89 = arith.minsi %88, %80 : i32
         %alloc_20 = memref.alloc() {alignment = 64 : i64} : memref<64xi32, #hivm.address_space<ub>>
@@ -1031,19 +1031,19 @@ swa,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a
             %125 = llvm.load volatile %24 : !llvm.ptr<11> -> i32
             %126 = arith.addi %125, %c1_i32 : i32
             llvm.store volatile %126, %24 : i32, !llvm.ptr<11>
-            %127 = arith.addi %arg34, %c1_i32 : i32
-            %128 = arith.addi %arg35, %c1_i32 : i32
+            %127 = arith.addi %arg35, %c1_i32 : i32
+            %128 = arith.addi %arg34, %c1_i32 : i32
             %129 = arith.addi %arg32, %c1_i32 : i32
             scf.yield %alloc_45, %127, %128, %129 : memref<32xf32, #hivm.address_space<ub>>, i32, i32, i32
           } else {
             %alloc_43 = memref.alloc() {alignment = 64 : i64} : memref<32xf32, #hivm.address_space<ub>>
             hivm.hir.copy ins(%arg31 : memref<32xf32, #hivm.address_space<ub>>) outs(%alloc_43 : memref<32xf32, #hivm.address_space<ub>>)
-            scf.yield %alloc_43, %arg34, %arg35, %arg32 : memref<32xf32, #hivm.address_space<ub>>, i32, i32, i32
+            scf.yield %alloc_43, %arg35, %arg34, %arg32 : memref<32xf32, #hivm.address_space<ub>>, i32, i32, i32
           }
           %110 = llvm.load volatile %21 : !llvm.ptr<11> -> i32
           %111 = arith.cmpi sgt, %110, %c0_i32 : i32
-          %112 = arith.cmpi sgt, %109#1, %c0_i32 : i32
-          %113 = arith.cmpi sgt, %109#2, %c0_i32 : i32
+          %112 = arith.cmpi sgt, %109#2, %c0_i32 : i32
+          %113 = arith.cmpi sgt, %109#1, %c0_i32 : i32
           %114 = arith.andi %112, %113 : i1
           %115 = arith.cmpi slt, %arg33, %89 : i32
           %116 = arith.andi %111, %114 : i1
@@ -1073,7 +1073,7 @@ swa,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a
           hivm.hir.sync_block_set[<VECTOR>, <PIPE_S>, <PIPE_S>] flag = 15
           %alloc_42 = memref.alloc() {alignment = 64 : i64} : memref<32xf32, #hivm.address_space<ub>>
           hivm.hir.copy ins(%109#0 : memref<32xf32, #hivm.address_space<ub>>) outs(%alloc_42 : memref<32xf32, #hivm.address_space<ub>>)
-          scf.yield %118#0, %118#1, %alloc_42, %109#3, %118#4, %118#2, %118#3 : memref<32xf32, #hivm.address_space<ub>>, memref<32x256xf32, #hivm.address_space<ub>>, memref<32xf32, #hivm.address_space<ub>>, i32, i32, i32, i32
+          scf.yield %118#0, %118#1, %alloc_42, %109#3, %118#4, %118#3, %118#2 : memref<32xf32, #hivm.address_space<ub>>, memref<32x256xf32, #hivm.address_space<ub>>, memref<32xf32, #hivm.address_space<ub>>, i32, i32, i32, i32
         }
         hivm.hir.sync_block_wait[<VECTOR>, <PIPE_M>, <PIPE_MTE3>] flag = 2
         hivm.hir.sync_block_wait[<VECTOR>, <PIPE_FIX>, <PIPE_MTE2>] flag = 5
@@ -1096,19 +1096,19 @@ swa,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a
 }
 
 
-loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":2745:0): error: Failed to run buildFinalHIVMPipelines pipeline
+loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":2746:0): error: Failed to run buildFinalHIVMPipelines pipeline
 
-loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":2745:0): error: ub overflow, requires 2107648 bits while 1769472 bits available!
-loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":2745:0): error: Failed to run buildFinalHIVMPipelines pipeline
+loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":2746:0): error: ub overflow, requires 2107648 bits while 1769472 bits available!
+loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":2746:0): error: Failed to run buildFinalHIVMPipelines pipeline
 
-loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":2745:0): error: ub overflow, requires 2107648 bits while 1769472 bits available!
-loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":2745:0): error: Failed to run buildFinalHIVMPipelines pipeline
+loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":2746:0): error: ub overflow, requires 2107648 bits while 1769472 bits available!
+loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":2746:0): error: Failed to run buildFinalHIVMPipelines pipeline
 
-loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":2745:0): error: ub overflow, requires 2107648 bits while 1769472 bits available!
+loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":2746:0): error: ub overflow, requires 2107648 bits while 1769472 bits available!
 [ERROR] Failed to run BiShengIR pipeline
 [ERROR] Executing: /usr/local/Ascend/cann-9.1.0/bin/bishengir-compile-a5 --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --enable-hfusion-compile=true --enable-hivm-compile=true --enable-triton-kernel-compile=true --mlir-print-ir-after-all kernel.ttadapter.mlir
-",1,swa_verify_d2_m80_b40_kv4096_uniform_tp4_dp4,True,npu:5,5,Ascend950PR_957b,4,2,bfloat16,prefill,False,256,4096,tp4_dp4,uniform,80,,2,4096,28,2,24,56,64,ir/swa/swa_verify_d2_m80_b40_kv4096_uniform_tp4_dp4/01__swa_paged_prefill_dp_grouped_rows_kernel_ttadapter.mlir.gz,3.11.10,4.0,compiler_ir,"[4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096]","[2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]",1,20260829,80afca44a43fb097712f06242627bfabbbaa6a0f467f380195d4c22c5e581e73,float32,10805,0.09119556747428784,CAPTURED_PARTIAL,511,verify_d2,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,86329,swa_verify_d2_m80_b40_kv4096_uniform,fac5d76d7b7f02eedcad150dd72f93018aaa1993
-swa,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",40,fac5d76d7b7f02eedcad150dd72f93018aaa1993,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'd8d94e75bea451908cd0b58b60c08503c030cf5d15e491d7694f6706aa094a90', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"ubi %80, %86 : i32
+",1,swa_verify_d2_m80_b40_kv4096_uniform_tp4_dp4,True,npu:5,5,Ascend950PR_957b,4,2,bfloat16,prefill,False,256,4096,tp4_dp4,uniform,80,,2,4096,28,2,24,56,64,ir/swa/swa_verify_d2_m80_b40_kv4096_uniform_tp4_dp4/01__swa_paged_prefill_dp_grouped_rows_kernel_ttadapter.mlir.gz,3.11.10,4.0,compiler_ir,"[4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096]","[2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]",1,20260829,1a1bbc193bdfd50620a51b96e2e15a6e454c16902946748aa53423e1fbd16c19,float32,10806,0.09119556747428784,CAPTURED_PARTIAL,511,verify_d2,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,86329,swa_verify_d2_m80_b40_kv4096_uniform,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0
+swa,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",40,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'dd0440b74995d37f5e6aa92ad1fa274e4c528e3c3158925d838a89b10063014a', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"ubi %80, %86 : i32
         %88 = arith.maxsi %87, %c0_i32 : i32
         %89 = arith.minsi %88, %80 : i32
         %alloc_20 = memref.alloc() {alignment = 64 : i64} : memref<64xi32, #hivm.address_space<ub>>
@@ -1218,19 +1218,19 @@ swa,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a
             %125 = llvm.load volatile %24 : !llvm.ptr<11> -> i32
             %126 = arith.addi %125, %c1_i32 : i32
             llvm.store volatile %126, %24 : i32, !llvm.ptr<11>
-            %127 = arith.addi %arg34, %c1_i32 : i32
-            %128 = arith.addi %arg35, %c1_i32 : i32
+            %127 = arith.addi %arg35, %c1_i32 : i32
+            %128 = arith.addi %arg34, %c1_i32 : i32
             %129 = arith.addi %arg32, %c1_i32 : i32
             scf.yield %alloc_45, %127, %128, %129 : memref<32xf32, #hivm.address_space<ub>>, i32, i32, i32
           } else {
             %alloc_43 = memref.alloc() {alignment = 64 : i64} : memref<32xf32, #hivm.address_space<ub>>
             hivm.hir.copy ins(%arg31 : memref<32xf32, #hivm.address_space<ub>>) outs(%alloc_43 : memref<32xf32, #hivm.address_space<ub>>)
-            scf.yield %alloc_43, %arg34, %arg35, %arg32 : memref<32xf32, #hivm.address_space<ub>>, i32, i32, i32
+            scf.yield %alloc_43, %arg35, %arg34, %arg32 : memref<32xf32, #hivm.address_space<ub>>, i32, i32, i32
           }
           %110 = llvm.load volatile %21 : !llvm.ptr<11> -> i32
           %111 = arith.cmpi sgt, %110, %c0_i32 : i32
-          %112 = arith.cmpi sgt, %109#1, %c0_i32 : i32
-          %113 = arith.cmpi sgt, %109#2, %c0_i32 : i32
+          %112 = arith.cmpi sgt, %109#2, %c0_i32 : i32
+          %113 = arith.cmpi sgt, %109#1, %c0_i32 : i32
           %114 = arith.andi %112, %113 : i1
           %115 = arith.cmpi slt, %arg33, %89 : i32
           %116 = arith.andi %111, %114 : i1
@@ -1260,7 +1260,7 @@ swa,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a
           hivm.hir.sync_block_set[<VECTOR>, <PIPE_S>, <PIPE_S>] flag = 15
           %alloc_42 = memref.alloc() {alignment = 64 : i64} : memref<32xf32, #hivm.address_space<ub>>
           hivm.hir.copy ins(%109#0 : memref<32xf32, #hivm.address_space<ub>>) outs(%alloc_42 : memref<32xf32, #hivm.address_space<ub>>)
-          scf.yield %118#0, %118#1, %alloc_42, %109#3, %118#4, %118#2, %118#3 : memref<32xf32, #hivm.address_space<ub>>, memref<32x256xf32, #hivm.address_space<ub>>, memref<32xf32, #hivm.address_space<ub>>, i32, i32, i32, i32
+          scf.yield %118#0, %118#1, %alloc_42, %109#3, %118#4, %118#3, %118#2 : memref<32xf32, #hivm.address_space<ub>>, memref<32x256xf32, #hivm.address_space<ub>>, memref<32xf32, #hivm.address_space<ub>>, i32, i32, i32, i32
         }
         hivm.hir.sync_block_wait[<VECTOR>, <PIPE_M>, <PIPE_MTE3>] flag = 2
         hivm.hir.sync_block_wait[<VECTOR>, <PIPE_FIX>, <PIPE_MTE2>] flag = 5
@@ -1283,15 +1283,15 @@ swa,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a
 }
 
 
-loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":2745:0): error: Failed to run buildFinalHIVMPipelines pipeline
+loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":2746:0): error: Failed to run buildFinalHIVMPipelines pipeline
 
-loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":2745:0): error: ub overflow, requires 2107648 bits while 1769472 bits available!
-loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":2745:0): error: Failed to run buildFinalHIVMPipelines pipeline
+loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":2746:0): error: ub overflow, requires 2107648 bits while 1769472 bits available!
+loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":2746:0): error: Failed to run buildFinalHIVMPipelines pipeline
 
-loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":2745:0): error: ub overflow, requires 2107648 bits while 1769472 bits available!
-loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":2745:0): error: Failed to run buildFinalHIVMPipelines pipeline
+loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":2746:0): error: ub overflow, requires 2107648 bits while 1769472 bits available!
+loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":2746:0): error: Failed to run buildFinalHIVMPipelines pipeline
 
-loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":2745:0): error: ub overflow, requires 2107648 bits while 1769472 bits available!
+loc(""/data2/hw_lly/testfiles/welmv4_dp_prefill_attention_candidate.py"":2746:0): error: ub overflow, requires 2107648 bits while 1769472 bits available!
 [ERROR] Failed to run BiShengIR pipeline
 [ERROR] Executing: /usr/local/Ascend/cann-9.1.0/bin/bishengir-compile-a5 --target=Ascend950PR_957b --enable-auto-multi-buffer=True --enable-auto-bind-sub-block=True --enable-hfusion-compile=true --enable-hivm-compile=true --enable-triton-kernel-compile=true --mlir-print-ir-after-all kernel.ttadapter.mlir
-",1,swa_verify_d2_m80_b40_kv4096_uniform_tp4_dp4,True,npu:5,5,Ascend950PR_957b,4,2,bfloat16,prefill,False,256,4096,tp4_dp4,uniform,80,,2,4096,28,2,24,56,64,ir/swa/swa_verify_d2_m80_b40_kv4096_uniform_tp4_dp4/01__swa_paged_prefill_dp_grouped_rows_kernel_ttir.mlir.gz,3.11.10,4.0,compiler_ir,"[4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096]","[2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]",1,20260829,1631323d702b26a8dcb7de55837892746f23df7e0eba42d70e970eae3701f9bd,float32,5280,0.09119556747428784,CAPTURED_PARTIAL,511,verify_d2,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,39947,swa_verify_d2_m80_b40_kv4096_uniform,fac5d76d7b7f02eedcad150dd72f93018aaa1993
+",1,swa_verify_d2_m80_b40_kv4096_uniform_tp4_dp4,True,npu:5,5,Ascend950PR_957b,4,2,bfloat16,prefill,False,256,4096,tp4_dp4,uniform,80,,2,4096,28,2,24,56,64,ir/swa/swa_verify_d2_m80_b40_kv4096_uniform_tp4_dp4/01__swa_paged_prefill_dp_grouped_rows_kernel_ttir.mlir.gz,3.11.10,4.0,compiler_ir,"[4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096]","[2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]",1,20260829,c1c306c8d5c20faa48acaa9495af2dd8c31980988096c57b8051668eefc10f7f,float32,5279,0.09119556747428784,CAPTURED_PARTIAL,511,verify_d2,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,39947,swa_verify_d2_m80_b40_kv4096_uniform,517544f843a9ba6f8af6e0642c534a4e2a2e0cb0
