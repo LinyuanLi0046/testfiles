@@ -1,0 +1,279 @@
+{
+  "schema_version": 1,
+  "workspace": "welmv4-npu-dp-attention-full-swa",
+  "production_sources": {
+    "prefill": {
+      "repository": "NEWSGLANG/sglang",
+      "commit": "bc7dc55e7cdeda050f36506c2d3ebdfe4433e5b1",
+      "path": "python/sglang/srt/hardware_backend/npu/attention/welmv4_sink_prefill_attention.py",
+      "baseline_sha256": "c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54"
+    },
+    "decode": {
+      "repository": "NEWSGLANG/sglang",
+      "commit": "bc7dc55e7cdeda050f36506c2d3ebdfe4433e5b1",
+      "path": "python/sglang/srt/hardware_backend/npu/attention/sink_full_attention.py",
+      "baseline_sha256": "c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec"
+    }
+  },
+  "model_contract": {
+    "dtype": "bfloat16",
+    "kv_cache_dtype": "bfloat16",
+    "sink_dtype": "float32",
+    "page_size": 64,
+    "head_dim": 256,
+    "global_num_q_heads": 24,
+    "global_num_kv_heads": 2,
+    "tp_size": 4,
+    "gqa_interleave": false,
+    "softmax_scale": 0.09119556747428784,
+    "swa_left_window": 511,
+    "swa_global_window": 0,
+    "max_context_length": 262144,
+    "m_max": 18432
+  },
+  "head_layouts": {
+    "tp4": {"dp_size": 1, "local_num_q_heads": 6, "local_num_kv_heads": 1},
+    "tp4_dp2": {"dp_size": 2, "local_num_q_heads": 12, "local_num_kv_heads": 1},
+    "tp4_dp4": {"dp_size": 4, "local_num_q_heads": 24, "local_num_kv_heads": 2}
+  },
+  "validation": {
+    "reference_atol": 0.03,
+    "reference_rtol": 0.03,
+    "baseline_candidate_atol": 0.005,
+    "baseline_candidate_rtol": 0.005,
+    "reference_max_query_rows": 32,
+    "minimum_case_speedup": 1.0,
+    "minimum_control_layout_speedup": 0.98,
+    "maximum_normalized_cost_ratio_vs_tp4": 1.02,
+    "msprof_warmup_per_case": 1,
+    "msprof_samples_per_case": 3,
+    "max_artifact_bytes": 50000000,
+    "decode_reference_targets_us": {
+      "40": {"full": 620.0, "swa": 27.0},
+      "56": {"full": 724.0, "swa": 33.0}
+    },
+    "required_decode_batch_sizes": [1, 4, 8, 16, 32, 40, 56],
+    "required_mtp_steps": [1, 2, 3],
+    "required_prefill_lengths": [4096, 8192, 9616, 10880, 11264, 11648, 16000, 16896, 17408]
+  },
+  "suites": {
+    "smoke": {
+      "correctness": [
+        {"attention": "full", "topology": "decode", "layout": "tp4", "batch_size": 4, "kv_length": 4096},
+        {"attention": "swa", "topology": "decode", "layout": "tp4_dp2", "batch_size": 4, "kv_length": 4096},
+        {"attention": "full", "topology": "verify_d2", "layout": "tp4_dp4", "batch_size": 4, "kv_length": 4096},
+        {"attention": "swa", "topology": "prefill_dense", "layout": "tp4", "m": 64, "kv_length": 4096},
+        {"attention": "full", "topology": "prefill_ragged", "layout": "tp4_dp2", "m": 257, "batch_size": 16, "kv_length": 4096, "length_pattern": "ragged"}
+      ],
+      "performance": [
+        {"attention": "full", "topology": "decode", "layout": "tp4", "batch_size": 40, "kv_length": 4096},
+        {"attention": "full", "topology": "decode", "layout": "tp4_dp2", "batch_size": 40, "kv_length": 4096},
+        {"attention": "full", "topology": "decode", "layout": "tp4_dp4", "batch_size": 40, "kv_length": 4096},
+        {"attention": "swa", "topology": "verify_d2", "layout": "tp4_dp4", "batch_size": 40, "kv_length": 4096}
+      ],
+      "ir": [
+        {"attention": "full", "topology": "decode", "layout": "tp4_dp4", "batch_size": 40, "kv_length": 4096},
+        {"attention": "swa", "topology": "prefill_dense", "layout": "tp4_dp4", "m": 64, "kv_length": 4096}
+      ],
+      "profile": []
+    },
+    "iteration": {
+      "correctness_groups": [
+        {
+          "attention": ["full", "swa"],
+          "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
+          "topology": ["decode", "mirror"],
+          "batch_sizes": [1, 4, 8, 16, 32, 40, 56],
+          "kv_length": 4096
+        },
+        {
+          "attention": ["full", "swa"],
+          "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
+          "topology": ["verify_d2", "verify_d3", "verify_d4"],
+          "batch_sizes": [1, 4, 8, 16, 32, 40, 56],
+          "kv_length": 4096
+        },
+        {
+          "attention": ["full", "swa"],
+          "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
+          "topology": "prefill_dense",
+          "m_values": [1, 2, 3, 4, 5, 8, 32, 64, 128, 257, 1024],
+          "kv_length": 4096
+        },
+        {
+          "attention": ["full", "swa"],
+          "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
+          "topology": "prefill_ragged",
+          "m_values": [64, 257, 1024],
+          "batch_size": 16,
+          "kv_length": 4096,
+          "length_pattern": "ragged"
+        },
+        {
+          "attention": ["full", "swa"],
+          "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
+          "topology": "prefill_dense",
+          "m_values": [4096, 11264, 16896],
+          "kv_length": "match_m"
+        }
+      ],
+      "performance_groups": [
+        {
+          "attention": ["full", "swa"],
+          "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
+          "topology": "decode",
+          "batch_sizes": [40],
+          "kv_length": 4096
+        },
+        {
+          "attention": ["full", "swa"],
+          "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
+          "topology": "decode",
+          "batch_sizes": [1],
+          "kv_length": 16896,
+          "length_pattern": "ragged"
+        },
+        {
+          "attention": ["full", "swa"],
+          "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
+          "topology": "verify_d2",
+          "batch_sizes": [40],
+          "kv_length": 11264,
+          "length_pattern": "ragged"
+        },
+        {
+          "attention": ["full", "swa"],
+          "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
+          "topology": "prefill_dense",
+          "m_values": [64, 16896],
+          "kv_length": "match_m"
+        }
+      ],
+      "ir": [
+        {"attention": "full", "topology": "decode", "layout": "tp4", "batch_size": 40, "kv_length": 16896, "length_pattern": "ragged"},
+        {"attention": "full", "topology": "decode", "layout": "tp4_dp4", "batch_size": 40, "kv_length": 16896, "length_pattern": "ragged"},
+        {"attention": "swa", "topology": "decode", "layout": "tp4_dp4", "batch_size": 40, "kv_length": 4096},
+        {"attention": "full", "topology": "prefill_dense", "layout": "tp4", "m": 64, "kv_length": 4096},
+        {"attention": "full", "topology": "prefill_dense", "layout": "tp4_dp4", "m": 64, "kv_length": 4096},
+        {"attention": "swa", "topology": "verify_d2", "layout": "tp4_dp4", "batch_size": 40, "kv_length": 4096}
+      ],
+      "profile": [
+        {"attention": "full", "topology": "decode", "layout": "tp4_dp4", "batch_size": 40, "kv_length": 16896, "length_pattern": "ragged"},
+        {"attention": "swa", "topology": "decode", "layout": "tp4_dp4", "batch_size": 40, "kv_length": 4096},
+        {"attention": "full", "topology": "prefill_dense", "layout": "tp4_dp4", "m": 64, "kv_length": 4096},
+        {"attention": "swa", "topology": "verify_d2", "layout": "tp4_dp4", "batch_size": 40, "kv_length": 4096}
+      ]
+    },
+    "full": {
+      "correctness_groups": [
+        {
+          "attention": ["full", "swa"],
+          "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
+          "topology": "decode",
+          "batch_sizes": [1, 4, 8, 16, 32, 40, 56],
+          "kv_length": 4096,
+          "length_pattern": "ragged"
+        },
+        {
+          "attention": ["full", "swa"],
+          "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
+          "topology": ["decode", "mirror"],
+          "batch_sizes": [1, 16, 56],
+          "kv_lengths": [8192, 9616, 11264, 16896],
+          "length_pattern": "ragged"
+        },
+        {
+          "attention": ["full", "swa"],
+          "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
+          "topology": ["verify_d2", "verify_d3", "verify_d4"],
+          "batch_sizes": [1, 4, 8, 16, 32, 40, 56],
+          "kv_length": 4096,
+          "length_pattern": "ragged"
+        },
+        {
+          "attention": ["full", "swa"],
+          "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
+          "topology": ["verify_d2", "verify_d3", "verify_d4"],
+          "batch_sizes": [1, 40, 56],
+          "kv_lengths": [9616, 11264, 16896],
+          "length_pattern": "ragged"
+        },
+        {
+          "attention": ["full", "swa"],
+          "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
+          "topology": "prefill_dense",
+          "m_values": [1, 2, 3, 4, 5, 8, 16, 32, 64, 128, 257, 513, 1024, 4096, 8192, 9616, 10880, 11264, 11648, 16000, 16896, 17408],
+          "kv_length": "match_m"
+        },
+        {
+          "attention": ["full", "swa"],
+          "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
+          "topology": "prefill_ragged",
+          "m_values": [64, 257, 1024, 4096, 9616, 11264, 16896],
+          "batch_size": 56,
+          "kv_length": "match_m",
+          "length_pattern": "ragged"
+        }
+      ],
+      "performance_groups": [
+        {
+          "attention": ["full", "swa"],
+          "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
+          "topology": "decode",
+          "batch_sizes": [1, 4, 8, 16, 32, 40, 56],
+          "kv_length": 4096,
+          "length_pattern": "ragged"
+        },
+        {
+          "attention": ["full", "swa"],
+          "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
+          "topology": "decode",
+          "batch_sizes": [1],
+          "kv_length": 16896,
+          "length_pattern": "ragged"
+        },
+        {
+          "attention": ["full", "swa"],
+          "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
+          "topology": "mirror",
+          "batch_sizes": [40],
+          "kv_length": 16896,
+          "length_pattern": "ragged"
+        },
+        {
+          "attention": ["full", "swa"],
+          "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
+          "topology": "verify_d2",
+          "batch_sizes": [40],
+          "kv_length": 11264,
+          "length_pattern": "ragged"
+        },
+        {
+          "attention": ["full", "swa"],
+          "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
+          "topology": "verify_d3",
+          "batch_sizes": [16],
+          "kv_length": 11264,
+          "length_pattern": "ragged"
+        },
+        {
+          "attention": ["full", "swa"],
+          "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
+          "topology": "verify_d4",
+          "batch_sizes": [56],
+          "kv_length": 11264,
+          "length_pattern": "ragged"
+        },
+        {
+          "attention": ["full", "swa"],
+          "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
+          "topology": "prefill_dense",
+          "m_values": [4, 64, 1024, 11264],
+          "kv_length": "match_m"
+        }
+      ],
+      "ir": [],
+      "profile": []
+    }
+  }
+}

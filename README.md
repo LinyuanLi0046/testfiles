@@ -1,141 +1,96 @@
-# WeLMv4 NPU RoPE DP-Attention optimization workspace
+# WeLMv4 NPU DP-Attention optimization workspace
 
-This repository is a standalone Ascend worker for preserving the current
-WeLMv4 RoPE performance while generalizing its optimized kernels from the
-original TP4 local layout to DP-Attention layouts. The remote worker does not
-need a NEWSGLANG checkout.
+This repository is the standalone remote-NPU loop for the WeLMv4 Full/SWA
+attention kernels used by NEWSGLANG.
 
-## Head-layout contract
+## Production split
 
-The model has 24 global Q heads and 2 global KV heads:
+- Prefill and Spec V2 target verify:
+  `welmv4_sink_prefill_attention.py`, frozen as
+  `welmv4_dp_prefill_attention_baseline.py`.
+- Eager decode and decode-like KV-mirror prefill:
+  `sink_full_attention.py`, frozen as
+  `welmv4_dp_decode_attention_baseline.py`.
+- Optimization changes belong only in the matching `*_candidate.py` file.
 
-| topology | attention TP | local Q | local KV |
-|---|---:|---:|---:|
-| `tp4` | 4 | 6 | 1 |
-| `tp4_dp2` | 2 | 12 | 1 |
-| `tp4_dp4` | 1 | 24 | 2 |
+The initial baseline and candidate files are byte-identical. The benchmark
+audits both frozen baseline hashes before touching the NPU.
 
-All cases use BF16 Q/K, FP32 cos/sin cache, `head_dim=256` and tail
-`rope_dim=64`. The candidate must retain the Q6/K1 latency while making Q12/K1
-and Q24/K2 scale with their real arithmetic and memory traffic instead of
-falling back to padded Q16/Q32 execution.
+## Head layouts
 
-`welmv4_rope_baseline.py` is a frozen production copy of
-`python/sglang/srt/layers/welmv4_npu_op.py`; its only standalone adaptation is
-the fallback `is_npu()` import. Its LF-normalized hash is pinned in
-`rope_workspace_config.json`. Optimization changes belong in
-`welmv4_rope_candidate.py`.
+The global model has Q24/KV2 with TP=4:
 
-The previous Full/SWA Attention files and result history remain for
-traceability. The active monitor now invokes `bench_welmv4_rope_npu.py` and
-publishes `welmv4_rope_results/`.
+| layout | Attention DP | local Q heads | local KV heads | role |
+|---|---:|---:|---:|---|
+| `tp4` | 1 | 6 | 1 | non-regression control and Q6-only dispatch |
+| `tp4_dp2` | 2 | 12 | 1 | DP2 target |
+| `tp4_dp4` | 4 | 24 | 2 | DP4 target |
 
-## Covered execution families
+The workspace explicitly exercises the production Q6-only grouped prefill
+kernels and the generic Q12/Q24 branches whose DP-Attention performance is not
+yet known.
 
-- Decode with local M=`1/4/8/16/32/40/56`.
-- MTP step1/2/3, represented by per-request widths D=`2/3/4`, across the same
-  batch values.
-- Contiguous and segmented ordinary prefill.
-- Single-request and segmented KV-mirror prefill.
-- Dispatch boundaries 575/576/577 and 639/640/641.
+## Shape contract
 
-MTP/decode positions cover 4096, 8192 and 9616, plus representative aligned
-and non-aligned points around 11K and 16.5K:
+- Decode batch sizes: `1, 4, 8, 16, 32, 40, 56`.
+- Spec V2 steps 1-3: target-verify widths `D=2,3,4`.
+- Ordinary dense and ragged prefill.
+- Decode-like KV-mirror calls, including the production max-context dispatch
+  hint.
+- Page size 64, head dimension 256.
+- Context/prefill coverage: 4096, 8192, 9616, the 11K band
+  (10880/11264/11648), and the 16.5K band (16000/16896/17408).
+- The removed 26K cases are not part of this task.
 
-```text
-10240 / 11000 / 12288
-15360 / 16500 / 18432
+Long prefill correctness uses full baseline/candidate comparison plus a
+deterministic FP32 sample of query rows. This keeps correctness independent
+without turning the oracle into an O(16K²) remote bottleneck.
+
+## Performance gates
+
+`msprof op` task duration is the only timing authority. NPU Event timing is
+disabled.
+
+- Every changed candidate case must be no slower than its frozen baseline.
+- TP4/Q6 allows only the configured 2% measurement-noise band.
+- Candidate time is normalized by the Q-head work scale. DP2 must be no worse
+  than 2x raw TP4 latency and DP4 no worse than 4x, with a 2% noise allowance.
+- Full flash-decode latency is the sum of
+  `paged_decode_fd_kernel` and `paged_decode_fd_reduce_kernel`, not just the
+  first kernel.
+
+Before the long matrix, four small cases run an msprof preflight. A bad command,
+wrong kernel name, unexpected launch count, or unparseable CSV stops the run
+immediately.
+
+## Iteration versus full validation
+
+`--suite remote` normally maps to the bounded `iteration` suite. It retains
+all required decode/MTP correctness shapes but times only representative
+workloads. Set:
+
+```bash
+export WELMV4_DP_ATTENTION_FORCE_FULL=1
 ```
 
-The 26K family is intentionally excluded from all subsequent correctness,
-performance, IR and profiling cycles.
-
-RoPE does not read KV cache, but these context values materially exercise the
-cos/sin-cache addressing pattern. Correctness uses a wider cross-product;
-performance rotates representative `(M,D,context)` points instead of compiling
-every possible Cartesian combination.
-
-## Acceptance rules
-
-1. Baseline and candidate are checked against an FP32 torch reference.
-2. Candidate BF16 output must be bitwise-equal to the frozen baseline.
-3. Every timed Q6, Q12 and Q24 case must have candidate/baseline speedup >=1.0.
-4. Candidate microseconds per rotated value for DP2/DP4 may not exceed the
-   matching TP4 workload by more than the configured 5% noise tolerance.
-5. NPU Event timing is disabled and rejected. Acceptance uses ordered
-   `msprof op` task durations.
-
-The normalized rule does not require equal single-request latency when a rank
-owns two or four times as many Q heads. It requires the latency increase to
-match the actual rotated-value count, without extra loss from padding or a
-generic kernel.
-
-## Initial baseline snapshot
-
-`welmv4_rope_candidate.py` initially matches the frozen baseline byte for byte.
-The first remote cycle therefore records the current implementation, including
-the existing generic fallback for DP-Attention layouts, without pretending that
-an unverified optimization is ready.
-
-Because baseline and candidate hashes are equal, the first run marks timing rows
-as `BASELINE_SNAPSHOT`: timing noise cannot falsely fail the cycle. Normalized
-Q6/Q12/Q24 cost ratios are still emitted so padded/fallback inefficiencies are
-visible. Once the candidate changes, the strict no-regression and normalized
-efficiency gates automatically become active.
-
-After the baseline snapshot, a changed candidate automatically maps the legacy
-monitor's `--suite remote` request to the bounded `iteration` suite. This keeps
-each one-point experiment fast while retaining Q6 guards, DP2/DP4 boundaries,
-long prefill and mirror cases. Set `WELMV4_ROPE_FORCE_FULL=1` for periodic or
-final full-matrix validation.
-
-The unchanged TP4 Q6/K1 control layout uses a 2% msprof noise band established
-by the byte-identical baseline snapshot. Modified DP2/DP4 layouts retain the
-strict `speedup>=1.0` gate. Decode and MTP remain in every iteration's full
-correctness matrix, but enter performance timing only when their generic kernel
-is the active optimization target.
-
-Optimization must be driven by returned msprof/profile/MLIR evidence, and all
-Q6 regression gates must remain green.
+for initial, periodic, or final full-matrix validation. The monitor performs a
+full run on its first benchmark and then every three iteration runs by default;
+change this with `--full-every N`.
 
 ## Remote worker
-
-Stop the previous worker once, pull this switch, and run:
 
 ```bash
 python auto_bench_on_git_update.py --run-now --device npu:5
 ```
 
-After that, no manual intervention is required. The existing protocol still
-fast-forwards from origin, stages a run safely, retains PASS/failure/regression
-artifacts, handles push races and commits only active generated artifacts.
+The worker publishes:
 
-Manual smoke run:
+- `welmv4_dp_attention_results/result.json`
+- correctness and performance CSV files
+- per-component msprof task durations and compressed logs
+- IR/MLIR captures
+- profiler and pipeline artifacts
+- `welmv4_dp_attention_run_error.log` on failure
 
-```bash
-python bench_welmv4_rope_npu.py \
-  --suite smoke --mode both --device npu:5 \
-  --capture-msprof-op on --capture-ir on --capture-profile off
-```
-
-`BENCH_PYTHON=/path/to/python` selects the NPU interpreter.
-
-## Generated artifacts
-
-```text
-welmv4_rope_results/
-  result.json
-  correctness.csv
-  performance_shape_validation.csv
-  performance.csv
-  msprof_task_duration.csv
-  ir.csv
-  profile.csv
-  ir/<topology>/<case>/*.mlir.gz
-  profile/<topology>/<case>/{pipe_utilization,memory}/*.{csv,json}.gz
-  msprof/{baseline,candidate}/*.log.gz
-welmv4_rope_run_error.log
-```
-
-`result.json` is authoritative. Status is `PASS`, `FAIL`,
-`PERF_REGRESSION`, or `ERROR`.
+The old RoPE and prefill-attention result trees remain historical artifacts;
+the monitor no longer writes them.

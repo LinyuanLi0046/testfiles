@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Poll origin every minute and run the WeLMv4 RoPE NPU benchmark.
+"""Poll origin and run the WeLMv4 Full/SWA DP-Attention NPU benchmark.
 
 Put this file in the root of the ``testfiles`` Git repository, then run:
 
@@ -27,9 +27,9 @@ from typing import Sequence
 
 
 REMOTE = "origin"
-BENCHMARK_SCRIPT = "bench_welmv4_rope_npu.py"
-RESULT_DIR = "welmv4_rope_results"
-ERROR_LOG = "welmv4_rope_run_error.log"
+BENCHMARK_SCRIPT = "bench_welmv4_dp_attention_npu.py"
+RESULT_DIR = "welmv4_dp_attention_results"
+ERROR_LOG = "welmv4_dp_attention_run_error.log"
 DEFAULT_INTERVAL_SECONDS = 60
 AUTO_COMMIT_MARKER = "Auto-Benchmark: true"
 
@@ -181,17 +181,25 @@ def remove_result_dir() -> None:
         shutil.rmtree(resolved)
 
 
-def run_benchmark(device: str) -> bool:
+def run_benchmark(device: str, *, full_run: bool) -> bool:
     """Run once and preserve every valid result, including failed/regressed runs."""
     remove_result_dir()
 
     returncode = -1
     captured = ""
     launch_error = ""
-    with tempfile.TemporaryDirectory(prefix="welm_rope_result_", dir=REPO) as tmp:
+    with tempfile.TemporaryDirectory(prefix="welm_dp_attn_result_", dir=REPO) as tmp:
         staging = Path(tmp)
         command = benchmark_command(device, staging)
-        log(f"starting benchmark: {shlex.join(command)}")
+        benchmark_env = os.environ.copy()
+        if full_run:
+            benchmark_env["WELMV4_DP_ATTENTION_FORCE_FULL"] = "1"
+        else:
+            benchmark_env.pop("WELMV4_DP_ATTENTION_FORCE_FULL", None)
+        log(
+            f"starting {'full' if full_run else 'iteration'} benchmark: "
+            f"{shlex.join(command)}"
+        )
         with tempfile.TemporaryFile(mode="w+", encoding="utf-8", errors="replace") as stream:
             try:
                 result = subprocess.run(
@@ -199,6 +207,7 @@ def run_benchmark(device: str) -> bool:
                     cwd=REPO,
                     stdout=stream,
                     stderr=subprocess.STDOUT,
+                    env=benchmark_env,
                     check=False,
                 )
                 returncode = result.returncode
@@ -406,9 +415,20 @@ def parse_args() -> argparse.Namespace:
         default="npu:5",
         help="NPU device passed to the benchmark (default: npu:5)",
     )
+    parser.add_argument(
+        "--full-every",
+        type=int,
+        default=3,
+        help=(
+            "run a full matrix first and after this many iteration runs; "
+            "0 disables periodic full runs (default: 3)"
+        ),
+    )
     args = parser.parse_args()
     if args.interval <= 0:
         parser.error("--interval must be greater than zero")
+    if args.full_every < 0:
+        parser.error("--full-every must be non-negative")
     return args
 
 
@@ -426,6 +446,8 @@ def main() -> int:
     # Recovering an already-produced pending result takes precedence; do not
     # immediately benchmark the automatic result commit itself after pushing.
     force_run = args.run_now and pending is None
+    first_benchmark = True
+    iterations_since_full = 0
     while True:
         retry_immediately = False
         try:
@@ -445,7 +467,12 @@ def main() -> int:
                     log(f"--run-now selected current HEAD {base_sha[:12]}")
                 force_run = False
                 if base_sha is not None:
-                    succeeded = run_benchmark(args.device)
+                    full_run = first_benchmark or (
+                        args.full_every > 0
+                        and iterations_since_full >= args.full_every
+                    )
+                    succeeded = run_benchmark(args.device, full_run=full_run)
+                    first_benchmark = False
 
                     # Do not publish a result produced from a commit that is no longer current.
                     fetch(branch)
@@ -456,6 +483,10 @@ def main() -> int:
                     else:
                         pending = commit_artifacts(branch, base_sha, succeeded)
                         pending, retry_immediately = try_push(pending)
+                        if full_run:
+                            iterations_since_full = 0
+                        else:
+                            iterations_since_full += 1
         except (GitCommandError, OSError) as exc:
             log(f"cycle error: {exc}")
 
