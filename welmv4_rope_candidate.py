@@ -1845,7 +1845,7 @@ def welmv4_inplace_rope_npu(
             num_q_heads,
             triton.next_power_of_2(num_q_heads),
             num_k_heads,
-            multibuffer=True,
+            multibuffer=not use_head_parallel,
         )
     elif use_segmented_prefill:
         num_segment_tiles = segment_tile_starts.numel() - 1

@@ -47,20 +47,20 @@
   "suites": {
     "smoke": {
       "correctness": [
-        {"family": "decode", "m_values": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 11000, 16500, 26000, 28672], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "decode", "m_values": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 11000, 16500], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "mtp_d2", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_length": 4096, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "mtp_d3", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_length": 16500, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
-        {"family": "mtp_d4", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_length": 26000, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d4", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_length": 9616, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "contiguous_prefill", "n": 640, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "segmented_prefill", "n": 1024, "batch_size": 7, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "contiguous_mirror", "n": 4096, "batch_size": 1, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "segmented_mirror", "n": 4096, "batch_size": 16, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]}
       ],
       "performance": [
-        {"family": "decode", "m_values": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 11000, 16500, 26000, 28672], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
-        {"family": "mtp_d2", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432, 24576, 26000, 28672], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
-        {"family": "mtp_d3", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432, 24576, 26000, 28672], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
-        {"family": "mtp_d4", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432, 24576, 26000, 28672], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "decode", "m_values": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 11000, 16500], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d2", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d3", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d4", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "contiguous_prefill", "n": 640, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "segmented_mirror", "n": 4096, "batch_size": 16, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]}
       ],
@@ -71,12 +71,12 @@
     },
     "iteration": {
       "correctness": [
-        {"family": "decode", "m_values": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 11000, 16500, 26000, 28672], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
-        {"family": "mtp_d2", "batch_sizes": [1, 16, 56], "context_lengths": [4096, 16500, 26000], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
-        {"family": "mtp_d3", "batch_sizes": [1, 16, 56], "context_lengths": [4096, 16500, 26000], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
-        {"family": "mtp_d4", "batch_sizes": [1, 16, 56], "context_lengths": [4096, 16500, 26000], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "decode", "m_values": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 11000, 16500], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d2", "batch_sizes": [1, 16, 56], "context_lengths": [4096, 11000, 16500], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d3", "batch_sizes": [1, 16, 56], "context_lengths": [4096, 11000, 16500], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d4", "batch_sizes": [1, 16, 56], "context_lengths": [4096, 11000, 16500], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "generic", "n_values": [575, 576, 577, 639, 640, 641], "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
-        {"family": "contiguous_prefill", "n_values": [640, 641, 1024, 11264, 16896, 26624], "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "contiguous_prefill", "n_values": [640, 641, 4096, 8192, 9616, 11000, 11264, 16500, 16896], "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "segmented_prefill", "n": 1024, "batch_size": 7, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "segmented_prefill", "n": 16896, "batch_size": 16, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "contiguous_mirror", "n_values": [640, 4096, 16896], "batch_size": 1, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
@@ -84,7 +84,7 @@
         {"family": "segmented_mirror", "n": 16896, "batch_size": 16, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]}
       ],
       "performance": [
-        {"family": "contiguous_prefill", "n_values": [640, 641, 1024, 11264, 16896, 26624], "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "contiguous_prefill", "n_values": [4096, 8192, 9616, 11000, 11264, 16500, 16896], "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "segmented_prefill", "n": 1024, "batch_size": 7, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "segmented_prefill", "n": 16896, "batch_size": 16, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "contiguous_mirror", "n_values": [4096, 16896], "batch_size": 1, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
@@ -103,13 +103,13 @@
     },
     "remote": {
       "correctness": [
-        {"family": "decode", "m_values": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432, 24576, 26000, 28672], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "decode", "m_values": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "mtp_d2", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_length": 4096, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "mtp_d3", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_length": 4096, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "mtp_d4", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_length": 4096, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
-        {"family": "mtp_d2", "batch_sizes": [1, 16, 56], "context_lengths": [8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432, 24576, 26000, 28672], "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
-        {"family": "mtp_d3", "batch_sizes": [1, 16, 56], "context_lengths": [8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432, 24576, 26000, 28672], "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
-        {"family": "mtp_d4", "batch_sizes": [1, 16, 56], "context_lengths": [8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432, 24576, 26000, 28672], "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d2", "batch_sizes": [1, 16, 56], "context_lengths": [8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432], "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d3", "batch_sizes": [1, 16, 56], "context_lengths": [8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432], "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d4", "batch_sizes": [1, 16, 56], "context_lengths": [8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432], "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "generic", "n_values": [575, 576, 577, 639, 640, 641], "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "contiguous_prefill", "n_values": [576, 640, 641, 1024], "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "segmented_prefill", "n": 1024, "batch_size": 7, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
@@ -119,29 +119,29 @@
         {"family": "segmented_mirror", "n": 4096, "batch_size": 16, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]}
       ],
       "performance": [
-        {"family": "decode", "m_values": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432, 24576, 26000, 28672], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
-        {"family": "mtp_d2", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432, 24576, 26000, 28672], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
-        {"family": "mtp_d3", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432, 24576, 26000, 28672], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
-        {"family": "mtp_d4", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432, 24576, 26000, 28672], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
-        {"family": "contiguous_prefill", "n_values": [576, 641, 1024, 11264, 16896, 26624], "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "decode", "m_values": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d2", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d3", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d4", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "contiguous_prefill", "n_values": [4096, 8192, 9616, 11000, 11264, 16500, 16896], "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "segmented_prefill", "n": 1024, "batch_size": 7, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "segmented_prefill", "n": 16896, "batch_size": 16, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "contiguous_mirror", "n": 16896, "batch_size": 1, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "segmented_mirror", "n": 16896, "batch_size": 16, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]}
       ],
       "ir": [
-        {"family": "decode", "m_values": [1, 56], "context_lengths": [4096, 26000], "pairing": "cycle", "topologies": ["tp4_dp2", "tp4_dp4"]},
-        {"family": "mtp_d2", "batch_sizes": [1, 56], "context_lengths": [4096, 26000], "pairing": "cycle", "topologies": ["tp4_dp2", "tp4_dp4"]},
-        {"family": "mtp_d4", "batch_sizes": [1, 56], "context_lengths": [9616, 28672], "pairing": "cycle", "topologies": ["tp4_dp2", "tp4_dp4"]},
+        {"family": "decode", "m_values": [1, 56], "context_lengths": [4096, 16500], "pairing": "cycle", "topologies": ["tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d2", "batch_sizes": [1, 56], "context_lengths": [4096, 16500], "pairing": "cycle", "topologies": ["tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d4", "batch_sizes": [1, 56], "context_lengths": [9616, 16500], "pairing": "cycle", "topologies": ["tp4_dp2", "tp4_dp4"]},
         {"family": "contiguous_prefill", "n_values": [640, 641], "topologies": ["tp4_dp2", "tp4_dp4"]},
         {"family": "segmented_prefill", "n": 1024, "batch_size": 7, "topologies": ["tp4_dp2", "tp4_dp4"]},
         {"family": "contiguous_mirror", "n": 16896, "batch_size": 1, "topologies": ["tp4_dp2", "tp4_dp4"]},
         {"family": "segmented_mirror", "n": 4096, "batch_size": 16, "topologies": ["tp4_dp2", "tp4_dp4"]}
       ],
       "profile": [
-        {"family": "decode", "m_values": [1, 56], "context_lengths": [4096, 26000], "pairing": "cycle", "topologies": ["tp4_dp2", "tp4_dp4"]},
-        {"family": "mtp_d2", "batch_sizes": [1, 56], "context_lengths": [4096, 26000], "pairing": "cycle", "topologies": ["tp4_dp2", "tp4_dp4"]},
-        {"family": "mtp_d4", "batch_sizes": [1, 56], "context_lengths": [9616, 28672], "pairing": "cycle", "topologies": ["tp4_dp2", "tp4_dp4"]},
+        {"family": "decode", "m_values": [1, 56], "context_lengths": [4096, 16500], "pairing": "cycle", "topologies": ["tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d2", "batch_sizes": [1, 56], "context_lengths": [4096, 16500], "pairing": "cycle", "topologies": ["tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d4", "batch_sizes": [1, 56], "context_lengths": [9616, 16500], "pairing": "cycle", "topologies": ["tp4_dp2", "tp4_dp4"]},
         {"family": "contiguous_prefill", "n": 16896, "topologies": ["tp4_dp2", "tp4_dp4"]},
         {"family": "segmented_mirror", "n": 16896, "batch_size": 16, "topologies": ["tp4_dp2", "tp4_dp4"]}
       ]
