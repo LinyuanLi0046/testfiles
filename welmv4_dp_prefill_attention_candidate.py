@@ -2510,7 +2510,7 @@ def paged_attention_prefill_impl(
             SINK_ENABLED=sink_enabled,
             enable_dynamic_cv_pipeline=True,
             enable_cube_block_merge=True,
-            enable_buffer_insert_optimization=True,
+            enable_buffer_insert_optimization=not use_dp_long_prefill_tile,
             enable_ub_refine_opt=True,
         )
 
