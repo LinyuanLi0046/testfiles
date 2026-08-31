@@ -1739,7 +1739,11 @@ def welmv4_inplace_rope_npu(
     use_head_parallel = num_q_heads != 6
     num_q_head_groups = num_q_heads // 2
     num_head_groups = num_k_heads + num_q_head_groups
-    if use_contiguous_mirror and use_head_parallel:
+    if (
+        use_contiguous_mirror
+        and use_head_parallel
+        and N % _WELMV4_ROPE_PREFILL_TOKEN_BLOCK == 0
+    ):
         num_token_blocks = triton.cdiv(N, _WELMV4_ROPE_PREFILL_TOKEN_BLOCK)
         num_q_tasks = BS * num_q_head_groups
         num_tasks = num_q_tasks + num_token_blocks * num_k_heads
@@ -1765,56 +1769,12 @@ def welmv4_inplace_rope_npu(
             num_k_heads,
             multibuffer=True,
         )
-    elif use_segmented_mirror and use_head_parallel:
-        num_segment_tiles = segment_tile_starts.numel() - 1
-        num_q_tasks = BS * num_q_head_groups
-        num_tasks = num_q_tasks + num_segment_tiles * num_k_heads
-        num_sms = min(num_tasks, _get_num_sms())
-        _welmv4_inplace_rope_head_parallel_mirror_kernel_npu[(num_sms,)](
-            query,
-            key,
-            positions,
-            cos_sin_cache,
-            last_index,
-            segment_tile_starts,
-            num_q_tasks,
-            num_tasks,
-            N,
-            query.stride(0),
-            key.stride(0),
-            head_dim,
-            rope_dim,
-            _WELMV4_ROPE_PREFILL_TOKEN_BLOCK,
-            True,
-            True,
-            num_q_heads,
-            num_k_heads,
-            multibuffer=True,
-        )
-    elif use_segmented_prefill and use_head_parallel:
-        num_segment_tiles = segment_tile_starts.numel() - 1
-        num_tasks = num_segment_tiles * num_head_groups
-        num_sms = min(num_tasks, _get_num_sms())
-        _welmv4_inplace_rope_head_parallel_prefill_kernel_npu[(num_sms,)](
-            query,
-            key,
-            positions,
-            cos_sin_cache,
-            segment_tile_starts,
-            num_tasks,
-            N,
-            query.stride(0),
-            key.stride(0),
-            head_dim,
-            rope_dim,
-            _WELMV4_ROPE_PREFILL_TOKEN_BLOCK,
-            True,
-            2,
-            num_q_heads,
-            num_k_heads,
-            multibuffer=True,
-        )
-    elif use_blocked_prefill and use_head_parallel:
+    elif (
+        use_blocked_prefill
+        and not use_segmented_prefill
+        and use_head_parallel
+        and N % _WELMV4_ROPE_PREFILL_TOKEN_BLOCK == 0
+    ):
         prefill_masked = N % _WELMV4_ROPE_PREFILL_TOKEN_BLOCK != 0
         num_token_blocks = triton.cdiv(N, _WELMV4_ROPE_PREFILL_TOKEN_BLOCK)
         num_tasks = num_token_blocks * num_head_groups
