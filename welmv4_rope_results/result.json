@@ -1,16 +1,16 @@
 {
   "baseline_sha256": "e191344f36544110f51107770727b4f94e0a2fa3313071e5247f0e2de59fa6f5",
-  "candidate_sha256": "8baa1406332b45872bbb6ee4c62e44fc46928d535940b1cb4b8342c0793764f0",
+  "candidate_sha256": "932c376af71f7dad2cc7de68eb259a568473b808d11ec969cbff85a0a5b54015",
   "capture_failure_count": 0,
   "correctness_failure_count": 0,
-  "created_at": "2026-08-31T12:02:34+00:00",
+  "created_at": "2026-08-31T12:14:20+00:00",
   "device": "npu:5",
   "mode": "both",
   "npu_event_timing": false,
   "performance_regression_count": 3,
   "phases": {
     "correctness": {
-      "case_count": 114,
+      "case_count": 116,
       "failure_count": 0,
       "status": "PASS"
     },
@@ -24,15 +24,15 @@
     },
     "performance": {
       "baseline_snapshot": false,
-      "case_count": 27,
+      "case_count": 6,
       "normalized_efficiency_failure_count": 2,
       "regression_count": 3,
-      "speedup_geomean": 2.132082095071396,
+      "speedup_geomean": 0.8838749420922642,
       "status": "PERF_REGRESSION",
       "timing_authority": "msprof_op_task_duration_acceptance"
     },
     "performance_shape_validation": {
-      "case_count": 27,
+      "case_count": 6,
       "failure_count": 0,
       "status": "PASS"
     },
@@ -41,7 +41,7 @@
       "status": "PASS"
     }
   },
-  "repository_head": "dee34d54b6b72b7ec0847d12f59e7d3ff34a9576",
+  "repository_head": "8326a4c1a1bc4d42c02ab012bd2f0c2a6a07534a",
   "requested_suite": "remote",
   "schema_version": 1,
   "status": "PERF_REGRESSION",
