@@ -641,7 +641,7 @@ def _welmv4_apply_masked_token_head_block_rope_npu(
     head_dim: tl.constexpr,
     rope_dim: tl.constexpr,
 ):
-    """Apply RoPE to a 2-head Q tile while preserving segment-tail masks."""
+    """Apply RoPE to a power-of-two head tile with segment-tail masks."""
     half_rope_dim: tl.constexpr = rope_dim // 2
     head_offsets = tl.arange(0, num_heads)
     rope_offsets = tl.arange(0, half_rope_dim)
@@ -995,12 +995,10 @@ def _welmv4_inplace_rope_segmented_prefill_kernel_npu(
     token_offsets = tl.arange(0, token_block)
     cos_offsets = tl.arange(0, half_rope_dim)
     sin_offsets = tl.arange(half_rope_dim, rope_dim)
-    tiles_per_program = tl.cdiv(num_segment_tiles, tl.num_programs(0))
-    tile_start = tl.program_id(0) * tiles_per_program
-    tile_end = tl.minimum(tile_start + tiles_per_program, num_segment_tiles)
     for tile_id in tl.range(
-        tile_start,
-        tile_end,
+        tl.program_id(0),
+        num_segment_tiles,
+        tl.num_programs(0),
         num_stages=num_stages,
     ):
         token_base = tl.load(segment_tile_starts_ptr + tile_id).to(tl.int32)
@@ -1035,18 +1033,17 @@ def _welmv4_inplace_rope_segmented_prefill_kernel_npu(
                 True, head_dim, rope_dim,
             )
         else:
-            for k_head_id in tl.range(0, num_k_heads, num_stages=1):
-                _welmv4_apply_token_block_rope_npu(
-                    k_data + k_head_id * head_dim,
-                    token_offsets,
-                    k_token_stride,
-                    cos,
-                    sin,
-                    token_mask,
-                    True,
-                    head_dim,
-                    rope_dim,
-                )
+            _welmv4_apply_masked_token_head_block_rope_npu(
+                k_data,
+                token_offsets,
+                k_token_stride,
+                cos,
+                sin,
+                token_mask,
+                2,
+                head_dim,
+                rope_dim,
+            )
         q_data = q_ptr + token_base * q_token_stride + head_dim - rope_dim
         if num_q_heads == 6:
             _welmv4_apply_masked_token_head_block_rope_npu(
@@ -1062,7 +1059,10 @@ def _welmv4_inplace_rope_segmented_prefill_kernel_npu(
                 sin, token_mask, 2, head_dim, rope_dim,
             )
         else:
-            for q_head_base in tl.range(0, num_q_heads, 2, num_stages=1):
+            # DP-attention layouts have 12 or 24 local Q heads.  Vectorizing
+            # four adjacent heads halves the scalar head-loop trips while the
+            # 64 x 4 x 32 BF16/FP32 working set remains below the 248 KiB UB.
+            for q_head_base in tl.range(0, num_q_heads, 4, num_stages=1):
                 _welmv4_apply_masked_token_head_block_rope_npu(
                     q_data + q_head_base * head_dim,
                     token_offsets,
@@ -1070,7 +1070,7 @@ def _welmv4_inplace_rope_segmented_prefill_kernel_npu(
                     cos,
                     sin,
                     token_mask,
-                    2,
+                    4,
                     head_dim,
                     rope_dim,
                 )
@@ -1867,7 +1867,7 @@ def welmv4_inplace_rope_npu(
         num_segment_tiles = segment_tile_starts.numel() - 1
         num_sms = min(
             num_segment_tiles,
-            _get_num_sms(),
+            _get_num_sms(multiplier=_WELMV4_ROPE_PROGRAMS_PER_VECTOR_CORE),
         )
         _welmv4_inplace_rope_segmented_prefill_kernel_npu[(num_sms,)](
             query,
