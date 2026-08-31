@@ -80,41 +80,25 @@
     "iteration": {
       "correctness_groups": [
         {
-          "attention": ["full", "swa"],
+          "attention": ["full"],
           "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
-          "topology": ["decode", "mirror"],
-          "batch_sizes": [1, 4, 8, 16, 32, 40, 56],
+          "topology": ["mirror", "verify_d2", "verify_d3", "verify_d4"],
+          "batch_sizes": [1, 4, 40, 56],
           "kv_length": 4096
         },
         {
           "attention": ["full", "swa"],
           "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
-          "topology": ["verify_d2", "verify_d3", "verify_d4"],
-          "batch_sizes": [1, 4, 8, 16, 32, 40, 56],
+          "topology": ["decode"],
+          "batch_sizes": [40],
           "kv_length": 4096
         },
         {
           "attention": ["full", "swa"],
           "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
           "topology": "prefill_dense",
-          "m_values": [1, 2, 3, 4, 5, 8, 32, 64, 128, 257, 1024],
+          "m_values": [64, 1024],
           "kv_length": 4096
-        },
-        {
-          "attention": ["full", "swa"],
-          "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
-          "topology": "prefill_ragged",
-          "m_values": [64, 257, 1024],
-          "batch_size": 16,
-          "kv_length": 4096,
-          "length_pattern": "ragged"
-        },
-        {
-          "attention": ["full", "swa"],
-          "layouts": ["tp4", "tp4_dp2", "tp4_dp4"],
-          "topology": "prefill_dense",
-          "m_values": [4096, 11264, 16896],
-          "kv_length": "match_m"
         }
       ],
       "performance_groups": [

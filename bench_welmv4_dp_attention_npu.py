@@ -174,9 +174,8 @@ def expected_kernel_names(
         use_small_dp = (
             provider == "candidate"
             and case.max_q_len <= 4
-            and case.local_num_kv_heads == 1
-            and q_heads_per_kv <= 12
-            and q_heads_per_kv * case.max_q_len <= 64
+            and case.local_num_kv_heads in (1, 2)
+            and q_heads_per_kv == 12
         )
         use_mid_q6 = case.local_num_q_heads == 6 and 5 <= case.max_q_len <= 128
         if case.local_num_q_heads == 6 and 128 < case.max_q_len <= 256:
@@ -185,8 +184,10 @@ def expected_kernel_names(
                 case.real_batch_size * num_q_blocks * case.local_num_q_heads
                 <= num_cube_cores
             )
-        if use_small_q6 or use_small_dp:
+        if use_small_q6:
             return ("paged_prefill_small_q_grouped_kernel",)
+        if use_small_dp:
+            return ("paged_prefill_dp_small_q_grouped_kernel",)
         if use_mid_q6:
             return ("paged_prefill_mid_q_grouped_kernel",)
         return ("paged_prefill_page_aggregation_kernel",)
