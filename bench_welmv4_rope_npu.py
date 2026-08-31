@@ -494,6 +494,9 @@ def provider_supports_optimized_layout(provider: str, case: RopeCase) -> bool:
 
 def primary_kernel_name(provider: str, case: RopeCase) -> str:
     supported = provider_supports_optimized_layout(provider, case)
+    candidate_head_parallel = (
+        provider == "candidate" and supported and case.local_q_heads != 6
+    )
     threshold_all = int(CONTRACT["optimized_all_m_threshold"])
     threshold_exact = int(CONTRACT["optimized_exact64_threshold"])
     block = int(CONTRACT["token_block"])
@@ -501,6 +504,13 @@ def primary_kernel_name(provider: str, case: RopeCase) -> str:
         case.n >= threshold_all
         or (case.n >= threshold_exact and case.n % block == 0)
     )
+    if candidate_head_parallel and (
+        case.family == "segmented_mirror"
+        or (case.family == "contiguous_mirror" and case.n >= threshold_all)
+    ):
+        return "_welmv4_inplace_rope_head_parallel_mirror_kernel_npu"
+    if not case.is_mirror and blocked and candidate_head_parallel:
+        return "_welmv4_inplace_rope_head_parallel_prefill_kernel_npu"
     if case.family == "contiguous_mirror" and supported and case.n >= threshold_all:
         return "_welmv4_inplace_rope_contiguous_mirror_kernel_npu"
     if case.family == "segmented_mirror" and supported:
