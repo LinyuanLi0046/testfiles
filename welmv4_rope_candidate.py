@@ -902,19 +902,29 @@ def _welmv4_inplace_rope_contiguous_prefill_kernel_npu(
                 k_data, token_offsets, k_token_stride, cos, sin, token_mask,
                 masked, head_dim, rope_dim,
             )
+        elif masked:
+            _welmv4_apply_masked_token_head_block_rope_npu(
+                k_data,
+                token_offsets,
+                k_token_stride,
+                cos,
+                sin,
+                token_mask,
+                2,
+                head_dim,
+                rope_dim,
+            )
         else:
-            for k_head_id in tl.range(0, num_k_heads, num_stages=1):
-                _welmv4_apply_token_block_rope_npu(
-                    k_data + k_head_id * head_dim,
-                    token_offsets,
-                    k_token_stride,
-                    cos,
-                    sin,
-                    token_mask,
-                    masked,
-                    head_dim,
-                    rope_dim,
-                )
+            _welmv4_apply_token_head_block_rope_npu(
+                k_data,
+                token_offsets,
+                k_token_stride,
+                cos,
+                sin,
+                2,
+                head_dim,
+                rope_dim,
+            )
         if masked:
             q_data = q_ptr + token_base * q_token_stride + head_dim - rope_dim
             if num_q_heads == 6:
@@ -931,7 +941,7 @@ def _welmv4_inplace_rope_contiguous_prefill_kernel_npu(
                         rope_dim,
                     )
             else:
-                for q_head_base in tl.range(0, num_q_heads, 2, num_stages=1):
+                for q_head_base in tl.range(0, num_q_heads, 4, num_stages=1):
                     _welmv4_apply_masked_token_head_block_rope_npu(
                         q_data + q_head_base * head_dim,
                         token_offsets,
@@ -939,7 +949,7 @@ def _welmv4_inplace_rope_contiguous_prefill_kernel_npu(
                         cos,
                         sin,
                         token_mask,
-                        2,
+                        4,
                         head_dim,
                         rope_dim,
                     )
@@ -959,14 +969,14 @@ def _welmv4_inplace_rope_contiguous_prefill_kernel_npu(
                     cos, sin, 2, head_dim, rope_dim,
                 )
             else:
-                for q_head_base in tl.range(0, num_q_heads, 2, num_stages=1):
+                for q_head_base in tl.range(0, num_q_heads, 4, num_stages=1):
                     _welmv4_apply_token_head_block_rope_npu(
                         q_data + q_head_base * head_dim,
                         token_offsets,
                         q_token_stride,
                         cos,
                         sin,
-                        2,
+                        4,
                         head_dim,
                         rope_dim,
                     )
