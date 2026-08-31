@@ -1,5 +1,5 @@
-time: 2026-08-31T21:30:42+08:00
-command: /usr/local/python3.11.10/bin/python bench_welmv4_rope_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_rope_result__4buexql
+time: 2026-08-31T21:45:23+08:00
+command: /usr/local/python3.11.10/bin/python bench_welmv4_rope_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_rope_result_s2n4pn_3
 return_code: 2
 reason: benchmark exited with status 2; manifest_status=PERF_REGRESSION
 
@@ -138,4 +138,4 @@ candidate differs from baseline: using iteration suite (set WELMV4_ROPE_FORCE_FU
 [msprof] provider=baseline, kernel=_welmv4_inplace_rope_segmented_prefill_kernel_npu, cases=1
 [msprof] provider=candidate, kernel=_welmv4_inplace_rope_contiguous_prefill_kernel_npu, cases=9
 [msprof] provider=candidate, kernel=_welmv4_inplace_rope_segmented_prefill_kernel_npu, cases=3
-result=PERF_REGRESSION; manifest=/data2/hw_lly/testfiles/welm_rope_result__4buexql/result.json
+result=PERF_REGRESSION; manifest=/data2/hw_lly/testfiles/welm_rope_result_s2n4pn_3/result.json
