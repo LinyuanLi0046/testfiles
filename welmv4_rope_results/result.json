@@ -1,13 +1,13 @@
 {
   "baseline_sha256": "e191344f36544110f51107770727b4f94e0a2fa3313071e5247f0e2de59fa6f5",
-  "candidate_sha256": "df866074c531944010852aa431986b334d3a4122a5d9584b5cbb64fb65b2c769",
+  "candidate_sha256": "692de1c297f1a0d8e877db61d998976936dc5fae5ef7adda1611d7e29b729aea",
   "capture_failure_count": 0,
   "correctness_failure_count": 0,
-  "created_at": "2026-08-31T13:45:20+00:00",
+  "created_at": "2026-08-31T13:56:52+00:00",
   "device": "npu:5",
   "mode": "both",
   "npu_event_timing": false,
-  "performance_regression_count": 2,
+  "performance_regression_count": 0,
   "phases": {
     "correctness": {
       "case_count": 116,
@@ -25,10 +25,10 @@
     "performance": {
       "baseline_snapshot": false,
       "case_count": 12,
-      "normalized_efficiency_failure_count": 2,
-      "regression_count": 2,
-      "speedup_geomean": 2.3227947833652265,
-      "status": "PERF_REGRESSION",
+      "normalized_efficiency_failure_count": 0,
+      "regression_count": 0,
+      "speedup_geomean": 2.373177858136877,
+      "status": "PASS",
       "timing_authority": "msprof_op_task_duration_acceptance"
     },
     "performance_shape_validation": {
@@ -41,10 +41,10 @@
       "status": "PASS"
     }
   },
-  "repository_head": "8045c83bfc068ef5d5143722e6277f366a3684da",
+  "repository_head": "576799e123834b7d34045eb626a889c9dd974792",
   "requested_suite": "remote",
   "schema_version": 1,
-  "status": "PERF_REGRESSION",
+  "status": "PASS",
   "suite": "iteration",
   "timing_authority": "msprof_op_task_duration_acceptance",
   "workspace": "welmv4-npu-rope-dp-attention"
