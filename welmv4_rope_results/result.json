@@ -1,16 +1,16 @@
 {
   "baseline_sha256": "e191344f36544110f51107770727b4f94e0a2fa3313071e5247f0e2de59fa6f5",
-  "candidate_sha256": "e191344f36544110f51107770727b4f94e0a2fa3313071e5247f0e2de59fa6f5",
-  "capture_failure_count": 0,
+  "candidate_sha256": "13bd01291f0471bd24bd4e6b1cd95bf01e5aaecca5d25d4406d08687168da00a",
+  "capture_failure_count": 6,
   "correctness_failure_count": 0,
-  "created_at": "2026-08-31T08:47:51+00:00",
+  "created_at": "2026-08-31T09:30:32+00:00",
   "device": "npu:5",
   "mode": "both",
   "npu_event_timing": false,
-  "performance_regression_count": 0,
+  "performance_regression_count": 18,
   "phases": {
     "correctness": {
-      "case_count": 444,
+      "case_count": 105,
       "failure_count": 0,
       "status": "PASS"
     },
@@ -19,20 +19,20 @@
       "status": "PASS"
     },
     "msprof": {
-      "failure_count": 0,
-      "status": "PASS"
+      "failure_count": 6,
+      "status": "ERROR"
     },
     "performance": {
-      "baseline_snapshot": true,
-      "case_count": 174,
-      "normalized_efficiency_failure_count": 14,
-      "regression_count": 0,
-      "speedup_geomean": 0.9962514205258917,
-      "status": "PASS",
+      "baseline_snapshot": false,
+      "case_count": 36,
+      "normalized_efficiency_failure_count": 7,
+      "regression_count": 18,
+      "speedup_geomean": 1.842814951806406,
+      "status": "PERF_REGRESSION",
       "timing_authority": "msprof_op_task_duration_acceptance"
     },
     "performance_shape_validation": {
-      "case_count": 174,
+      "case_count": 36,
       "failure_count": 0,
       "status": "PASS"
     },
@@ -41,10 +41,11 @@
       "status": "PASS"
     }
   },
-  "repository_head": "2da6b9b93af996976ba8cfdd79235dcc24a06ed3",
+  "repository_head": "9841c0b2a0cb63c1183153952be72145a6bd881c",
+  "requested_suite": "remote",
   "schema_version": 1,
-  "status": "PASS",
-  "suite": "remote",
+  "status": "ERROR",
+  "suite": "iteration",
   "timing_authority": "msprof_op_task_duration_acceptance",
   "workspace": "welmv4-npu-rope-dp-attention"
 }

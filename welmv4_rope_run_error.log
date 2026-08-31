@@ -1,0 +1,206 @@
+time: 2026-08-31T17:30:35+08:00
+command: /usr/local/python3.11.10/bin/python bench_welmv4_rope_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_rope_result_gv_7gu7u
+return_code: 1
+reason: benchmark exited with status 1; manifest_status=ERROR
+
+===== stdout + stderr =====
+candidate differs from baseline: using iteration suite (set WELMV4_ROPE_FORCE_FULL=1 for the full remote suite)
+[correctness 1/105] decode_n1_b1_ctx4096_tp4
+[correctness 2/105] decode_n1_b1_ctx4096_tp4_dp2
+[correctness 3/105] decode_n1_b1_ctx4096_tp4_dp4
+[correctness 4/105] decode_n4_b4_ctx8192_tp4
+[correctness 5/105] decode_n4_b4_ctx8192_tp4_dp2
+[correctness 6/105] decode_n4_b4_ctx8192_tp4_dp4
+[correctness 7/105] decode_n8_b8_ctx9616_tp4
+[correctness 8/105] decode_n8_b8_ctx9616_tp4_dp2
+[correctness 9/105] decode_n8_b8_ctx9616_tp4_dp4
+[correctness 10/105] decode_n16_b16_ctx11000_tp4
+[correctness 11/105] decode_n16_b16_ctx11000_tp4_dp2
+[correctness 12/105] decode_n16_b16_ctx11000_tp4_dp4
+[correctness 13/105] decode_n32_b32_ctx16500_tp4
+[correctness 14/105] decode_n32_b32_ctx16500_tp4_dp2
+[correctness 15/105] decode_n32_b32_ctx16500_tp4_dp4
+[correctness 16/105] decode_n40_b40_ctx26000_tp4
+[correctness 17/105] decode_n40_b40_ctx26000_tp4_dp2
+[correctness 18/105] decode_n40_b40_ctx26000_tp4_dp4
+[correctness 19/105] decode_n56_b56_ctx28672_tp4
+[correctness 20/105] decode_n56_b56_ctx28672_tp4_dp2
+[correctness 21/105] decode_n56_b56_ctx28672_tp4_dp4
+[correctness 22/105] mtp_d2_n2_b1_ctx4096_tp4
+[correctness 23/105] mtp_d2_n2_b1_ctx4096_tp4_dp2
+[correctness 24/105] mtp_d2_n2_b1_ctx4096_tp4_dp4
+[correctness 25/105] mtp_d2_n32_b16_ctx16500_tp4
+[correctness 26/105] mtp_d2_n32_b16_ctx16500_tp4_dp2
+[correctness 27/105] mtp_d2_n32_b16_ctx16500_tp4_dp4
+[correctness 28/105] mtp_d2_n112_b56_ctx26000_tp4
+[correctness 29/105] mtp_d2_n112_b56_ctx26000_tp4_dp2
+[correctness 30/105] mtp_d2_n112_b56_ctx26000_tp4_dp4
+[correctness 31/105] mtp_d3_n3_b1_ctx4096_tp4
+[correctness 32/105] mtp_d3_n3_b1_ctx4096_tp4_dp2
+[correctness 33/105] mtp_d3_n3_b1_ctx4096_tp4_dp4
+[correctness 34/105] mtp_d3_n48_b16_ctx16500_tp4
+[correctness 35/105] mtp_d3_n48_b16_ctx16500_tp4_dp2
+[correctness 36/105] mtp_d3_n48_b16_ctx16500_tp4_dp4
+[correctness 37/105] mtp_d3_n168_b56_ctx26000_tp4
+[correctness 38/105] mtp_d3_n168_b56_ctx26000_tp4_dp2
+[correctness 39/105] mtp_d3_n168_b56_ctx26000_tp4_dp4
+[correctness 40/105] mtp_d4_n4_b1_ctx4096_tp4
+[correctness 41/105] mtp_d4_n4_b1_ctx4096_tp4_dp2
+[correctness 42/105] mtp_d4_n4_b1_ctx4096_tp4_dp4
+[correctness 43/105] mtp_d4_n64_b16_ctx16500_tp4
+[correctness 44/105] mtp_d4_n64_b16_ctx16500_tp4_dp2
+[correctness 45/105] mtp_d4_n64_b16_ctx16500_tp4_dp4
+[correctness 46/105] mtp_d4_n224_b56_ctx26000_tp4
+[correctness 47/105] mtp_d4_n224_b56_ctx26000_tp4_dp2
+[correctness 48/105] mtp_d4_n224_b56_ctx26000_tp4_dp4
+[correctness 49/105] generic_n575_b0_ctx575_tp4
+[correctness 50/105] generic_n575_b0_ctx575_tp4_dp2
+[correctness 51/105] generic_n575_b0_ctx575_tp4_dp4
+[correctness 52/105] generic_n576_b0_ctx576_tp4
+[correctness 53/105] generic_n576_b0_ctx576_tp4_dp2
+[correctness 54/105] generic_n576_b0_ctx576_tp4_dp4
+[correctness 55/105] generic_n577_b0_ctx577_tp4
+[correctness 56/105] generic_n577_b0_ctx577_tp4_dp2
+[correctness 57/105] generic_n577_b0_ctx577_tp4_dp4
+[correctness 58/105] generic_n639_b0_ctx639_tp4
+[correctness 59/105] generic_n639_b0_ctx639_tp4_dp2
+[correctness 60/105] generic_n639_b0_ctx639_tp4_dp4
+[correctness 61/105] generic_n640_b0_ctx640_tp4
+[correctness 62/105] generic_n640_b0_ctx640_tp4_dp2
+[correctness 63/105] generic_n640_b0_ctx640_tp4_dp4
+[correctness 64/105] generic_n641_b0_ctx641_tp4
+[correctness 65/105] generic_n641_b0_ctx641_tp4_dp2
+[correctness 66/105] generic_n641_b0_ctx641_tp4_dp4
+[correctness 67/105] contiguous_prefill_n640_b0_ctx640_tp4
+[correctness 68/105] contiguous_prefill_n640_b0_ctx640_tp4_dp2
+[correctness 69/105] contiguous_prefill_n640_b0_ctx640_tp4_dp4
+[correctness 70/105] contiguous_prefill_n641_b0_ctx641_tp4
+[correctness 71/105] contiguous_prefill_n641_b0_ctx641_tp4_dp2
+[correctness 72/105] contiguous_prefill_n641_b0_ctx641_tp4_dp4
+[correctness 73/105] contiguous_prefill_n1024_b0_ctx1024_tp4
+[correctness 74/105] contiguous_prefill_n1024_b0_ctx1024_tp4_dp2
+[correctness 75/105] contiguous_prefill_n1024_b0_ctx1024_tp4_dp4
+[correctness 76/105] contiguous_prefill_n11264_b0_ctx11264_tp4
+[correctness 77/105] contiguous_prefill_n11264_b0_ctx11264_tp4_dp2
+[correctness 78/105] contiguous_prefill_n11264_b0_ctx11264_tp4_dp4
+[correctness 79/105] contiguous_prefill_n16896_b0_ctx16896_tp4
+[correctness 80/105] contiguous_prefill_n16896_b0_ctx16896_tp4_dp2
+[correctness 81/105] contiguous_prefill_n16896_b0_ctx16896_tp4_dp4
+[correctness 82/105] contiguous_prefill_n26624_b0_ctx26624_tp4
+[correctness 83/105] contiguous_prefill_n26624_b0_ctx26624_tp4_dp2
+[correctness 84/105] contiguous_prefill_n26624_b0_ctx26624_tp4_dp4
+[correctness 85/105] segmented_prefill_n1024_b7_ctx1024_tp4
+[correctness 86/105] segmented_prefill_n1024_b7_ctx1024_tp4_dp2
+[correctness 87/105] segmented_prefill_n1024_b7_ctx1024_tp4_dp4
+[correctness 88/105] segmented_prefill_n16896_b16_ctx16896_tp4
+[correctness 89/105] segmented_prefill_n16896_b16_ctx16896_tp4_dp2
+[correctness 90/105] segmented_prefill_n16896_b16_ctx16896_tp4_dp4
+[correctness 91/105] contiguous_mirror_n640_b1_ctx640_tp4
+[correctness 92/105] contiguous_mirror_n640_b1_ctx640_tp4_dp2
+[correctness 93/105] contiguous_mirror_n640_b1_ctx640_tp4_dp4
+[correctness 94/105] contiguous_mirror_n4096_b1_ctx4096_tp4
+[correctness 95/105] contiguous_mirror_n4096_b1_ctx4096_tp4_dp2
+[correctness 96/105] contiguous_mirror_n4096_b1_ctx4096_tp4_dp4
+[correctness 97/105] contiguous_mirror_n16896_b1_ctx16896_tp4
+[correctness 98/105] contiguous_mirror_n16896_b1_ctx16896_tp4_dp2
+[correctness 99/105] contiguous_mirror_n16896_b1_ctx16896_tp4_dp4
+[correctness 100/105] segmented_mirror_n1024_b7_ctx1024_tp4
+[correctness 101/105] segmented_mirror_n1024_b7_ctx1024_tp4_dp2
+[correctness 102/105] segmented_mirror_n1024_b7_ctx1024_tp4_dp4
+[correctness 103/105] segmented_mirror_n16896_b16_ctx16896_tp4
+[correctness 104/105] segmented_mirror_n16896_b16_ctx16896_tp4_dp2
+[correctness 105/105] segmented_mirror_n16896_b16_ctx16896_tp4_dp4
+[performance_shape_validation 1/36] contiguous_prefill_n640_b0_ctx640_tp4
+[performance_shape_validation 2/36] contiguous_prefill_n640_b0_ctx640_tp4_dp2
+[performance_shape_validation 3/36] contiguous_prefill_n640_b0_ctx640_tp4_dp4
+[performance_shape_validation 4/36] contiguous_prefill_n641_b0_ctx641_tp4
+[performance_shape_validation 5/36] contiguous_prefill_n641_b0_ctx641_tp4_dp2
+[performance_shape_validation 6/36] contiguous_prefill_n641_b0_ctx641_tp4_dp4
+[performance_shape_validation 7/36] contiguous_prefill_n1024_b0_ctx1024_tp4
+[performance_shape_validation 8/36] contiguous_prefill_n1024_b0_ctx1024_tp4_dp2
+[performance_shape_validation 9/36] contiguous_prefill_n1024_b0_ctx1024_tp4_dp4
+[performance_shape_validation 10/36] contiguous_prefill_n11264_b0_ctx11264_tp4
+[performance_shape_validation 11/36] contiguous_prefill_n11264_b0_ctx11264_tp4_dp2
+[performance_shape_validation 12/36] contiguous_prefill_n11264_b0_ctx11264_tp4_dp4
+[performance_shape_validation 13/36] contiguous_prefill_n16896_b0_ctx16896_tp4
+[performance_shape_validation 14/36] contiguous_prefill_n16896_b0_ctx16896_tp4_dp2
+[performance_shape_validation 15/36] contiguous_prefill_n16896_b0_ctx16896_tp4_dp4
+[performance_shape_validation 16/36] contiguous_prefill_n26624_b0_ctx26624_tp4
+[performance_shape_validation 17/36] contiguous_prefill_n26624_b0_ctx26624_tp4_dp2
+[performance_shape_validation 18/36] contiguous_prefill_n26624_b0_ctx26624_tp4_dp4
+[performance_shape_validation 19/36] segmented_prefill_n1024_b7_ctx1024_tp4
+[performance_shape_validation 20/36] segmented_prefill_n1024_b7_ctx1024_tp4_dp2
+[performance_shape_validation 21/36] segmented_prefill_n1024_b7_ctx1024_tp4_dp4
+[performance_shape_validation 22/36] segmented_prefill_n16896_b16_ctx16896_tp4
+[performance_shape_validation 23/36] segmented_prefill_n16896_b16_ctx16896_tp4_dp2
+[performance_shape_validation 24/36] segmented_prefill_n16896_b16_ctx16896_tp4_dp4
+[performance_shape_validation 25/36] contiguous_mirror_n4096_b1_ctx4096_tp4
+[performance_shape_validation 26/36] contiguous_mirror_n4096_b1_ctx4096_tp4_dp2
+[performance_shape_validation 27/36] contiguous_mirror_n4096_b1_ctx4096_tp4_dp4
+[performance_shape_validation 28/36] contiguous_mirror_n16896_b1_ctx16896_tp4
+[performance_shape_validation 29/36] contiguous_mirror_n16896_b1_ctx16896_tp4_dp2
+[performance_shape_validation 30/36] contiguous_mirror_n16896_b1_ctx16896_tp4_dp4
+[performance_shape_validation 31/36] segmented_mirror_n4096_b16_ctx4096_tp4
+[performance_shape_validation 32/36] segmented_mirror_n4096_b16_ctx4096_tp4_dp2
+[performance_shape_validation 33/36] segmented_mirror_n4096_b16_ctx4096_tp4_dp4
+[performance_shape_validation 34/36] segmented_mirror_n16896_b16_ctx16896_tp4
+[performance_shape_validation 35/36] segmented_mirror_n16896_b16_ctx16896_tp4_dp2
+[performance_shape_validation 36/36] segmented_mirror_n16896_b16_ctx16896_tp4_dp4
+[msprof] provider=baseline, kernel=_welmv4_inplace_rope_contiguous_prefill_kernel_npu, cases=6
+[msprof] provider=baseline, kernel=_welmv4_inplace_rope_kernel_npu, cases=24
+[msprof] provider=baseline, kernel=_welmv4_inplace_rope_segmented_prefill_kernel_npu, cases=2
+[msprof] provider=baseline, kernel=_welmv4_inplace_rope_contiguous_mirror_kernel_npu, cases=2
+[msprof] provider=baseline, kernel=_welmv4_inplace_rope_segmented_mirror_kernel_npu, cases=2
+[msprof] provider=candidate, kernel=_welmv4_inplace_rope_contiguous_prefill_kernel_npu, cases=18
+[msprof] provider=candidate, kernel=_welmv4_inplace_rope_segmented_prefill_kernel_npu, cases=6
+[msprof] provider=candidate, kernel=_welmv4_inplace_rope_contiguous_mirror_kernel_npu, cases=6
+[msprof] provider=candidate, kernel=_welmv4_inplace_rope_segmented_mirror_kernel_npu, cases=6
+[ir] contiguous_prefill_n640_b0_ctx640_tp4_dp2
+[ir] contiguous_prefill_n640_b0_ctx640_tp4_dp4
+[ir] contiguous_prefill_n641_b0_ctx641_tp4_dp2
+[ir] contiguous_prefill_n641_b0_ctx641_tp4_dp4
+[ir] contiguous_mirror_n16896_b1_ctx16896_tp4_dp2
+[ir] contiguous_mirror_n16896_b1_ctx16896_tp4_dp4
+[ir] segmented_mirror_n4096_b16_ctx4096_tp4_dp2
+[ir] segmented_mirror_n4096_b16_ctx4096_tp4_dp4
+[profile:pipe_utilization] contiguous_prefill_n16896_b0_ctx16896_tp4_dp2
+[2026-08-31 17:30:00] [WARNING] [1877523] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-31 17:30:01] [INFO] [1904323] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_rope_profile_bo58o7s4/TENCENT64-124_1877523_20260831173000847_ascend_pt
+|/-[2026-08-31 17:30:03] [INFO] [1904332] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017141
+[2026-08-31 17:30:04] [INFO] [1904323] profiler.py: All profiling data parsed in a total time of 0:00:03.031154
+[profile:memory] contiguous_prefill_n16896_b0_ctx16896_tp4_dp2
+[2026-08-31 17:30:04] [WARNING] [1877523] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-31 17:30:05] [INFO] [1904977] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_rope_profile__h9yvrqe/TENCENT64-124_1877523_20260831173004591_ascend_pt
+|/-[2026-08-31 17:30:07] [INFO] [1904986] profiler.py: CANN profiling data parsed in a total time of 0:00:02.016716
+[2026-08-31 17:30:08] [INFO] [1904977] profiler.py: All profiling data parsed in a total time of 0:00:03.041178
+[profile:pipe_utilization] contiguous_prefill_n16896_b0_ctx16896_tp4_dp4
+[2026-08-31 17:30:09] [WARNING] [1877523] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-31 17:30:09] [INFO] [1905247] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_rope_profile_9kd6_8nx/TENCENT64-124_1877523_20260831173009158_ascend_pt
+|/-[2026-08-31 17:30:11] [INFO] [1905256] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017160
+[2026-08-31 17:30:12] [INFO] [1905247] profiler.py: All profiling data parsed in a total time of 0:00:03.045663
+[profile:memory] contiguous_prefill_n16896_b0_ctx16896_tp4_dp4
+[2026-08-31 17:30:13] [WARNING] [1877523] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-31 17:30:13] [INFO] [1905517] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_rope_profile_94ohqcy5/TENCENT64-124_1877523_20260831173012869_ascend_pt
+|/-[2026-08-31 17:30:15] [INFO] [1905526] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017220
+[2026-08-31 17:30:16] [INFO] [1905517] profiler.py: All profiling data parsed in a total time of 0:00:03.062090
+[profile:pipe_utilization] segmented_mirror_n16896_b16_ctx16896_tp4_dp2
+[2026-08-31 17:30:16] [WARNING] [1877523] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-31 17:30:17] [INFO] [1905787] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_rope_profile_yn_9ah_m/TENCENT64-124_1877523_20260831173016905_ascend_pt
+|/-[2026-08-31 17:30:19] [INFO] [1905796] profiler.py: CANN profiling data parsed in a total time of 0:00:02.016856
+[2026-08-31 17:30:20] [INFO] [1905787] profiler.py: All profiling data parsed in a total time of 0:00:03.069918
+[profile:memory] segmented_mirror_n16896_b16_ctx16896_tp4_dp2
+[2026-08-31 17:30:20] [WARNING] [1877523] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-31 17:30:21] [INFO] [1906057] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_rope_profile_10ja15ok/TENCENT64-124_1877523_20260831173020634_ascend_pt
+|/-[2026-08-31 17:30:23] [INFO] [1906066] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017728
+[2026-08-31 17:30:24] [INFO] [1906057] profiler.py: All profiling data parsed in a total time of 0:00:03.067815
+[profile:pipe_utilization] segmented_mirror_n16896_b16_ctx16896_tp4_dp4
+[2026-08-31 17:30:24] [WARNING] [1877523] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-31 17:30:25] [INFO] [1906328] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_rope_profile_ox5isvdi/TENCENT64-124_1877523_20260831173024697_ascend_pt
+|/-[2026-08-31 17:30:27] [INFO] [1906337] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017094
+[2026-08-31 17:30:28] [INFO] [1906328] profiler.py: All profiling data parsed in a total time of 0:00:03.065512
+[profile:memory] segmented_mirror_n16896_b16_ctx16896_tp4_dp4
+[2026-08-31 17:30:28] [WARNING] [1877523] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-31 17:30:29] [INFO] [1906598] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_rope_profile_3rw3saye/TENCENT64-124_1877523_20260831173028423_ascend_pt
+|/-[2026-08-31 17:30:31] [INFO] [1906607] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017825
+[2026-08-31 17:30:32] [INFO] [1906598] profiler.py: All profiling data parsed in a total time of 0:00:03.065516
+result=ERROR; manifest=/data2/hw_lly/testfiles/welm_rope_result_gv_7gu7u/result.json
