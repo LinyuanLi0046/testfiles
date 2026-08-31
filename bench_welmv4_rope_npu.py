@@ -510,6 +510,8 @@ def primary_kernel_name(provider: str, case: RopeCase) -> str:
         and case.n % block == 0
     ):
         return "_welmv4_inplace_rope_head_parallel_mirror_kernel_npu"
+    if candidate_head_parallel and case.family == "segmented_mirror":
+        return "_welmv4_inplace_rope_head_parallel_mirror_kernel_npu"
     if (
         not case.is_mirror
         and case.family != "segmented_prefill"
