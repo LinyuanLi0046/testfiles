@@ -1949,7 +1949,10 @@ def welmv4_inplace_rope_npu(
             multibuffer=True,
         )
     elif use_blocked_prefill:
-        prefill_masked = N % _WELMV4_ROPE_PREFILL_TOKEN_BLOCK != 0
+        prefill_masked = (
+            use_shared_cache_contiguous_prefill
+            or N % _WELMV4_ROPE_PREFILL_TOKEN_BLOCK != 0
+        )
         num_token_blocks = num_prefill_token_blocks
         num_sms = min(
             num_token_blocks,
