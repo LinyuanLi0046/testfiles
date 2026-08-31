@@ -733,7 +733,8 @@ def paged_prefill_dp_padded_q_grouped_kernel(
             kv_cache_len = kv_seq_len - q_seq_len
             head_offsets = tl.arange(0, 16)
             head_valid = head_offsets.to(tl.float32) < 12.0
-            q_head_ids = kv_head_id * 12 + head_offsets
+            safe_head_offsets = tl.where(head_valid, head_offsets, 11)
+            q_head_ids = kv_head_id * 12 + safe_head_offsets
             dim_offsets = tl.arange(0, BLOCK_SIZE_D)
             q_base_ptrs = (
                 q_ptr
@@ -766,9 +767,7 @@ def paged_prefill_dp_padded_q_grouped_kernel(
 
             if SINK_ENABLED:
                 sink = tl.load(
-                    sinks_ptr + q_head_ids * stride_sink_head,
-                    mask=head_valid,
-                    other=-float("inf"),
+                    sinks_ptr + q_head_ids * stride_sink_head
                 ).to(tl.float32)
                 m_init = tl.where(head_valid, sink, -float("inf"))
                 l_init = tl.where(head_valid, 1.0, 0.0).to(tl.float32)
