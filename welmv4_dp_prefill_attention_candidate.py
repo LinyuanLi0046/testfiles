@@ -2772,6 +2772,10 @@ def _swa_paged_prefill_dp_grouped_rows_kernel(
         PAGE_SIZE == BLOCK_N,
         "DP SWA grouped rows use one page per KV tile",
     )
+    tl.static_assert(
+        GLOBAL_WINDOW == 0,
+        "DP SWA grouped rows currently require a purely local window",
+    )
     GROUPED_ROWS: tl.constexpr = 12 * MAX_Q_LEN
     tl.static_assert(
         BLOCK_M >= GROUPED_ROWS,
@@ -2885,19 +2889,11 @@ def _swa_paged_prefill_dp_grouped_rows_kernel(
                 LOCAL_WINDOW,
             )
             local_start_block = max(num_global_blocks, local_start_block)
-            num_calced_blocks = num_global_blocks + max(
-                num_total_blocks - local_start_block, 0
-            )
+            num_calced_blocks = max(num_total_blocks - local_start_block, 0)
             num_calced_blocks = min(num_calced_blocks, num_total_blocks)
 
             for kv_block_iter in range(0, num_calced_blocks):
-                is_global = (
-                    kv_block_iter.to(tl.float32)
-                    < num_global_blocks.to(tl.float32)
-                )
-                kv_block_id = is_global * kv_block_iter + (1 - is_global) * (
-                    local_start_block + kv_block_iter - num_global_blocks
-                )
+                kv_block_id = local_start_block + kv_block_iter
                 kv_block_start = kv_block_id * BLOCK_N
                 kv_block_end = min(kv_block_start + BLOCK_N, kv_seq_len)
                 kv_block_len = max(kv_block_end - kv_block_start, 0)
@@ -2947,24 +2943,14 @@ def _swa_paged_prefill_dp_grouped_rows_kernel(
                 key_offsets = tl.arange(0, BLOCK_N)
                 key_positions = kv_block_start + key_offsets
                 query_positions = kv_computed_len + row_tokens
-                in_sink = key_positions.to(tl.float32) < GLOBAL_WINDOW
+                relative_positions = (
+                    query_positions[:, None].to(tl.float32)
+                    - key_positions[None, :].to(tl.float32)
+                )
                 mask = (
                     valid_rows[:, None]
-                    & (
-                        key_positions[None, :].to(tl.float32)
-                        < kv_seq_len.to(tl.float32)
-                    )
-                    & (
-                        key_positions[None, :].to(tl.float32)
-                        <= query_positions[:, None].to(tl.float32)
-                    )
-                    & (
-                        in_sink[None, :]
-                        | (
-                            key_positions[None, :].to(tl.float32) + LOCAL_WINDOW
-                            >= query_positions[:, None].to(tl.float32)
-                        )
-                    )
+                    & (relative_positions >= 0.0)
+                    & (relative_positions <= LOCAL_WINDOW)
                 )
                 qk = tl.dot(q, k_t) * scale
                 qk = tl.where(mask, qk, -1e6)
@@ -4336,6 +4322,7 @@ def swa_paged_prefill_impl(
         and is_causal
         and small_q_per_request
         and local_window_size is not None
+        and global_window_size == 0
         and not gqa_interleave
         and num_q_heads == num_kv_heads * 12
         and num_kv_heads in (1, 2)
