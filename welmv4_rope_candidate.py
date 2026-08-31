@@ -1786,6 +1786,18 @@ def welmv4_inplace_rope_npu(
     # Mirror task mapping is intentionally unchanged: its dedicated kernel
     # still maps each Q task to a 2-head group.
     num_q_head_groups = num_q_heads // 2
+    num_prefill_token_blocks = triton.cdiv(
+        N, _WELMV4_ROPE_PREFILL_TOKEN_BLOCK
+    )
+    # Once token tiles already provide at least four waves per vector core,
+    # extra head-parallel tasks no longer improve occupancy.  Prefer the
+    # all-head path there so every token tile loads cos/sin only once.
+    use_shared_cache_contiguous_prefill = (
+        use_blocked_prefill
+        and positions_are_contiguous
+        and use_head_parallel
+        and num_prefill_token_blocks >= 4 * _get_num_sms()
+    )
     if (
         use_contiguous_mirror
         and use_head_parallel
@@ -1820,10 +1832,11 @@ def welmv4_inplace_rope_npu(
         use_blocked_prefill
         and not use_segmented_prefill
         and use_head_parallel
+        and not use_shared_cache_contiguous_prefill
         and N % _WELMV4_ROPE_PREFILL_TOKEN_BLOCK == 0
     ):
         prefill_masked = N % _WELMV4_ROPE_PREFILL_TOKEN_BLOCK != 0
-        num_token_blocks = triton.cdiv(N, _WELMV4_ROPE_PREFILL_TOKEN_BLOCK)
+        num_token_blocks = num_prefill_token_blocks
         q_heads_per_group = 4
         k_heads_per_group = 1 if num_k_heads == 1 else 2
         num_prefill_q_head_groups = num_q_heads // q_heads_per_group
@@ -1854,7 +1867,7 @@ def welmv4_inplace_rope_npu(
             multibuffer=True,
         )
     elif use_contiguous_mirror:
-        num_token_blocks = triton.cdiv(N, _WELMV4_ROPE_PREFILL_TOKEN_BLOCK)
+        num_token_blocks = num_prefill_token_blocks
         num_sms = min(num_token_blocks, _get_num_sms())
         _welmv4_inplace_rope_contiguous_mirror_kernel_npu[(num_sms,)](
             query,
@@ -1927,7 +1940,7 @@ def welmv4_inplace_rope_npu(
         )
     elif use_blocked_prefill:
         prefill_masked = N % _WELMV4_ROPE_PREFILL_TOKEN_BLOCK != 0
-        num_token_blocks = triton.cdiv(N, _WELMV4_ROPE_PREFILL_TOKEN_BLOCK)
+        num_token_blocks = num_prefill_token_blocks
         num_sms = min(
             num_token_blocks,
             _get_num_sms(multiplier=_WELMV4_ROPE_PROGRAMS_PER_VECTOR_CORE),

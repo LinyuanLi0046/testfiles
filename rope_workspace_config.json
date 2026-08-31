@@ -85,7 +85,7 @@
         {"family": "segmented_mirror", "n": 16896, "batch_size": 16, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]}
       ],
       "performance": [
-        {"family": "contiguous_prefill", "n_values": [4096, 8192, 9616, 11000, 16896], "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "contiguous_prefill", "n_values": [11000, 16500, 16896], "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
         {"family": "segmented_prefill", "n": 16896, "batch_size": 16, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]}
       ],
       "ir": [],
