@@ -80,6 +80,7 @@ for DUMP_DIR in "${DUMP_DIRS[@]}"; do
 
     FULL_IR="$(mktemp /tmp/welmv4_attention_bishengir.XXXXXX.log)"
     echo "Lowering $KERNEL_NAME for target $TARGET with $PRINT_FLAG"
+    set +e
     (
         cd "$DUMP_DIR"
         "$BISHENGIR_BIN" \
@@ -92,6 +93,14 @@ for DUMP_DIR in "${DUMP_DIRS[@]}"; do
             "$PRINT_FLAG" \
             kernel.ttadapter.mlir
     ) >"$FULL_IR" 2>&1
+    LOWER_RC=$?
+    set -e
+    if [[ "$LOWER_RC" -ne 0 ]]; then
+        echo "bishengir-compile failed for $KERNEL_NAME (exit=$LOWER_RC)" >&2
+        cat "$FULL_IR" >&2
+        rm -f "$FULL_IR"
+        exit "$LOWER_RC"
+    fi
 
     LAST_PASS="$IR_OUTPUT_DIR/${PREFIX}_last_pass.mlir"
     if [[ "$PRINT_MODE" == "direct" ]]; then
@@ -123,4 +132,3 @@ fi
 
 echo "IR capture complete: kernels=$CAPTURED"
 find "$IR_OUTPUT_DIR" -maxdepth 1 -type f -name '*.mlir' -printf '  %f %s bytes\n'
-

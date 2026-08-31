@@ -44,7 +44,7 @@
     "reference_max_query_rows": 32,
     "minimum_case_speedup": 1.0,
     "minimum_control_layout_speedup": 0.98,
-    "maximum_normalized_cost_ratio_vs_tp4": 1.02,
+    "maximum_normalized_cost_ratio_vs_tp4": 0.85,
     "msprof_warmup_per_case": 1,
     "msprof_samples_per_case": 3,
     "max_artifact_bytes": 50000000,

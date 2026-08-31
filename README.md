@@ -53,8 +53,9 @@ disabled.
 
 - Every changed candidate case must be no slower than its frozen baseline.
 - TP4/Q6 allows only the configured 2% measurement-noise band.
-- Candidate time is normalized by the Q-head work scale. DP2 must be no worse
-  than 2x raw TP4 latency and DP4 no worse than 4x, with a 2% noise allowance.
+- Candidate time is normalized by the Q-head work scale. DP2 must be at least
+  15% better than 2x raw TP4 latency and DP4 at least 15% better than 4x; merely
+  matching linear Q-head scaling does not pass.
 - Full flash-decode latency is the sum of
   `paged_decode_fd_kernel` and `paged_decode_fd_reduce_kernel`, not just the
   first kernel.
