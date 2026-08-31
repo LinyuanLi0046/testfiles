@@ -583,13 +583,6 @@ def paged_prefill_page_aggregation_kernel(
 
                 p_cast = p.to(k_T.dtype)
 
-                # Softmax denominator (sum of each row)
-                l_ij = tl.sum(p, 1)
-                # -- Update m_i and l_i
-                alpha = tl.math.exp(m_i - m_ij)  # Update factor: exp difference between old and new max
-                l_i = l_i * alpha + l_ij  # Update softmax denominator
-                # -- Update output accumulator --
-                acc = acc * alpha[:, None]
                 # Load corresponding V block
                 v = tl.zeros((PAGE_AGGREGATION_NUM * BLOCK_SIZE_N, BLOCK_SIZE_D), dtype=value_cache_ptr.dtype.element_ty)
                 for page_iter in tl.extra.cann.extension.parallel(0, PAGE_AGGREGATION_NUM):
@@ -613,7 +606,14 @@ def paged_prefill_page_aggregation_kernel(
                     v = tl.extra.cann.extension.insert_slice(v, v_slice, offsets=(page_iter * BLOCK_SIZE_N, 0),
                                                              sizes=(BLOCK_SIZE_N, BLOCK_SIZE_D),
                                                              strides=(1, 1))
-                acc = tl.dot(p_cast, v, acc)
+                # Start the second Cube matmul before the independent Vector
+                # reductions.  This lets the compiler overlap PV with the
+                # online-softmax sum/scale work on Ascend's CV pipeline.
+                pv = tl.dot(p_cast, v)
+                l_ij = tl.sum(p, 1)
+                alpha = tl.math.exp(m_i - m_ij)
+                l_i = l_i * alpha + l_ij
+                acc = acc * alpha[:, None] + pv
                 # tl.compile_hint(acc_ptr, "tile_cube_loop")
 
                 # Update current block max
@@ -2457,7 +2457,7 @@ def paged_attention_prefill_impl(
         )
     else:
         PAGE_AGGREGATION_NUM = (
-            4
+            2
             if use_dp_long_prefill_tile and page_size == 64
             else 1
             if page_size == 64 and head_dim == 256
@@ -2510,7 +2510,7 @@ def paged_attention_prefill_impl(
             SINK_ENABLED=sink_enabled,
             enable_dynamic_cv_pipeline=True,
             enable_cube_block_merge=True,
-            enable_buffer_insert_optimization=not use_dp_long_prefill_tile,
+            enable_buffer_insert_optimization=True,
             enable_ub_refine_opt=True,
         )
 
