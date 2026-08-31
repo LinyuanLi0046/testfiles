@@ -1,0 +1,198 @@
+{
+  "benchmark_base": "f6a65dcf255f6ec2b3c5c94642dab9d4dca9c013",
+  "device": {
+    "baseline_sha256": {
+      "decode": "c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec",
+      "prefill": "c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54"
+    },
+    "benchmark_base": "f6a65dcf255f6ec2b3c5c94642dab9d4dca9c013",
+    "cache_layout": "native_NHD_then_page_head_token_dim_permute",
+    "candidate_sha256": {
+      "decode": "c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec",
+      "prefill": "c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54"
+    },
+    "cann_version": "9.1.0",
+    "causal": true,
+    "device": "npu:5",
+    "device_index": 5,
+    "device_name": "Ascend950PR_957b",
+    "dtype": "bfloat16",
+    "gqa_interleave": false,
+    "num_cube_cores": 28,
+    "num_vector_cores": 56,
+    "python_version": "3.11.10",
+    "schema_version": 1,
+    "seed": 20260829,
+    "sink_dtype": "float32",
+    "torch_npu_version": "2.10.0.post4.dev20260715",
+    "torch_version": "2.10.0+cpu",
+    "triton_version": "3.2.0",
+    "workspace_commit": "f6a65dcf255f6ec2b3c5c94642dab9d4dca9c013"
+  },
+  "files": [
+    {
+      "path": "msprof_preflight/msprof/baseline/_swa_paged_decode_sink_kernel.log.gz",
+      "sha256": "7ec7ea9365e0830a77ce593570801728f23c5c98c50374f2deca00da2ab2c499",
+      "size_bytes": 1213
+    },
+    {
+      "path": "msprof_preflight/msprof/baseline/_swa_paged_prefill_aggregation_sink_kernel.log.gz",
+      "sha256": "561d0701920384888354a7b6afb35fdb7a9251c8aebac2496a646b44ca4cf49b",
+      "size_bytes": 1232
+    },
+    {
+      "path": "msprof_preflight/msprof/baseline/paged_decode_fd_kernel.log.gz",
+      "sha256": "d722cbf5ea1ac58b7c07e713f99871d1e34dbb2fad64eb96e9319ce448a00a62",
+      "size_bytes": 1199
+    },
+    {
+      "path": "msprof_preflight/msprof/baseline/paged_decode_fd_reduce_kernel.log.gz",
+      "sha256": "2d9a25906b50c1ae878be73be03e9fa92c72971936e78bacf0b1379bc49c4ff3",
+      "size_bytes": 1211
+    },
+    {
+      "path": "msprof_preflight/msprof/baseline/paged_prefill_page_aggregation_kernel.log.gz",
+      "sha256": "d5e12a09147f2e4bcb1b40c7ca4354c2db7ed6ff89811b92c0d85f167f60c253",
+      "size_bytes": 1222
+    },
+    {
+      "path": "msprof_preflight/msprof/candidate/_swa_paged_decode_sink_kernel.log.gz",
+      "sha256": "e786500e89b439767c3ad1a580b29c1eae806045d766a5a86e16fc218b9a303c",
+      "size_bytes": 1210
+    },
+    {
+      "path": "msprof_preflight/msprof/candidate/_swa_paged_prefill_aggregation_sink_kernel.log.gz",
+      "sha256": "67ef91ed5d54e9368d5f555ba3b2741e1ff6330b0cb874dad70bb92b8ec01370",
+      "size_bytes": 1233
+    },
+    {
+      "path": "msprof_preflight/msprof/candidate/paged_decode_fd_kernel.log.gz",
+      "sha256": "a6d56582a820a031f64047eba475766c895840b63b82a7fe9c1892173140e944",
+      "size_bytes": 1199
+    },
+    {
+      "path": "msprof_preflight/msprof/candidate/paged_decode_fd_reduce_kernel.log.gz",
+      "sha256": "e3385ce18574b8dd57f08d6daebae732276284a2472485639bbd1baa4ac3f07b",
+      "size_bytes": 1210
+    },
+    {
+      "path": "msprof_preflight/msprof/candidate/paged_prefill_page_aggregation_kernel.log.gz",
+      "sha256": "717f6d5e9c2c01bd1a1c1612332e06b9cd202c250a1198388f28dd8275978ed2",
+      "size_bytes": 1222
+    },
+    {
+      "path": "msprof_preflight.csv",
+      "sha256": "f12d5c9530ba0d30cfcf4a1b30a66a660526d118fb4f920f0aa5596612b2810d",
+      "size_bytes": 37393
+    }
+  ],
+  "finished_at": "2026-08-31T15:21:13+00:00",
+  "mode": "both",
+  "model_contract": {
+    "dtype": "bfloat16",
+    "global_num_kv_heads": 2,
+    "global_num_q_heads": 24,
+    "gqa_interleave": false,
+    "head_dim": 256,
+    "kv_cache_dtype": "bfloat16",
+    "m_max": 18432,
+    "max_context_length": 262144,
+    "page_size": 64,
+    "sink_dtype": "float32",
+    "softmax_scale": 0.09119556747428784,
+    "swa_global_window": 0,
+    "swa_left_window": 511,
+    "tp_size": 4
+  },
+  "phases": {
+    "ir": {
+      "reason": "correctness failed",
+      "status": "SKIPPED"
+    },
+    "msprof_components": {
+      "reason": "correctness failed",
+      "status": "SKIPPED"
+    },
+    "msprof_preflight": {
+      "case_count": 4,
+      "failure_count": 10,
+      "status": "ERROR"
+    },
+    "performance": {
+      "reason": "correctness failed",
+      "status": "SKIPPED"
+    },
+    "profile": {
+      "reason": "correctness failed",
+      "status": "SKIPPED"
+    }
+  },
+  "production_sources": {
+    "decode": {
+      "baseline_sha256": "c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec",
+      "commit": "bc7dc55e7cdeda050f36506c2d3ebdfe4433e5b1",
+      "path": "python/sglang/srt/hardware_backend/npu/attention/sink_full_attention.py",
+      "repository": "NEWSGLANG/sglang"
+    },
+    "prefill": {
+      "baseline_sha256": "c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54",
+      "commit": "bc7dc55e7cdeda050f36506c2d3ebdfe4433e5b1",
+      "path": "python/sglang/srt/hardware_backend/npu/attention/welmv4_sink_prefill_attention.py",
+      "repository": "NEWSGLANG/sglang"
+    }
+  },
+  "schema_version": 1,
+  "started_at": "2026-08-31T15:18:15+00:00",
+  "status": "ERROR",
+  "suite": "remote",
+  "validation": {
+    "baseline_candidate_atol": 0.005,
+    "baseline_candidate_rtol": 0.005,
+    "decode_reference_targets_us": {
+      "40": {
+        "full": 620.0,
+        "swa": 27.0
+      },
+      "56": {
+        "full": 724.0,
+        "swa": 33.0
+      }
+    },
+    "max_artifact_bytes": 50000000,
+    "maximum_normalized_cost_ratio_vs_tp4": 1.02,
+    "minimum_case_speedup": 1.0,
+    "minimum_control_layout_speedup": 0.98,
+    "msprof_samples_per_case": 3,
+    "msprof_warmup_per_case": 1,
+    "reference_atol": 0.03,
+    "reference_max_query_rows": 32,
+    "reference_rtol": 0.03,
+    "required_decode_batch_sizes": [
+      1,
+      4,
+      8,
+      16,
+      32,
+      40,
+      56
+    ],
+    "required_mtp_steps": [
+      1,
+      2,
+      3
+    ],
+    "required_prefill_lengths": [
+      4096,
+      8192,
+      9616,
+      10880,
+      11264,
+      11648,
+      16000,
+      16896,
+      17408
+    ]
+  },
+  "workspace": "welmv4-npu-dp-attention-full-swa",
+  "workspace_commit": "f6a65dcf255f6ec2b3c5c94642dab9d4dca9c013"
+}

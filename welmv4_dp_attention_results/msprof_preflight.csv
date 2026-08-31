@@ -1,0 +1,381 @@
+attention,baseline_sha256,batch_size,benchmark_base,block_table_width,cache_layout,candidate_sha256,cann_version,capture_log_tail,capture_returncode,case,causal,device,device_index,device_name,dp_size,draft_width,dtype,family,gqa_interleave,head_dim,kernel_name,kv_length,layout,length_pattern,m,max_kv_len_hint,max_q_len,min_runtime_kv_length,num_cube_cores,num_kv_heads,num_q_heads,num_vector_cores,page_size,path,provider,python_version,q_head_scale,record_type,runtime_kv_lens,runtime_q_lens,schema_version,seed,sha256,sink_dtype,size_bytes,softmax_scale,status,swa_left_window,timing_authority,topology,torch_npu_version,torch_version,triton_version,workload_id,workspace_commit
+full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",4,f6a65dcf255f6ec2b3c5c94642dab9d4dca9c013,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"expected 4 ordered durations, got 0; ordering_error='no matching task durations found'; discovered=[]
+=================================================================
+                   >>>>>   MindStudio   <<<<<
+    THE END-TO-END TOOLCHAIN TO UNLEASH HUAWEI ASCEND COMPUTE
+=================================================================
+
+[W831 23:18:16.989546044 FunctionLoader.cpp:48] Warning: LD_PRELOAD detected, FunctionLoader prefers RTLD_DEFAULT for symbol resolution. (function operator())
+[WARN]  Currently, the root permission is used, which is unrecommended. Please ensure the security of the execution environment and programs.
+[INFO]  Op profiling analysis start.
+[INFO]  Running device task: DeviceProf
+[INFO]  Kernel OnesLike_BOOL_high_performance_13 skipped: not selected via --kernel-name.
+[INFO]  Kernel Tril_93b3f8e9594b4018902b635fff3a83c5_high_performance_21 skipped: not selected via --kernel-name.
+Traceback (most recent call last):
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1468, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1272, in main
+    run_msprof_batch_child(
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1198, in run_msprof_batch_child
+    inputs = make_inputs(case, harness.device, seed=harness.seed)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/python3.11.10/lib/python3.11/site-packages/torch/utils/_contextlib.py"", line 124, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File ""/data2/hw_lly/testfiles/dp_attention_inputs.py"", line 91, in make_inputs
+    (case.scheduled_batch_size, case.block_table_width), dtype=torch.int32
+     ^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AttentionCase' object has no attribute 'scheduled_batch_size'
+[ERROR] 2026-08-31-23:18:29 (PID:2133660, Device:5, RankID:-1) ERR99999 UNKNOWN applicaiton exception
+[WARN]  Child process exited with return value 1
+[ERROR] Get profiling data failed.
+[WARN]  Profiling running finished. May cause generating performance files to fail.
+[WARN]  Running task failed, data parsing start
+[WARN]  No profiling data matched --kernel-name=paged_decode_fd_kernel. All kernels were filtered out or no matching dump was generated. Please confirm the kernel name or wildcard pattern.
+[WARN]  Profiling results are empty. No kernel profiling data was generated. Please check the dump output.
+[ERROR] Profiling data parse failed. Please check
+[INFO]  Op profiling finish. Welcome to next use.
+",0,full_decode_m4_b4_kv4096_uniform_tp4,True,npu:5,5,Ascend950PR_957b,1,,bfloat16,decode,False,256,paged_decode_fd_kernel,4096,tp4,uniform,4,4096,1,4096,28,1,6,56,64,msprof_preflight/msprof/baseline/paged_decode_fd_kernel.log.gz,baseline,3.11.10,1.0,msprof_kernel_component,"[4096, 4096, 4096, 4096]","[1, 1, 1, 1]",1,20260829,d722cbf5ea1ac58b7c07e713f99871d1e34dbb2fad64eb96e9319ce448a00a62,float32,1199,0.09119556747428784,ERROR,,msprof_op_task_duration,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,full_decode_m4_b4_kv4096_uniform,f6a65dcf255f6ec2b3c5c94642dab9d4dca9c013
+full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",4,f6a65dcf255f6ec2b3c5c94642dab9d4dca9c013,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"expected 4 ordered durations, got 0; ordering_error='no matching task durations found'; discovered=[]
+=================================================================
+                   >>>>>   MindStudio   <<<<<
+    THE END-TO-END TOOLCHAIN TO UNLEASH HUAWEI ASCEND COMPUTE
+=================================================================
+
+[W831 23:18:33.858145044 FunctionLoader.cpp:48] Warning: LD_PRELOAD detected, FunctionLoader prefers RTLD_DEFAULT for symbol resolution. (function operator())
+[WARN]  Currently, the root permission is used, which is unrecommended. Please ensure the security of the execution environment and programs.
+[INFO]  Op profiling analysis start.
+[INFO]  Running device task: DeviceProf
+[INFO]  Kernel OnesLike_BOOL_high_performance_13 skipped: not selected via --kernel-name.
+[INFO]  Kernel Tril_93b3f8e9594b4018902b635fff3a83c5_high_performance_21 skipped: not selected via --kernel-name.
+Traceback (most recent call last):
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1468, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1272, in main
+    run_msprof_batch_child(
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1198, in run_msprof_batch_child
+    inputs = make_inputs(case, harness.device, seed=harness.seed)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/python3.11.10/lib/python3.11/site-packages/torch/utils/_contextlib.py"", line 124, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File ""/data2/hw_lly/testfiles/dp_attention_inputs.py"", line 91, in make_inputs
+    (case.scheduled_batch_size, case.block_table_width), dtype=torch.int32
+     ^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AttentionCase' object has no attribute 'scheduled_batch_size'
+[ERROR] 2026-08-31-23:18:47 (PID:2133804, Device:5, RankID:-1) ERR99999 UNKNOWN applicaiton exception
+[WARN]  Child process exited with return value 1
+[ERROR] Get profiling data failed.
+[WARN]  Profiling running finished. May cause generating performance files to fail.
+[WARN]  Running task failed, data parsing start
+[WARN]  No profiling data matched --kernel-name=paged_decode_fd_reduce_kernel. All kernels were filtered out or no matching dump was generated. Please confirm the kernel name or wildcard pattern.
+[WARN]  Profiling results are empty. No kernel profiling data was generated. Please check the dump output.
+[ERROR] Profiling data parse failed. Please check
+[INFO]  Op profiling finish. Welcome to next use.
+",0,full_decode_m4_b4_kv4096_uniform_tp4,True,npu:5,5,Ascend950PR_957b,1,,bfloat16,decode,False,256,paged_decode_fd_reduce_kernel,4096,tp4,uniform,4,4096,1,4096,28,1,6,56,64,msprof_preflight/msprof/baseline/paged_decode_fd_reduce_kernel.log.gz,baseline,3.11.10,1.0,msprof_kernel_component,"[4096, 4096, 4096, 4096]","[1, 1, 1, 1]",1,20260829,2d9a25906b50c1ae878be73be03e9fa92c72971936e78bacf0b1379bc49c4ff3,float32,1211,0.09119556747428784,ERROR,,msprof_op_task_duration,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,full_decode_m4_b4_kv4096_uniform,f6a65dcf255f6ec2b3c5c94642dab9d4dca9c013
+swa,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",4,f6a65dcf255f6ec2b3c5c94642dab9d4dca9c013,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"expected 4 ordered durations, got 0; ordering_error='no matching task durations found'; discovered=[]
+=================================================================
+                   >>>>>   MindStudio   <<<<<
+    THE END-TO-END TOOLCHAIN TO UNLEASH HUAWEI ASCEND COMPUTE
+=================================================================
+
+[W831 23:18:51.573151120 FunctionLoader.cpp:48] Warning: LD_PRELOAD detected, FunctionLoader prefers RTLD_DEFAULT for symbol resolution. (function operator())
+[WARN]  Currently, the root permission is used, which is unrecommended. Please ensure the security of the execution environment and programs.
+[INFO]  Op profiling analysis start.
+[INFO]  Running device task: DeviceProf
+[INFO]  Kernel OnesLike_BOOL_high_performance_13 skipped: not selected via --kernel-name.
+[INFO]  Kernel Tril_93b3f8e9594b4018902b635fff3a83c5_high_performance_21 skipped: not selected via --kernel-name.
+Traceback (most recent call last):
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1468, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1272, in main
+    run_msprof_batch_child(
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1198, in run_msprof_batch_child
+    inputs = make_inputs(case, harness.device, seed=harness.seed)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/python3.11.10/lib/python3.11/site-packages/torch/utils/_contextlib.py"", line 124, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File ""/data2/hw_lly/testfiles/dp_attention_inputs.py"", line 91, in make_inputs
+    (case.scheduled_batch_size, case.block_table_width), dtype=torch.int32
+     ^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AttentionCase' object has no attribute 'scheduled_batch_size'
+[ERROR] 2026-08-31-23:19:04 (PID:2133948, Device:5, RankID:-1) ERR99999 UNKNOWN applicaiton exception
+[WARN]  Child process exited with return value 1
+[ERROR] Get profiling data failed.
+[WARN]  Profiling running finished. May cause generating performance files to fail.
+[WARN]  Running task failed, data parsing start
+[WARN]  No profiling data matched --kernel-name=_swa_paged_decode_sink_kernel. All kernels were filtered out or no matching dump was generated. Please confirm the kernel name or wildcard pattern.
+[WARN]  Profiling results are empty. No kernel profiling data was generated. Please check the dump output.
+[ERROR] Profiling data parse failed. Please check
+[INFO]  Op profiling finish. Welcome to next use.
+",0,swa_decode_m4_b4_kv4096_uniform_tp4_dp2,True,npu:5,5,Ascend950PR_957b,2,,bfloat16,decode,False,256,_swa_paged_decode_sink_kernel,4096,tp4_dp2,uniform,4,4096,1,4096,28,1,12,56,64,msprof_preflight/msprof/baseline/_swa_paged_decode_sink_kernel.log.gz,baseline,3.11.10,2.0,msprof_kernel_component,"[4096, 4096, 4096, 4096]","[1, 1, 1, 1]",1,20260829,7ec7ea9365e0830a77ce593570801728f23c5c98c50374f2deca00da2ab2c499,float32,1213,0.09119556747428784,ERROR,511,msprof_op_task_duration,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,swa_decode_m4_b4_kv4096_uniform,f6a65dcf255f6ec2b3c5c94642dab9d4dca9c013
+full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",4,f6a65dcf255f6ec2b3c5c94642dab9d4dca9c013,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"expected 4 ordered durations, got 0; ordering_error='no matching task durations found'; discovered=[]
+=================================================================
+                   >>>>>   MindStudio   <<<<<
+    THE END-TO-END TOOLCHAIN TO UNLEASH HUAWEI ASCEND COMPUTE
+=================================================================
+
+[W831 23:19:09.445551883 FunctionLoader.cpp:48] Warning: LD_PRELOAD detected, FunctionLoader prefers RTLD_DEFAULT for symbol resolution. (function operator())
+[WARN]  Currently, the root permission is used, which is unrecommended. Please ensure the security of the execution environment and programs.
+[INFO]  Op profiling analysis start.
+[INFO]  Running device task: DeviceProf
+[INFO]  Kernel OnesLike_BOOL_high_performance_13 skipped: not selected via --kernel-name.
+[INFO]  Kernel Tril_93b3f8e9594b4018902b635fff3a83c5_high_performance_21 skipped: not selected via --kernel-name.
+Traceback (most recent call last):
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1468, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1272, in main
+    run_msprof_batch_child(
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1198, in run_msprof_batch_child
+    inputs = make_inputs(case, harness.device, seed=harness.seed)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/python3.11.10/lib/python3.11/site-packages/torch/utils/_contextlib.py"", line 124, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File ""/data2/hw_lly/testfiles/dp_attention_inputs.py"", line 91, in make_inputs
+    (case.scheduled_batch_size, case.block_table_width), dtype=torch.int32
+     ^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AttentionCase' object has no attribute 'scheduled_batch_size'
+[ERROR] 2026-08-31-23:19:22 (PID:2134092, Device:5, RankID:-1) ERR99999 UNKNOWN applicaiton exception
+[WARN]  Child process exited with return value 1
+[ERROR] Get profiling data failed.
+[WARN]  Profiling running finished. May cause generating performance files to fail.
+[WARN]  Running task failed, data parsing start
+[WARN]  No profiling data matched --kernel-name=paged_prefill_page_aggregation_kernel. All kernels were filtered out or no matching dump was generated. Please confirm the kernel name or wildcard pattern.
+[WARN]  Profiling results are empty. No kernel profiling data was generated. Please check the dump output.
+[ERROR] Profiling data parse failed. Please check
+[INFO]  Op profiling finish. Welcome to next use.
+",0,full_verify_d2_m8_b4_kv4096_uniform_tp4_dp4,True,npu:5,5,Ascend950PR_957b,4,2,bfloat16,prefill,False,256,paged_prefill_page_aggregation_kernel,4096,tp4_dp4,uniform,8,,2,4096,28,2,24,56,64,msprof_preflight/msprof/baseline/paged_prefill_page_aggregation_kernel.log.gz,baseline,3.11.10,4.0,msprof_kernel_component,"[4096, 4096, 4096, 4096]","[2, 2, 2, 2]",1,20260829,d5e12a09147f2e4bcb1b40c7ca4354c2db7ed6ff89811b92c0d85f167f60c253,float32,1222,0.09119556747428784,ERROR,,msprof_op_task_duration,verify_d2,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,full_verify_d2_m8_b4_kv4096_uniform,f6a65dcf255f6ec2b3c5c94642dab9d4dca9c013
+swa,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",1,f6a65dcf255f6ec2b3c5c94642dab9d4dca9c013,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"expected 4 ordered durations, got 0; ordering_error='no matching task durations found'; discovered=[]
+=================================================================
+                   >>>>>   MindStudio   <<<<<
+    THE END-TO-END TOOLCHAIN TO UNLEASH HUAWEI ASCEND COMPUTE
+=================================================================
+
+[W831 23:19:27.281832046 FunctionLoader.cpp:48] Warning: LD_PRELOAD detected, FunctionLoader prefers RTLD_DEFAULT for symbol resolution. (function operator())
+[WARN]  Currently, the root permission is used, which is unrecommended. Please ensure the security of the execution environment and programs.
+[INFO]  Op profiling analysis start.
+[INFO]  Running device task: DeviceProf
+[INFO]  Kernel OnesLike_BOOL_high_performance_13 skipped: not selected via --kernel-name.
+[INFO]  Kernel Tril_93b3f8e9594b4018902b635fff3a83c5_high_performance_21 skipped: not selected via --kernel-name.
+Traceback (most recent call last):
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1468, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1272, in main
+    run_msprof_batch_child(
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1198, in run_msprof_batch_child
+    inputs = make_inputs(case, harness.device, seed=harness.seed)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/python3.11.10/lib/python3.11/site-packages/torch/utils/_contextlib.py"", line 124, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File ""/data2/hw_lly/testfiles/dp_attention_inputs.py"", line 91, in make_inputs
+    (case.scheduled_batch_size, case.block_table_width), dtype=torch.int32
+     ^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AttentionCase' object has no attribute 'scheduled_batch_size'
+[ERROR] 2026-08-31-23:19:40 (PID:2134236, Device:5, RankID:-1) ERR99999 UNKNOWN applicaiton exception
+[WARN]  Child process exited with return value 1
+[ERROR] Get profiling data failed.
+[WARN]  Profiling running finished. May cause generating performance files to fail.
+[WARN]  Running task failed, data parsing start
+[WARN]  No profiling data matched --kernel-name=_swa_paged_prefill_aggregation_sink_kernel. All kernels were filtered out or no matching dump was generated. Please confirm the kernel name or wildcard pattern.
+[WARN]  Profiling results are empty. No kernel profiling data was generated. Please check the dump output.
+[ERROR] Profiling data parse failed. Please check
+[INFO]  Op profiling finish. Welcome to next use.
+",0,swa_prefill_dense_m64_b1_kv4096_uniform_tp4,True,npu:5,5,Ascend950PR_957b,1,,bfloat16,prefill,False,256,_swa_paged_prefill_aggregation_sink_kernel,4096,tp4,uniform,64,,64,4096,28,1,6,56,64,msprof_preflight/msprof/baseline/_swa_paged_prefill_aggregation_sink_kernel.log.gz,baseline,3.11.10,1.0,msprof_kernel_component,[4096],[64],1,20260829,561d0701920384888354a7b6afb35fdb7a9251c8aebac2496a646b44ca4cf49b,float32,1232,0.09119556747428784,ERROR,511,msprof_op_task_duration,prefill_dense,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,swa_prefill_dense_m64_b1_kv4096_uniform,f6a65dcf255f6ec2b3c5c94642dab9d4dca9c013
+full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",4,f6a65dcf255f6ec2b3c5c94642dab9d4dca9c013,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"expected 4 ordered durations, got 0; ordering_error='no matching task durations found'; discovered=[]
+=================================================================
+                   >>>>>   MindStudio   <<<<<
+    THE END-TO-END TOOLCHAIN TO UNLEASH HUAWEI ASCEND COMPUTE
+=================================================================
+
+[W831 23:19:44.145802309 FunctionLoader.cpp:48] Warning: LD_PRELOAD detected, FunctionLoader prefers RTLD_DEFAULT for symbol resolution. (function operator())
+[WARN]  Currently, the root permission is used, which is unrecommended. Please ensure the security of the execution environment and programs.
+[INFO]  Op profiling analysis start.
+[INFO]  Running device task: DeviceProf
+[INFO]  Kernel OnesLike_BOOL_high_performance_13 skipped: not selected via --kernel-name.
+[INFO]  Kernel Tril_93b3f8e9594b4018902b635fff3a83c5_high_performance_21 skipped: not selected via --kernel-name.
+Traceback (most recent call last):
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1468, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1272, in main
+    run_msprof_batch_child(
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1198, in run_msprof_batch_child
+    inputs = make_inputs(case, harness.device, seed=harness.seed)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/python3.11.10/lib/python3.11/site-packages/torch/utils/_contextlib.py"", line 124, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File ""/data2/hw_lly/testfiles/dp_attention_inputs.py"", line 91, in make_inputs
+    (case.scheduled_batch_size, case.block_table_width), dtype=torch.int32
+     ^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AttentionCase' object has no attribute 'scheduled_batch_size'
+[ERROR] 2026-08-31-23:19:57 (PID:2134380, Device:5, RankID:-1) ERR99999 UNKNOWN applicaiton exception
+[WARN]  Child process exited with return value 1
+[ERROR] Get profiling data failed.
+[WARN]  Profiling running finished. May cause generating performance files to fail.
+[WARN]  Running task failed, data parsing start
+[WARN]  No profiling data matched --kernel-name=paged_decode_fd_kernel. All kernels were filtered out or no matching dump was generated. Please confirm the kernel name or wildcard pattern.
+[WARN]  Profiling results are empty. No kernel profiling data was generated. Please check the dump output.
+[ERROR] Profiling data parse failed. Please check
+[INFO]  Op profiling finish. Welcome to next use.
+",0,full_decode_m4_b4_kv4096_uniform_tp4,True,npu:5,5,Ascend950PR_957b,1,,bfloat16,decode,False,256,paged_decode_fd_kernel,4096,tp4,uniform,4,4096,1,4096,28,1,6,56,64,msprof_preflight/msprof/candidate/paged_decode_fd_kernel.log.gz,candidate,3.11.10,1.0,msprof_kernel_component,"[4096, 4096, 4096, 4096]","[1, 1, 1, 1]",1,20260829,a6d56582a820a031f64047eba475766c895840b63b82a7fe9c1892173140e944,float32,1199,0.09119556747428784,ERROR,,msprof_op_task_duration,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,full_decode_m4_b4_kv4096_uniform,f6a65dcf255f6ec2b3c5c94642dab9d4dca9c013
+full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",4,f6a65dcf255f6ec2b3c5c94642dab9d4dca9c013,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"expected 4 ordered durations, got 0; ordering_error='no matching task durations found'; discovered=[]
+=================================================================
+                   >>>>>   MindStudio   <<<<<
+    THE END-TO-END TOOLCHAIN TO UNLEASH HUAWEI ASCEND COMPUTE
+=================================================================
+
+[W831 23:20:02.018770158 FunctionLoader.cpp:48] Warning: LD_PRELOAD detected, FunctionLoader prefers RTLD_DEFAULT for symbol resolution. (function operator())
+[WARN]  Currently, the root permission is used, which is unrecommended. Please ensure the security of the execution environment and programs.
+[INFO]  Op profiling analysis start.
+[INFO]  Running device task: DeviceProf
+[INFO]  Kernel OnesLike_BOOL_high_performance_13 skipped: not selected via --kernel-name.
+[INFO]  Kernel Tril_93b3f8e9594b4018902b635fff3a83c5_high_performance_21 skipped: not selected via --kernel-name.
+Traceback (most recent call last):
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1468, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1272, in main
+    run_msprof_batch_child(
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1198, in run_msprof_batch_child
+    inputs = make_inputs(case, harness.device, seed=harness.seed)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/python3.11.10/lib/python3.11/site-packages/torch/utils/_contextlib.py"", line 124, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File ""/data2/hw_lly/testfiles/dp_attention_inputs.py"", line 91, in make_inputs
+    (case.scheduled_batch_size, case.block_table_width), dtype=torch.int32
+     ^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AttentionCase' object has no attribute 'scheduled_batch_size'
+[ERROR] 2026-08-31-23:20:15 (PID:2134524, Device:5, RankID:-1) ERR99999 UNKNOWN applicaiton exception
+[WARN]  Child process exited with return value 1
+[ERROR] Get profiling data failed.
+[WARN]  Profiling running finished. May cause generating performance files to fail.
+[WARN]  Running task failed, data parsing start
+[WARN]  No profiling data matched --kernel-name=paged_decode_fd_reduce_kernel. All kernels were filtered out or no matching dump was generated. Please confirm the kernel name or wildcard pattern.
+[WARN]  Profiling results are empty. No kernel profiling data was generated. Please check the dump output.
+[ERROR] Profiling data parse failed. Please check
+[INFO]  Op profiling finish. Welcome to next use.
+",0,full_decode_m4_b4_kv4096_uniform_tp4,True,npu:5,5,Ascend950PR_957b,1,,bfloat16,decode,False,256,paged_decode_fd_reduce_kernel,4096,tp4,uniform,4,4096,1,4096,28,1,6,56,64,msprof_preflight/msprof/candidate/paged_decode_fd_reduce_kernel.log.gz,candidate,3.11.10,1.0,msprof_kernel_component,"[4096, 4096, 4096, 4096]","[1, 1, 1, 1]",1,20260829,e3385ce18574b8dd57f08d6daebae732276284a2472485639bbd1baa4ac3f07b,float32,1210,0.09119556747428784,ERROR,,msprof_op_task_duration,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,full_decode_m4_b4_kv4096_uniform,f6a65dcf255f6ec2b3c5c94642dab9d4dca9c013
+swa,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",4,f6a65dcf255f6ec2b3c5c94642dab9d4dca9c013,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"expected 4 ordered durations, got 0; ordering_error='no matching task durations found'; discovered=[]
+=================================================================
+                   >>>>>   MindStudio   <<<<<
+    THE END-TO-END TOOLCHAIN TO UNLEASH HUAWEI ASCEND COMPUTE
+=================================================================
+
+[W831 23:20:20.880562794 FunctionLoader.cpp:48] Warning: LD_PRELOAD detected, FunctionLoader prefers RTLD_DEFAULT for symbol resolution. (function operator())
+[WARN]  Currently, the root permission is used, which is unrecommended. Please ensure the security of the execution environment and programs.
+[INFO]  Op profiling analysis start.
+[INFO]  Running device task: DeviceProf
+[INFO]  Kernel OnesLike_BOOL_high_performance_13 skipped: not selected via --kernel-name.
+[INFO]  Kernel Tril_93b3f8e9594b4018902b635fff3a83c5_high_performance_21 skipped: not selected via --kernel-name.
+Traceback (most recent call last):
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1468, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1272, in main
+    run_msprof_batch_child(
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1198, in run_msprof_batch_child
+    inputs = make_inputs(case, harness.device, seed=harness.seed)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/python3.11.10/lib/python3.11/site-packages/torch/utils/_contextlib.py"", line 124, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File ""/data2/hw_lly/testfiles/dp_attention_inputs.py"", line 91, in make_inputs
+    (case.scheduled_batch_size, case.block_table_width), dtype=torch.int32
+     ^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AttentionCase' object has no attribute 'scheduled_batch_size'
+[ERROR] 2026-08-31-23:20:34 (PID:2134668, Device:5, RankID:-1) ERR99999 UNKNOWN applicaiton exception
+[WARN]  Child process exited with return value 1
+[ERROR] Get profiling data failed.
+[WARN]  Profiling running finished. May cause generating performance files to fail.
+[WARN]  Running task failed, data parsing start
+[WARN]  No profiling data matched --kernel-name=_swa_paged_decode_sink_kernel. All kernels were filtered out or no matching dump was generated. Please confirm the kernel name or wildcard pattern.
+[WARN]  Profiling results are empty. No kernel profiling data was generated. Please check the dump output.
+[ERROR] Profiling data parse failed. Please check
+[INFO]  Op profiling finish. Welcome to next use.
+",0,swa_decode_m4_b4_kv4096_uniform_tp4_dp2,True,npu:5,5,Ascend950PR_957b,2,,bfloat16,decode,False,256,_swa_paged_decode_sink_kernel,4096,tp4_dp2,uniform,4,4096,1,4096,28,1,12,56,64,msprof_preflight/msprof/candidate/_swa_paged_decode_sink_kernel.log.gz,candidate,3.11.10,2.0,msprof_kernel_component,"[4096, 4096, 4096, 4096]","[1, 1, 1, 1]",1,20260829,e786500e89b439767c3ad1a580b29c1eae806045d766a5a86e16fc218b9a303c,float32,1210,0.09119556747428784,ERROR,511,msprof_op_task_duration,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,swa_decode_m4_b4_kv4096_uniform,f6a65dcf255f6ec2b3c5c94642dab9d4dca9c013
+full,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",4,f6a65dcf255f6ec2b3c5c94642dab9d4dca9c013,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"expected 4 ordered durations, got 0; ordering_error='no matching task durations found'; discovered=[]
+=================================================================
+                   >>>>>   MindStudio   <<<<<
+    THE END-TO-END TOOLCHAIN TO UNLEASH HUAWEI ASCEND COMPUTE
+=================================================================
+
+[W831 23:20:38.861041515 FunctionLoader.cpp:48] Warning: LD_PRELOAD detected, FunctionLoader prefers RTLD_DEFAULT for symbol resolution. (function operator())
+[WARN]  Currently, the root permission is used, which is unrecommended. Please ensure the security of the execution environment and programs.
+[INFO]  Op profiling analysis start.
+[INFO]  Running device task: DeviceProf
+[INFO]  Kernel OnesLike_BOOL_high_performance_13 skipped: not selected via --kernel-name.
+[INFO]  Kernel Tril_93b3f8e9594b4018902b635fff3a83c5_high_performance_21 skipped: not selected via --kernel-name.
+Traceback (most recent call last):
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1468, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1272, in main
+    run_msprof_batch_child(
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1198, in run_msprof_batch_child
+    inputs = make_inputs(case, harness.device, seed=harness.seed)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/python3.11.10/lib/python3.11/site-packages/torch/utils/_contextlib.py"", line 124, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File ""/data2/hw_lly/testfiles/dp_attention_inputs.py"", line 91, in make_inputs
+    (case.scheduled_batch_size, case.block_table_width), dtype=torch.int32
+     ^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AttentionCase' object has no attribute 'scheduled_batch_size'
+[ERROR] 2026-08-31-23:20:52 (PID:2134812, Device:5, RankID:-1) ERR99999 UNKNOWN applicaiton exception
+[WARN]  Child process exited with return value 1
+[ERROR] Get profiling data failed.
+[WARN]  Profiling running finished. May cause generating performance files to fail.
+[WARN]  Running task failed, data parsing start
+[WARN]  No profiling data matched --kernel-name=paged_prefill_page_aggregation_kernel. All kernels were filtered out or no matching dump was generated. Please confirm the kernel name or wildcard pattern.
+[WARN]  Profiling results are empty. No kernel profiling data was generated. Please check the dump output.
+[ERROR] Profiling data parse failed. Please check
+[INFO]  Op profiling finish. Welcome to next use.
+",0,full_verify_d2_m8_b4_kv4096_uniform_tp4_dp4,True,npu:5,5,Ascend950PR_957b,4,2,bfloat16,prefill,False,256,paged_prefill_page_aggregation_kernel,4096,tp4_dp4,uniform,8,,2,4096,28,2,24,56,64,msprof_preflight/msprof/candidate/paged_prefill_page_aggregation_kernel.log.gz,candidate,3.11.10,4.0,msprof_kernel_component,"[4096, 4096, 4096, 4096]","[2, 2, 2, 2]",1,20260829,717f6d5e9c2c01bd1a1c1612332e06b9cd202c250a1198388f28dd8275978ed2,float32,1222,0.09119556747428784,ERROR,,msprof_op_task_duration,verify_d2,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,full_verify_d2_m8_b4_kv4096_uniform,f6a65dcf255f6ec2b3c5c94642dab9d4dca9c013
+swa,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",1,f6a65dcf255f6ec2b3c5c94642dab9d4dca9c013,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",9.1.0,"expected 4 ordered durations, got 0; ordering_error='no matching task durations found'; discovered=[]
+=================================================================
+                   >>>>>   MindStudio   <<<<<
+    THE END-TO-END TOOLCHAIN TO UNLEASH HUAWEI ASCEND COMPUTE
+=================================================================
+
+[W831 23:20:56.913752968 FunctionLoader.cpp:48] Warning: LD_PRELOAD detected, FunctionLoader prefers RTLD_DEFAULT for symbol resolution. (function operator())
+[WARN]  Currently, the root permission is used, which is unrecommended. Please ensure the security of the execution environment and programs.
+[INFO]  Op profiling analysis start.
+[INFO]  Running device task: DeviceProf
+[INFO]  Kernel OnesLike_BOOL_high_performance_13 skipped: not selected via --kernel-name.
+[INFO]  Kernel Tril_93b3f8e9594b4018902b635fff3a83c5_high_performance_21 skipped: not selected via --kernel-name.
+Traceback (most recent call last):
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1468, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1272, in main
+    run_msprof_batch_child(
+  File ""/data2/hw_lly/testfiles/bench_welmv4_dp_attention_npu.py"", line 1198, in run_msprof_batch_child
+    inputs = make_inputs(case, harness.device, seed=harness.seed)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""/usr/local/python3.11.10/lib/python3.11/site-packages/torch/utils/_contextlib.py"", line 124, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File ""/data2/hw_lly/testfiles/dp_attention_inputs.py"", line 91, in make_inputs
+    (case.scheduled_batch_size, case.block_table_width), dtype=torch.int32
+     ^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AttentionCase' object has no attribute 'scheduled_batch_size'
+[ERROR] 2026-08-31-23:21:10 (PID:2134956, Device:5, RankID:-1) ERR99999 UNKNOWN applicaiton exception
+[WARN]  Child process exited with return value 1
+[ERROR] Get profiling data failed.
+[WARN]  Profiling running finished. May cause generating performance files to fail.
+[WARN]  Running task failed, data parsing start
+[WARN]  No profiling data matched --kernel-name=_swa_paged_prefill_aggregation_sink_kernel. All kernels were filtered out or no matching dump was generated. Please confirm the kernel name or wildcard pattern.
+[WARN]  Profiling results are empty. No kernel profiling data was generated. Please check the dump output.
+[ERROR] Profiling data parse failed. Please check
+[INFO]  Op profiling finish. Welcome to next use.
+",0,swa_prefill_dense_m64_b1_kv4096_uniform_tp4,True,npu:5,5,Ascend950PR_957b,1,,bfloat16,prefill,False,256,_swa_paged_prefill_aggregation_sink_kernel,4096,tp4,uniform,64,,64,4096,28,1,6,56,64,msprof_preflight/msprof/candidate/_swa_paged_prefill_aggregation_sink_kernel.log.gz,candidate,3.11.10,1.0,msprof_kernel_component,[4096],[64],1,20260829,67ef91ed5d54e9368d5f555ba3b2741e1ff6330b0cb874dad70bb92b8ec01370,float32,1233,0.09119556747428784,ERROR,511,msprof_op_task_duration,prefill_dense,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,swa_prefill_dense_m64_b1_kv4096_uniform,f6a65dcf255f6ec2b3c5c94642dab9d4dca9c013
