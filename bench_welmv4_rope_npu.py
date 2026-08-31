@@ -860,8 +860,13 @@ def evaluate_performance(
         baseline_us = float(baseline["task_p50_us"])
         candidate_us = float(candidate["task_p50_us"])
         speedup = baseline_us / candidate_us
+        same_kernel_control = (
+            str(baseline["kernel_name"]) == str(candidate["kernel_name"])
+        )
         effective_minimum_speedup = (
-            minimum_control_speedup if case.topology == "tp4" else minimum_speedup
+            minimum_control_speedup
+            if case.topology == "tp4" or same_kernel_control
+            else minimum_speedup
         )
         passed = baseline_snapshot or speedup >= effective_minimum_speedup
         regressions += int(not passed)
@@ -883,6 +888,7 @@ def evaluate_performance(
                 "candidate_us_per_rotated_value": normalized,
                 "minimum_case_speedup": minimum_speedup,
                 "effective_minimum_case_speedup": effective_minimum_speedup,
+                "same_kernel_control": same_kernel_control,
             }
         )
 

@@ -995,10 +995,12 @@ def _welmv4_inplace_rope_segmented_prefill_kernel_npu(
     token_offsets = tl.arange(0, token_block)
     cos_offsets = tl.arange(0, half_rope_dim)
     sin_offsets = tl.arange(half_rope_dim, rope_dim)
+    tiles_per_program = tl.cdiv(num_segment_tiles, tl.num_programs(0))
+    tile_start = tl.program_id(0) * tiles_per_program
+    tile_end = tl.minimum(tile_start + tiles_per_program, num_segment_tiles)
     for tile_id in tl.range(
-        tl.program_id(0),
-        num_segment_tiles,
-        tl.num_programs(0),
+        tile_start,
+        tile_end,
         num_stages=num_stages,
     ):
         token_base = tl.load(segment_tile_starts_ptr + tile_id).to(tl.int32)
@@ -1865,7 +1867,7 @@ def welmv4_inplace_rope_npu(
         num_segment_tiles = segment_tile_starts.numel() - 1
         num_sms = min(
             num_segment_tiles,
-            _get_num_sms(multiplier=_WELMV4_ROPE_PROGRAMS_PER_VECTOR_CORE),
+            _get_num_sms(),
         )
         _welmv4_inplace_rope_segmented_prefill_kernel_npu[(num_sms,)](
             query,

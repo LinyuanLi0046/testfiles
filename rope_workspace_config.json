@@ -85,7 +85,7 @@
         {"family": "segmented_mirror", "n": 16896, "batch_size": 16, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]}
       ],
       "performance": [
-        {"family": "segmented_prefill", "n_values": [1024, 2048, 2304], "batch_size": 7, "topologies": ["tp4", "tp4_dp4"]}
+        {"family": "segmented_prefill", "n_values": [4096, 8192, 9616, 11000, 16896], "batch_size": 16, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]}
       ],
       "ir": [],
       "profile": []
