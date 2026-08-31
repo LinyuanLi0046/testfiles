@@ -1,7 +1,7 @@
-time: 2026-08-31T21:07:49+08:00
-command: /usr/local/python3.11.10/bin/python bench_welmv4_rope_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_rope_result_j61co39k
-return_code: 2
-reason: benchmark exited with status 2; manifest_status=PERF_REGRESSION
+time: 2026-08-31T21:19:17+08:00
+command: /usr/local/python3.11.10/bin/python bench_welmv4_rope_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_rope_result_95vpd8gb
+return_code: 1
+reason: benchmark exited with status 1; manifest_status=ERROR
 
 ===== stdout + stderr =====
 candidate differs from baseline: using iteration suite (set WELMV4_ROPE_FORCE_FULL=1 for the full remote suite)
@@ -121,28 +121,22 @@ candidate differs from baseline: using iteration suite (set WELMV4_ROPE_FORCE_FU
 [correctness 114/116] segmented_mirror_n16896_b16_ctx16896_tp4
 [correctness 115/116] segmented_mirror_n16896_b16_ctx16896_tp4_dp2
 [correctness 116/116] segmented_mirror_n16896_b16_ctx16896_tp4_dp4
-[performance_shape_validation 1/18] contiguous_prefill_n4096_b0_ctx4096_tp4
-[performance_shape_validation 2/18] contiguous_prefill_n4096_b0_ctx4096_tp4_dp2
-[performance_shape_validation 3/18] contiguous_prefill_n4096_b0_ctx4096_tp4_dp4
-[performance_shape_validation 4/18] contiguous_prefill_n8192_b0_ctx8192_tp4
-[performance_shape_validation 5/18] contiguous_prefill_n8192_b0_ctx8192_tp4_dp2
-[performance_shape_validation 6/18] contiguous_prefill_n8192_b0_ctx8192_tp4_dp4
-[performance_shape_validation 7/18] contiguous_prefill_n9616_b0_ctx9616_tp4
-[performance_shape_validation 8/18] contiguous_prefill_n9616_b0_ctx9616_tp4_dp2
-[performance_shape_validation 9/18] contiguous_prefill_n9616_b0_ctx9616_tp4_dp4
-[performance_shape_validation 10/18] contiguous_prefill_n11000_b0_ctx11000_tp4
-[performance_shape_validation 11/18] contiguous_prefill_n11000_b0_ctx11000_tp4_dp2
-[performance_shape_validation 12/18] contiguous_prefill_n11000_b0_ctx11000_tp4_dp4
-[performance_shape_validation 13/18] contiguous_prefill_n16896_b0_ctx16896_tp4
-[performance_shape_validation 14/18] contiguous_prefill_n16896_b0_ctx16896_tp4_dp2
-[performance_shape_validation 15/18] contiguous_prefill_n16896_b0_ctx16896_tp4_dp4
-[performance_shape_validation 16/18] segmented_prefill_n16896_b16_ctx16896_tp4
-[performance_shape_validation 17/18] segmented_prefill_n16896_b16_ctx16896_tp4_dp2
-[performance_shape_validation 18/18] segmented_prefill_n16896_b16_ctx16896_tp4_dp4
-[msprof] provider=baseline, kernel=_welmv4_inplace_rope_contiguous_prefill_kernel_npu, cases=5
-[msprof] provider=baseline, kernel=_welmv4_inplace_rope_kernel_npu, cases=12
+[performance_shape_validation 1/12] contiguous_prefill_n11000_b0_ctx11000_tp4
+[performance_shape_validation 2/12] contiguous_prefill_n11000_b0_ctx11000_tp4_dp2
+[performance_shape_validation 3/12] contiguous_prefill_n11000_b0_ctx11000_tp4_dp4
+[performance_shape_validation 4/12] contiguous_prefill_n16500_b0_ctx16500_tp4
+[performance_shape_validation 5/12] contiguous_prefill_n16500_b0_ctx16500_tp4_dp2
+[performance_shape_validation 6/12] contiguous_prefill_n16500_b0_ctx16500_tp4_dp4
+[performance_shape_validation 7/12] contiguous_prefill_n16896_b0_ctx16896_tp4
+[performance_shape_validation 8/12] contiguous_prefill_n16896_b0_ctx16896_tp4_dp2
+[performance_shape_validation 9/12] contiguous_prefill_n16896_b0_ctx16896_tp4_dp4
+[performance_shape_validation 10/12] segmented_prefill_n16896_b16_ctx16896_tp4
+[performance_shape_validation 11/12] segmented_prefill_n16896_b16_ctx16896_tp4_dp2
+[performance_shape_validation 12/12] segmented_prefill_n16896_b16_ctx16896_tp4_dp4
+[msprof] provider=baseline, kernel=_welmv4_inplace_rope_contiguous_prefill_kernel_npu, cases=3
+[msprof] provider=baseline, kernel=_welmv4_inplace_rope_kernel_npu, cases=8
 [msprof] provider=baseline, kernel=_welmv4_inplace_rope_segmented_prefill_kernel_npu, cases=1
-[msprof] provider=candidate, kernel=_welmv4_inplace_rope_contiguous_prefill_kernel_npu, cases=9
-[msprof] provider=candidate, kernel=_welmv4_inplace_rope_head_parallel_prefill_kernel_npu, cases=6
+[msprof] provider=candidate, kernel=_welmv4_inplace_rope_contiguous_prefill_kernel_npu, cases=7
+[msprof] provider=candidate, kernel=_welmv4_inplace_rope_head_parallel_prefill_kernel_npu, cases=2
 [msprof] provider=candidate, kernel=_welmv4_inplace_rope_segmented_prefill_kernel_npu, cases=3
-result=PERF_REGRESSION; manifest=/data2/hw_lly/testfiles/welm_rope_result_j61co39k/result.json
+result=ERROR; manifest=/data2/hw_lly/testfiles/welm_rope_result_95vpd8gb/result.json
