@@ -1,11 +1,11 @@
-time: 2026-09-01T06:01:08+08:00
-command: /usr/local/python3.11.10/bin/python bench_welmv4_dp_attention_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_dp_attn_result_x_7sm_jv
+time: 2026-09-01T07:03:58+08:00
+command: /usr/local/python3.11.10/bin/python bench_welmv4_dp_attention_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_dp_attn_result_0ubb87ih
 return_code: 2
 reason: benchmark exited with status 2; manifest_status=PERF_REGRESSION
 
 ===== stdout + stderr =====
 WeLMv4 NPU Full/SWA DP-Attention optimization workspace
-device=npu:5 (Ascend950PR_957b), base=9573fa66e93e, baseline={'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}, candidate={'prefill': '13c093110997848ef9f5a476a73b1d9d9f72be336eff055b9f18881f6976f939', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}
+device=npu:5 (Ascend950PR_957b), base=dcacca348702, baseline={'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}, candidate={'prefill': 'd8d94e75bea451908cd0b58b60c08503c030cf5d15e491d7694f6706aa094a90', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}
 [msprof-op batch] provider=baseline, kernel=paged_decode_fd_kernel, cases=1
 [msprof-op batch] provider=baseline, kernel=paged_decode_fd_reduce_kernel, cases=1
 [msprof-op batch] provider=baseline, kernel=_swa_paged_decode_sink_kernel, cases=1
@@ -139,62 +139,14 @@ device=npu:5 (Ascend950PR_957b), base=9573fa66e93e, baseline={'prefill': 'c4166c
 [correctness 60/66] full_prefill_dense_m1024_b1_kv4096_uniform_tp4_dp4
   PASS: candidate max_abs=0.00195312, pair max_abs=0.00195312
 [correctness 61/66] swa_prefill_dense_m64_b1_kv4096_uniform_tp4
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
   PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 62/66] swa_prefill_dense_m1024_b1_kv4096_uniform_tp4
   PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 63/66] swa_prefill_dense_m64_b1_kv4096_uniform_tp4_dp2
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
   PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 64/66] swa_prefill_dense_m1024_b1_kv4096_uniform_tp4_dp2
   PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 65/66] swa_prefill_dense_m64_b1_kv4096_uniform_tp4_dp4
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
-/usr/local/python3.11.10/lib/python3.11/site-packages/triton/language/semantic.py:1740: UserWarning: tl.where with a non-boolean condition is deprecated and will error out in a future triton release. Got int8
-  warnings.warn(
   PASS: candidate max_abs=0.00390625, pair max_abs=0
 [correctness 66/66] swa_prefill_dense_m1024_b1_kv4096_uniform_tp4_dp4
   PASS: candidate max_abs=0.00390625, pair max_abs=0
@@ -254,43 +206,43 @@ device=npu:5 (Ascend950PR_957b), base=9573fa66e93e, baseline={'prefill': 'c4166c
 [ir] full_prefill_dense_m64_b1_kv4096_uniform_tp4_dp4
 [ir] swa_verify_d2_m80_b40_kv4096_uniform_tp4_dp4
 [profile:pipe_utilization] full_decode_m40_b40_kv16896_ragged_tp4_dp4
-[2026-09-01 06:00:33] [WARNING] [2615457] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-09-01 06:00:34] [INFO] [2649185] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_pipe_utilization_mhdwdcad/TENCENT64-124_2615457_20260901060033649_ascend_pt
-|/-[2026-09-01 06:00:36] [INFO] [2649194] profiler.py: CANN profiling data parsed in a total time of 0:00:02.038314
-[2026-09-01 06:00:37] [INFO] [2649185] profiler.py: All profiling data parsed in a total time of 0:00:03.006303
+[2026-09-01 07:03:23] [WARNING] [2659244] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-09-01 07:03:23] [INFO] [2692711] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_pipe_utilization_tadb5wod/TENCENT64-124_2659244_20260901070323202_ascend_pt
+|/-[2026-09-01 07:03:25] [INFO] [2692720] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017849
+[2026-09-01 07:03:26] [INFO] [2692711] profiler.py: All profiling data parsed in a total time of 0:00:03.050681
 [profile:memory] full_decode_m40_b40_kv16896_ragged_tp4_dp4
-[2026-09-01 06:00:37] [WARNING] [2615457] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-09-01 06:00:37] [INFO] [2649455] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_memory_h40c9wf7/TENCENT64-124_2615457_20260901060037304_ascend_pt
-|/-[2026-09-01 06:00:40] [INFO] [2649464] profiler.py: CANN profiling data parsed in a total time of 0:00:02.037693
-[2026-09-01 06:00:40] [INFO] [2649455] profiler.py: All profiling data parsed in a total time of 0:00:03.007560
+[2026-09-01 07:03:27] [WARNING] [2659244] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-09-01 07:03:27] [INFO] [2692981] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_memory_ej80nrmi/TENCENT64-124_2659244_20260901070326916_ascend_pt
+|/-[2026-09-01 07:03:29] [INFO] [2692990] profiler.py: CANN profiling data parsed in a total time of 0:00:02.016947
+[2026-09-01 07:03:30] [INFO] [2692981] profiler.py: All profiling data parsed in a total time of 0:00:03.033341
 [profile:pipe_utilization] swa_decode_m40_b40_kv4096_uniform_tp4_dp4
-[2026-09-01 06:00:41] [WARNING] [2615457] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-09-01 06:00:41] [INFO] [2649725] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_pipe_utilization_26i69z3z/TENCENT64-124_2615457_20260901060041172_ascend_pt
-|/-[2026-09-01 06:00:43] [INFO] [2649734] profiler.py: CANN profiling data parsed in a total time of 0:00:02.036792
-[2026-09-01 06:00:44] [INFO] [2649725] profiler.py: All profiling data parsed in a total time of 0:00:03.034128
+[2026-09-01 07:03:30] [WARNING] [2659244] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-09-01 07:03:31] [INFO] [2693251] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_pipe_utilization_891hi1it/TENCENT64-124_2659244_20260901070330854_ascend_pt
+|/-[2026-09-01 07:03:33] [INFO] [2693260] profiler.py: CANN profiling data parsed in a total time of 0:00:02.016578
+[2026-09-01 07:03:34] [INFO] [2693251] profiler.py: All profiling data parsed in a total time of 0:00:03.039912
 [profile:memory] swa_decode_m40_b40_kv4096_uniform_tp4_dp4
-[2026-09-01 06:00:45] [WARNING] [2615457] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-09-01 06:00:45] [INFO] [2649995] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_memory_c793c3pr/TENCENT64-124_2615457_20260901060044879_ascend_pt
-|/-[2026-09-01 06:00:47] [INFO] [2650004] profiler.py: CANN profiling data parsed in a total time of 0:00:02.016651
-[2026-09-01 06:00:48] [INFO] [2649995] profiler.py: All profiling data parsed in a total time of 0:00:03.045952
+[2026-09-01 07:03:34] [WARNING] [2659244] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-09-01 07:03:35] [INFO] [2693521] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_memory_vtz3z7l_/TENCENT64-124_2659244_20260901070334564_ascend_pt
+|/-[2026-09-01 07:03:37] [INFO] [2693530] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017109
+[2026-09-01 07:03:38] [INFO] [2693521] profiler.py: All profiling data parsed in a total time of 0:00:03.046812
 [profile:pipe_utilization] full_prefill_dense_m64_b1_kv4096_uniform_tp4_dp4
-[2026-09-01 06:00:48] [WARNING] [2615457] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-09-01 06:00:49] [INFO] [2650265] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_pipe_utilization_68yhjf6u/TENCENT64-124_2615457_20260901060048769_ascend_pt
-|/-[2026-09-01 06:00:51] [INFO] [2650274] profiler.py: CANN profiling data parsed in a total time of 0:00:02.018092
-[2026-09-01 06:00:52] [INFO] [2650265] profiler.py: All profiling data parsed in a total time of 0:00:03.052399
+[2026-09-01 07:03:38] [WARNING] [2659244] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-09-01 07:03:39] [INFO] [2693791] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_pipe_utilization_m6mg0cbq/TENCENT64-124_2659244_20260901070338494_ascend_pt
+|/-[2026-09-01 07:03:41] [INFO] [2693800] profiler.py: CANN profiling data parsed in a total time of 0:00:02.037843
+[2026-09-01 07:03:42] [INFO] [2693791] profiler.py: All profiling data parsed in a total time of 0:00:03.063475
 [profile:memory] full_prefill_dense_m64_b1_kv4096_uniform_tp4_dp4
-[2026-09-01 06:00:52] [WARNING] [2615457] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-09-01 06:00:53] [INFO] [2650535] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_memory_qdm667o8/TENCENT64-124_2615457_20260901060052465_ascend_pt
-|/-[2026-09-01 06:00:55] [INFO] [2650544] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017783
-[2026-09-01 06:00:56] [INFO] [2650535] profiler.py: All profiling data parsed in a total time of 0:00:03.034941
+[2026-09-01 07:03:42] [WARNING] [2659244] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-09-01 07:03:42] [INFO] [2694061] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_full_memory_zytgv59m/TENCENT64-124_2659244_20260901070342209_ascend_pt
+|/-[2026-09-01 07:03:45] [INFO] [2694070] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017788
+[2026-09-01 07:03:46] [INFO] [2694061] profiler.py: All profiling data parsed in a total time of 0:00:03.075595
 [profile:pipe_utilization] swa_verify_d2_m80_b40_kv4096_uniform_tp4_dp4
-[2026-09-01 06:00:56] [WARNING] [2615457] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-09-01 06:00:57] [INFO] [2650805] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_pipe_utilization_hgcrh1xs/TENCENT64-124_2615457_20260901060056534_ascend_pt
-|/-[2026-09-01 06:00:59] [INFO] [2650814] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017770
-\[2026-09-01 06:01:00] [INFO] [2650805] profiler.py: All profiling data parsed in a total time of 0:00:03.077274
+[2026-09-01 07:03:46] [WARNING] [2659244] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-09-01 07:03:46] [INFO] [2694331] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_pipe_utilization_m778klbb/TENCENT64-124_2659244_20260901070346263_ascend_pt
+|/-[2026-09-01 07:03:48] [INFO] [2694340] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017868
+\[2026-09-01 07:03:49] [INFO] [2694331] profiler.py: All profiling data parsed in a total time of 0:00:03.079738
 [profile:memory] swa_verify_d2_m80_b40_kv4096_uniform_tp4_dp4
-[2026-09-01 06:01:01] [WARNING] [2615457] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-09-01 06:01:01] [INFO] [2651075] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_memory_9y6k3r7g/TENCENT64-124_2615457_20260901060101239_ascend_pt
-|/-[2026-09-01 06:01:04] [INFO] [2651084] profiler.py: CANN profiling data parsed in a total time of 0:00:02.037932
-\[2026-09-01 06:01:04] [INFO] [2651075] profiler.py: All profiling data parsed in a total time of 0:00:03.078354
-result=PERF_REGRESSION; manifest=/data2/hw_lly/testfiles/welm_dp_attn_result_x_7sm_jv/result.json
+[2026-09-01 07:03:51] [WARNING] [2659244] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-09-01 07:03:51] [INFO] [2694601] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_memory_9zogs17h/TENCENT64-124_2659244_20260901070350987_ascend_pt
+|/-[2026-09-01 07:03:53] [INFO] [2694610] profiler.py: CANN profiling data parsed in a total time of 0:00:02.037138
+\[2026-09-01 07:03:54] [INFO] [2694601] profiler.py: All profiling data parsed in a total time of 0:00:03.089299
+result=PERF_REGRESSION; manifest=/data2/hw_lly/testfiles/welm_dp_attn_result_0ubb87ih/result.json
