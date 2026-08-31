@@ -204,6 +204,8 @@ def expected_kernel_names(
         == case.local_num_kv_heads * 12
         and case.local_num_kv_heads in (1, 2)
         and case.max_q_len <= 4
+        and case.real_batch_size * case.local_num_kv_heads
+        >= (num_cube_cores + 1) // 2
     )
     if use_grouped_dp:
         return ("_swa_paged_prefill_dp_grouped_rows_kernel",)
