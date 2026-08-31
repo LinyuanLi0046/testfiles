@@ -1200,6 +1200,7 @@ def paged_attention_prefill_impl(
         and max_q_len is not None
         and 1 <= max_q_len <= 4
         and not gqa_interleave
+        and num_kv_heads == 1
         and q_heads_per_kv <= 12
         and grouped_small_q_rows <= 64
         and page_size == 64

@@ -61,7 +61,7 @@
       "correctness": [
         {"attention": "full", "topology": "decode", "layout": "tp4", "batch_size": 4, "kv_length": 4096},
         {"attention": "swa", "topology": "decode", "layout": "tp4_dp2", "batch_size": 4, "kv_length": 4096},
-        {"attention": "full", "topology": "verify_d2", "layout": "tp4_dp4", "batch_size": 4, "kv_length": 4096},
+        {"attention": "full", "topology": "verify_d2", "layout": "tp4_dp2", "batch_size": 4, "kv_length": 4096},
         {"attention": "swa", "topology": "prefill_dense", "layout": "tp4", "m": 64, "kv_length": 4096},
         {"attention": "full", "topology": "prefill_ragged", "layout": "tp4_dp2", "m": 257, "batch_size": 16, "kv_length": 4096, "length_pattern": "ragged"}
       ],

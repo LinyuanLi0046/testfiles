@@ -174,6 +174,7 @@ def expected_kernel_names(
         use_small_dp = (
             provider == "candidate"
             and case.max_q_len <= 4
+            and case.local_num_kv_heads == 1
             and q_heads_per_kv <= 12
             and q_heads_per_kv * case.max_q_len <= 64
         )
