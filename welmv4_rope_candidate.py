@@ -1390,10 +1390,13 @@ def _welmv4_inplace_rope_head_parallel_prefill_kernel_npu(
     num_q_heads: tl.constexpr,
     num_k_heads: tl.constexpr,
 ):
-    """DP-attention prefill with token tiles and 2-head groups as tasks."""
+    """DP-attention prefill with vectorized adjacent-head groups as tasks."""
     half_rope_dim: tl.constexpr = rope_dim // 2
-    num_q_head_groups: tl.constexpr = num_q_heads // 2
-    num_head_groups: tl.constexpr = num_k_heads + num_q_head_groups
+    q_heads_per_group: tl.constexpr = 2 if num_q_heads == 6 else 4
+    k_heads_per_group: tl.constexpr = 1 if num_k_heads == 1 else 2
+    num_q_head_groups: tl.constexpr = num_q_heads // q_heads_per_group
+    num_k_head_groups: tl.constexpr = num_k_heads // k_heads_per_group
+    num_head_groups: tl.constexpr = num_k_head_groups + num_q_head_groups
     token_offsets = tl.arange(0, token_block)
     cos_offsets = tl.arange(0, half_rope_dim)
     sin_offsets = tl.arange(half_rope_dim, rope_dim)
@@ -1463,27 +1466,54 @@ def _welmv4_inplace_rope_head_parallel_prefill_kernel_npu(
             tl.extra.cann.extension.compile_hint(cos, "mayDiscretememaccess")
             tl.extra.cann.extension.compile_hint(sin, "mayDiscretememaccess")
 
-        if head_group_id.to(tl.float32) < num_k_heads:
+        if head_group_id.to(tl.float32) < num_k_head_groups:
+            k_head_base = head_group_id * k_heads_per_group
             k_data = (
                 k_ptr
                 + token_base * k_token_stride
-                + head_group_id * head_dim
+                + k_head_base * head_dim
                 + head_dim
                 - rope_dim
             )
-            _welmv4_apply_token_block_rope_npu(
-                k_data,
-                token_offsets,
-                k_token_stride,
-                cos,
-                sin,
-                token_mask,
-                masked,
-                head_dim,
-                rope_dim,
-            )
+            if k_heads_per_group == 1:
+                _welmv4_apply_token_block_rope_npu(
+                    k_data,
+                    token_offsets,
+                    k_token_stride,
+                    cos,
+                    sin,
+                    token_mask,
+                    masked,
+                    head_dim,
+                    rope_dim,
+                )
+            elif masked:
+                _welmv4_apply_masked_token_head_block_rope_npu(
+                    k_data,
+                    token_offsets,
+                    k_token_stride,
+                    cos,
+                    sin,
+                    token_mask,
+                    k_heads_per_group,
+                    head_dim,
+                    rope_dim,
+                )
+            else:
+                _welmv4_apply_token_head_block_rope_npu(
+                    k_data,
+                    token_offsets,
+                    k_token_stride,
+                    cos,
+                    sin,
+                    k_heads_per_group,
+                    head_dim,
+                    rope_dim,
+                )
         else:
-            q_head_base = (head_group_id - num_k_heads) * 2
+            q_head_base = (
+                head_group_id - num_k_head_groups
+            ) * q_heads_per_group
             q_data = (
                 q_ptr
                 + token_base * q_token_stride
@@ -1499,7 +1529,7 @@ def _welmv4_inplace_rope_head_parallel_prefill_kernel_npu(
                     cos,
                     sin,
                     token_mask,
-                    2,
+                    q_heads_per_group,
                     head_dim,
                     rope_dim,
                 )
@@ -1510,7 +1540,7 @@ def _welmv4_inplace_rope_head_parallel_prefill_kernel_npu(
                     q_token_stride,
                     cos,
                     sin,
-                    2,
+                    q_heads_per_group,
                     head_dim,
                     rope_dim,
                 )
@@ -1753,8 +1783,9 @@ def welmv4_inplace_rope_npu(
     ):
         use_segmented_prefill = False
         use_blocked_prefill = False
+    # Mirror task mapping is intentionally unchanged: its dedicated kernel
+    # still maps each Q task to a 2-head group.
     num_q_head_groups = num_q_heads // 2
-    num_head_groups = num_k_heads + num_q_head_groups
     if (
         use_contiguous_mirror
         and use_head_parallel
@@ -1793,6 +1824,13 @@ def welmv4_inplace_rope_npu(
     ):
         prefill_masked = N % _WELMV4_ROPE_PREFILL_TOKEN_BLOCK != 0
         num_token_blocks = triton.cdiv(N, _WELMV4_ROPE_PREFILL_TOKEN_BLOCK)
+        q_heads_per_group = 4
+        k_heads_per_group = 1 if num_k_heads == 1 else 2
+        num_prefill_q_head_groups = num_q_heads // q_heads_per_group
+        num_prefill_k_head_groups = num_k_heads // k_heads_per_group
+        num_head_groups = (
+            num_prefill_q_head_groups + num_prefill_k_head_groups
+        )
         num_tasks = num_token_blocks * num_head_groups
         num_sms = min(num_tasks, _get_num_sms())
         position_mode = 1 if positions_are_contiguous else 0

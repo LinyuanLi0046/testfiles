@@ -38,7 +38,7 @@
     "minimum_control_layout_speedup": 0.98,
     "maximum_normalized_cost_ratio_vs_tp4": 1.05,
     "msprof_warmup_per_case": 1,
-    "msprof_samples_per_case": 5,
+    "msprof_samples_per_case": 9,
     "profile_warmup": 5,
     "profile_iterations": 3,
     "max_artifact_bytes": 50000000,
@@ -85,7 +85,8 @@
         {"family": "segmented_mirror", "n": 16896, "batch_size": 16, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]}
       ],
       "performance": [
-        {"family": "segmented_prefill", "n_values": [4096, 8192, 9616, 11000, 16896], "batch_size": 16, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]}
+        {"family": "contiguous_prefill", "n_values": [4096, 8192, 9616, 11000, 16896], "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "segmented_prefill", "n": 16896, "batch_size": 16, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]}
       ],
       "ir": [],
       "profile": []
