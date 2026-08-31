@@ -1,11 +1,11 @@
-time: 2026-09-01T00:13:40+08:00
-command: /usr/local/python3.11.10/bin/python bench_welmv4_dp_attention_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_dp_attn_result_qyd_pfuo
+time: 2026-09-01T00:21:18+08:00
+command: /usr/local/python3.11.10/bin/python bench_welmv4_dp_attention_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_dp_attn_result_11u9bysm
 return_code: 3
 reason: benchmark exited with status 3; manifest_status=ERROR
 
 ===== stdout + stderr =====
 WeLMv4 NPU Full/SWA DP-Attention optimization workspace
-device=npu:5 (Ascend950PR_957b), base=a57571530b1f, baseline={'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}, candidate={'prefill': '3573b2f520c00e0191b0b4ceface3ebc019601749c09ffb649433e72eb9f647b', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}
+device=npu:5 (Ascend950PR_957b), base=8a68bf39b79c, baseline={'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}, candidate={'prefill': '4f1de01fe344a9d5fb514d9f6a8b704e6dfa1df4771787ba75c2c1e00c030580', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}
 [msprof-op batch] provider=baseline, kernel=paged_decode_fd_kernel, cases=1
 [msprof-op batch] provider=baseline, kernel=paged_decode_fd_reduce_kernel, cases=1
 [msprof-op batch] provider=baseline, kernel=_swa_paged_decode_sink_kernel, cases=1
@@ -16,4 +16,4 @@ device=npu:5 (Ascend950PR_957b), base=a57571530b1f, baseline={'prefill': 'c4166c
 [msprof-op batch] provider=candidate, kernel=_swa_paged_decode_sink_kernel, cases=1
 [msprof-op batch] provider=candidate, kernel=paged_prefill_small_q_grouped_kernel, cases=1
 [msprof-op batch] provider=candidate, kernel=_swa_paged_prefill_aggregation_sink_kernel, cases=1
-result=ERROR; manifest=/data2/hw_lly/testfiles/welm_dp_attn_result_qyd_pfuo/result.json
+result=ERROR; manifest=/data2/hw_lly/testfiles/welm_dp_attn_result_11u9bysm/result.json
