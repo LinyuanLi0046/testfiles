@@ -1737,18 +1737,20 @@ def welmv4_inplace_rope_npu(
         and key.shape[0] == N
     )
     use_head_parallel = num_q_heads != 6
-    # A short ragged DP4 prefill exposes fewer 64-token segment tiles than
-    # physical vector cores.  In that regime the segmented kernel serializes
-    # all 24 Q heads inside each tile and loses to the existing head-parallel
-    # arbitrary-position path.  Once the tile grid fills the device, retaining
-    # the segmented path avoids redundant cos/sin loads for long prefill.
+    # A short ragged DP4 prefill can expose fewer 64-token segment tiles than
+    # half of the physical vector cores.  In that regime the segmented kernel
+    # serializes all 24 Q heads inside each tile, while the head-parallel path
+    # repeats arbitrary-position cos/sin loads.  Keep the production generic
+    # kernel for this severely underfilled grid; otherwise retain the
+    # segmented path to share cos/sin across heads for longer prefill.
     if (
         use_segmented_prefill
         and num_q_heads == 24
         and num_k_heads == 2
-        and segment_tile_starts.numel() - 1 <= _get_num_sms()
+        and 2 * (segment_tile_starts.numel() - 1) <= _get_num_sms()
     ):
         use_segmented_prefill = False
+        use_blocked_prefill = False
     num_q_head_groups = num_q_heads // 2
     num_head_groups = num_k_heads + num_q_head_groups
     if (
