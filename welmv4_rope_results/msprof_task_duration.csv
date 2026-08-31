@@ -1,175 +1,25 @@
-case,workload_id,family,topology,dp_attention_size,context_length,speculative_width,n,batch_size,q_rows,local_q_heads,local_kv_heads,rotated_values,record_type,provider,kernel_name,timing_authority,status,sample_count,task_min_us,task_p50_us,task_mean_us,task_max_us,artifact,capture_log_tail
-contiguous_prefill_n11000_b0_ctx11000_tp4,contiguous_prefill_n11000_b0_ctx11000,contiguous_prefill,tp4,1,11000,1,11000,0,11000,6,1,4928000,msprof_task_duration,baseline,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,30.752001,31.190001,31.220666777777776,31.82,msprof/baseline/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz,
-contiguous_prefill_n16500_b0_ctx16500_tp4,contiguous_prefill_n16500_b0_ctx16500,contiguous_prefill,tp4,1,16500,1,16500,0,16500,6,1,7392000,msprof_task_duration,baseline,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,39.470001,39.967999,39.95300011111111,40.478001,msprof/baseline/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz,
-contiguous_prefill_n16896_b0_ctx16896_tp4,contiguous_prefill_n16896_b0_ctx16896,contiguous_prefill,tp4,1,16896,1,16896,0,16896,6,1,7569408,msprof_task_duration,baseline,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,31.820999,32.611,32.562222222222225,33.278,msprof/baseline/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz,
-contiguous_prefill_n11000_b0_ctx11000_tp4_dp2,contiguous_prefill_n11000_b0_ctx11000,contiguous_prefill,tp4_dp2,2,11000,1,11000,0,11000,12,1,9152000,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,196.104004,196.987015,196.91711244444446,197.285995,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz,
-contiguous_prefill_n11000_b0_ctx11000_tp4_dp4,contiguous_prefill_n11000_b0_ctx11000,contiguous_prefill,tp4_dp4,4,11000,1,11000,0,11000,24,2,18304000,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,209.604996,210.414001,210.41555611111113,210.798004,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz,
-contiguous_prefill_n16500_b0_ctx16500_tp4_dp2,contiguous_prefill_n16500_b0_ctx16500,contiguous_prefill,tp4_dp2,2,16500,1,16500,0,16500,12,1,13728000,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,294.563995,295.442993,295.4095493333333,296.648987,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz,
-contiguous_prefill_n16500_b0_ctx16500_tp4_dp4,contiguous_prefill_n16500_b0_ctx16500,contiguous_prefill,tp4_dp4,4,16500,1,16500,0,16500,24,2,27456000,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,318.268005,318.847992,318.95855355555557,319.835022,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz,
-contiguous_prefill_n16896_b0_ctx16896_tp4_dp2,contiguous_prefill_n16896_b0_ctx16896,contiguous_prefill,tp4_dp2,2,16896,1,16896,0,16896,12,1,14057472,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,301.411011,302.265991,302.38565744444446,303.305969,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz,
-contiguous_prefill_n16896_b0_ctx16896_tp4_dp4,contiguous_prefill_n16896_b0_ctx16896,contiguous_prefill,tp4_dp4,4,16896,1,16896,0,16896,24,2,28114944,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,326.302002,327.324005,327.208001,327.905975,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz,
-segmented_prefill_n16896_b16_ctx16896_tp4_dp2,segmented_prefill_n16896_b16_ctx16896,segmented_prefill,tp4_dp2,2,16896,1,16896,16,16896,12,1,14057472,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,301.561981,302.837006,302.715332,303.254028,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz,
-segmented_prefill_n16896_b16_ctx16896_tp4_dp4,segmented_prefill_n16896_b16_ctx16896,segmented_prefill,tp4_dp4,4,16896,1,16896,16,16896,24,2,28114944,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,326.542999,327.198029,327.1533338888889,327.740997,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz,
-segmented_prefill_n16896_b16_ctx16896_tp4,segmented_prefill_n16896_b16_ctx16896,segmented_prefill,tp4,1,16896,1,16896,16,16896,6,1,7569408,msprof_task_duration,baseline,_welmv4_inplace_rope_segmented_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,32.284,32.535,32.60300022222222,32.911999,msprof/baseline/_welmv4_inplace_rope_segmented_prefill_kernel_npu.log.gz,
-contiguous_prefill_n11000_b0_ctx11000_tp4,contiguous_prefill_n11000_b0_ctx11000,contiguous_prefill,tp4,1,11000,1,11000,0,11000,6,1,4928000,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,30.615999,31.202,31.302888666666668,31.958,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz,
-contiguous_prefill_n11000_b0_ctx11000_tp4_dp2,contiguous_prefill_n11000_b0_ctx11000,contiguous_prefill,tp4_dp2,2,11000,1,11000,0,11000,12,1,9152000,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,42.715,43.976002,43.92822222222222,44.856998,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz,
-contiguous_prefill_n11000_b0_ctx11000_tp4_dp4,contiguous_prefill_n11000_b0_ctx11000,contiguous_prefill,tp4_dp4,4,11000,1,11000,0,11000,24,2,18304000,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,90.060997,91.306999,91.5707778888889,93.683998,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz,
-contiguous_prefill_n16500_b0_ctx16500_tp4,contiguous_prefill_n16500_b0_ctx16500,contiguous_prefill,tp4,1,16500,1,16500,0,16500,6,1,7392000,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,39.651001,40.039001,40.028333777777775,40.388,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz,
-contiguous_prefill_n16500_b0_ctx16500_tp4_dp2,contiguous_prefill_n16500_b0_ctx16500,contiguous_prefill,tp4_dp2,2,16500,1,16500,0,16500,12,1,13728000,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,55.674999,56.229,56.320111555555556,57.089001,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz,
-contiguous_prefill_n16500_b0_ctx16500_tp4_dp4,contiguous_prefill_n16500_b0_ctx16500,contiguous_prefill,tp4_dp4,4,16500,1,16500,0,16500,24,2,27456000,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,127.202003,128.384003,128.47255455555558,129.304001,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz,
-contiguous_prefill_n16896_b0_ctx16896_tp4,contiguous_prefill_n16896_b0_ctx16896,contiguous_prefill,tp4,1,16896,1,16896,0,16896,6,1,7569408,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,32.112,32.791,32.63677722222222,33.255001,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz,
-contiguous_prefill_n16896_b0_ctx16896_tp4_dp2,contiguous_prefill_n16896_b0_ctx16896,contiguous_prefill,tp4_dp2,2,16896,1,16896,0,16896,12,1,14057472,msprof_task_duration,candidate,_welmv4_inplace_rope_head_parallel_prefill_kernel_npu,,ERROR,,,,,,msprof/candidate/_welmv4_inplace_rope_head_parallel_prefill_kernel_npu.log.gz,"returncode=0, expected=20, got=0, parse_error='no matching task durations found', discovered=[]
-=================================================================
-                   >>>>>   MindStudio   <<<<<
-    THE END-TO-END TOOLCHAIN TO UNLEASH HUAWEI ASCEND COMPUTE
-=================================================================
-
-[W831 21:18:06.603861673 FunctionLoader.cpp:48] Warning: LD_PRELOAD detected, FunctionLoader prefers RTLD_DEFAULT for symbol resolution. (function operator())
-[WARN]  Currently, the root permission is used, which is unrecommended. Please ensure the security of the execution environment and programs.
-[INFO]  Op profiling analysis start.
-[INFO]  Running device task: DeviceProf
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Profiling running finished. All task success.
-[WARN]  No profiling data matched --kernel-name=_welmv4_inplace_rope_head_parallel_prefill_kernel_npu. All kernels were filtered out or no matching dump was generated. Please confirm the kernel name or wildcard pattern.
-[WARN]  Profiling results are empty. No kernel profiling data was generated. Please check the dump output.
-[ERROR] Profiling data parse failed. Please check
-[INFO]  Op profiling finish. Welcome to next use.
-"
-contiguous_prefill_n16896_b0_ctx16896_tp4_dp4,contiguous_prefill_n16896_b0_ctx16896,contiguous_prefill,tp4_dp4,4,16896,1,16896,0,16896,24,2,28114944,msprof_task_duration,candidate,_welmv4_inplace_rope_head_parallel_prefill_kernel_npu,,ERROR,,,,,,msprof/candidate/_welmv4_inplace_rope_head_parallel_prefill_kernel_npu.log.gz,"returncode=0, expected=20, got=0, parse_error='no matching task durations found', discovered=[]
-=================================================================
-                   >>>>>   MindStudio   <<<<<
-    THE END-TO-END TOOLCHAIN TO UNLEASH HUAWEI ASCEND COMPUTE
-=================================================================
-
-[W831 21:18:06.603861673 FunctionLoader.cpp:48] Warning: LD_PRELOAD detected, FunctionLoader prefers RTLD_DEFAULT for symbol resolution. (function operator())
-[WARN]  Currently, the root permission is used, which is unrecommended. Please ensure the security of the execution environment and programs.
-[INFO]  Op profiling analysis start.
-[INFO]  Running device task: DeviceProf
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
-[INFO]  Kernel _welmv4_inplace_rope_contiguous_prefill_kernel_npu skipped: not selected via --kernel-name.
-[INFO]  Profiling running finished. All task success.
-[WARN]  No profiling data matched --kernel-name=_welmv4_inplace_rope_head_parallel_prefill_kernel_npu. All kernels were filtered out or no matching dump was generated. Please confirm the kernel name or wildcard pattern.
-[WARN]  Profiling results are empty. No kernel profiling data was generated. Please check the dump output.
-[ERROR] Profiling data parse failed. Please check
-[INFO]  Op profiling finish. Welcome to next use.
-"
-segmented_prefill_n16896_b16_ctx16896_tp4,segmented_prefill_n16896_b16_ctx16896,segmented_prefill,tp4,1,16896,1,16896,16,16896,6,1,7569408,msprof_task_duration,candidate,_welmv4_inplace_rope_segmented_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,32.167999,32.918999,32.89188855555555,33.32,msprof/candidate/_welmv4_inplace_rope_segmented_prefill_kernel_npu.log.gz,
-segmented_prefill_n16896_b16_ctx16896_tp4_dp2,segmented_prefill_n16896_b16_ctx16896,segmented_prefill,tp4_dp2,2,16896,1,16896,16,16896,12,1,14057472,msprof_task_duration,candidate,_welmv4_inplace_rope_segmented_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,56.535999,57.554001,57.54688855555556,58.265999,msprof/candidate/_welmv4_inplace_rope_segmented_prefill_kernel_npu.log.gz,
-segmented_prefill_n16896_b16_ctx16896_tp4_dp4,segmented_prefill_n16896_b16_ctx16896,segmented_prefill,tp4_dp4,4,16896,1,16896,16,16896,24,2,28114944,msprof_task_duration,candidate,_welmv4_inplace_rope_segmented_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,114.875,116.945999,117.13299977777777,119.627998,msprof/candidate/_welmv4_inplace_rope_segmented_prefill_kernel_npu.log.gz,
+case,workload_id,family,topology,dp_attention_size,context_length,speculative_width,n,batch_size,q_rows,local_q_heads,local_kv_heads,rotated_values,record_type,provider,kernel_name,timing_authority,status,sample_count,task_min_us,task_p50_us,task_mean_us,task_max_us,artifact
+contiguous_prefill_n11000_b0_ctx11000_tp4,contiguous_prefill_n11000_b0_ctx11000,contiguous_prefill,tp4,1,11000,1,11000,0,11000,6,1,4928000,msprof_task_duration,baseline,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,30.893999,31.208,31.245111,31.816,msprof/baseline/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
+contiguous_prefill_n16500_b0_ctx16500_tp4,contiguous_prefill_n16500_b0_ctx16500,contiguous_prefill,tp4,1,16500,1,16500,0,16500,6,1,7392000,msprof_task_duration,baseline,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,39.576,40.032001,40.010333555555555,40.368999,msprof/baseline/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
+contiguous_prefill_n16896_b0_ctx16896_tp4,contiguous_prefill_n16896_b0_ctx16896,contiguous_prefill,tp4,1,16896,1,16896,0,16896,6,1,7569408,msprof_task_duration,baseline,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,31.565001,32.334999,32.44944488888889,33.097,msprof/baseline/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
+contiguous_prefill_n11000_b0_ctx11000_tp4_dp2,contiguous_prefill_n11000_b0_ctx11000,contiguous_prefill,tp4_dp2,2,11000,1,11000,0,11000,12,1,9152000,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,196.427994,196.867996,197.0031127777778,197.880005,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
+contiguous_prefill_n11000_b0_ctx11000_tp4_dp4,contiguous_prefill_n11000_b0_ctx11000,contiguous_prefill,tp4_dp4,4,11000,1,11000,0,11000,24,2,18304000,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,209.966003,210.639999,210.48966800000002,210.867004,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
+contiguous_prefill_n16500_b0_ctx16500_tp4_dp2,contiguous_prefill_n16500_b0_ctx16500,contiguous_prefill,tp4_dp2,2,16500,1,16500,0,16500,12,1,13728000,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,294.403992,295.160004,295.1281094444445,296.209991,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
+contiguous_prefill_n16500_b0_ctx16500_tp4_dp4,contiguous_prefill_n16500_b0_ctx16500,contiguous_prefill,tp4_dp4,4,16500,1,16500,0,16500,24,2,27456000,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,318.308014,319.128998,318.9283345555556,319.303009,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
+contiguous_prefill_n16896_b0_ctx16896_tp4_dp2,contiguous_prefill_n16896_b0_ctx16896,contiguous_prefill,tp4_dp2,2,16896,1,16896,0,16896,12,1,14057472,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,301.864014,302.633972,302.74044133333337,305.673981,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
+contiguous_prefill_n16896_b0_ctx16896_tp4_dp4,contiguous_prefill_n16896_b0_ctx16896,contiguous_prefill,tp4_dp4,4,16896,1,16896,0,16896,24,2,28114944,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,326.583008,327.262024,327.2068888888889,328.003998,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
+segmented_prefill_n16896_b16_ctx16896_tp4_dp2,segmented_prefill_n16896_b16_ctx16896,segmented_prefill,tp4_dp2,2,16896,1,16896,16,16896,12,1,14057472,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,302.02301,302.492004,302.568556,303.140015,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
+segmented_prefill_n16896_b16_ctx16896_tp4_dp4,segmented_prefill_n16896_b16_ctx16896,segmented_prefill,tp4_dp4,4,16896,1,16896,16,16896,24,2,28114944,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,326.057007,327.003021,327.1931152222222,328.651001,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
+segmented_prefill_n16896_b16_ctx16896_tp4,segmented_prefill_n16896_b16_ctx16896,segmented_prefill,tp4,1,16896,1,16896,16,16896,6,1,7569408,msprof_task_duration,baseline,_welmv4_inplace_rope_segmented_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,32.429001,32.679001,32.72055566666667,33.255001,msprof/baseline/_welmv4_inplace_rope_segmented_prefill_kernel_npu.log.gz
+contiguous_prefill_n11000_b0_ctx11000_tp4,contiguous_prefill_n11000_b0_ctx11000,contiguous_prefill,tp4,1,11000,1,11000,0,11000,6,1,4928000,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,30.360001,31.01,31.05288911111111,31.715,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
+contiguous_prefill_n11000_b0_ctx11000_tp4_dp2,contiguous_prefill_n11000_b0_ctx11000,contiguous_prefill,tp4_dp2,2,11000,1,11000,0,11000,12,1,9152000,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,42.755001,43.478001,43.52077788888889,44.328999,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
+contiguous_prefill_n11000_b0_ctx11000_tp4_dp4,contiguous_prefill_n11000_b0_ctx11000,contiguous_prefill,tp4_dp4,4,11000,1,11000,0,11000,24,2,18304000,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,90.333,92.314003,92.54688944444445,97.578003,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
+contiguous_prefill_n16500_b0_ctx16500_tp4,contiguous_prefill_n16500_b0_ctx16500,contiguous_prefill,tp4,1,16500,1,16500,0,16500,6,1,7392000,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,39.636002,40.122002,40.10266722222222,40.668999,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
+contiguous_prefill_n16500_b0_ctx16500_tp4_dp2,contiguous_prefill_n16500_b0_ctx16500,contiguous_prefill,tp4_dp2,2,16500,1,16500,0,16500,12,1,13728000,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,56.047001,56.41,56.60911188888889,57.776001,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
+contiguous_prefill_n16500_b0_ctx16500_tp4_dp4,contiguous_prefill_n16500_b0_ctx16500,contiguous_prefill,tp4_dp4,4,16500,1,16500,0,16500,24,2,27456000,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,127.230003,128.311005,128.24866822222222,129.177002,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
+contiguous_prefill_n16896_b0_ctx16896_tp4,contiguous_prefill_n16896_b0_ctx16896,contiguous_prefill,tp4,1,16896,1,16896,0,16896,6,1,7569408,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,31.791,32.382999,32.380666444444444,33.057999,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
+contiguous_prefill_n16896_b0_ctx16896_tp4_dp2,contiguous_prefill_n16896_b0_ctx16896,contiguous_prefill,tp4_dp2,2,16896,1,16896,0,16896,12,1,14057472,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,55.952,56.801998,56.78511133333333,57.380001,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
+contiguous_prefill_n16896_b0_ctx16896_tp4_dp4,contiguous_prefill_n16896_b0_ctx16896,contiguous_prefill,tp4_dp4,4,16896,1,16896,0,16896,24,2,28114944,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,129.360001,130.901993,130.85877833333333,132.281006,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
+segmented_prefill_n16896_b16_ctx16896_tp4,segmented_prefill_n16896_b16_ctx16896,segmented_prefill,tp4,1,16896,1,16896,16,16896,6,1,7569408,msprof_task_duration,candidate,_welmv4_inplace_rope_segmented_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,32.438,32.817001,32.83000055555556,33.748001,msprof/candidate/_welmv4_inplace_rope_segmented_prefill_kernel_npu.log.gz
+segmented_prefill_n16896_b16_ctx16896_tp4_dp2,segmented_prefill_n16896_b16_ctx16896,segmented_prefill,tp4_dp2,2,16896,1,16896,16,16896,12,1,14057472,msprof_task_duration,candidate,_welmv4_inplace_rope_segmented_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,55.578999,57.615002,57.60522211111111,59.078999,msprof/candidate/_welmv4_inplace_rope_segmented_prefill_kernel_npu.log.gz
+segmented_prefill_n16896_b16_ctx16896_tp4_dp4,segmented_prefill_n16896_b16_ctx16896,segmented_prefill,tp4_dp4,4,16896,1,16896,16,16896,24,2,28114944,msprof_task_duration,candidate,_welmv4_inplace_rope_segmented_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,9,112.778,117.540001,117.1447771111111,119.962997,msprof/candidate/_welmv4_inplace_rope_segmented_prefill_kernel_npu.log.gz

@@ -1,7 +1,7 @@
-time: 2026-08-31T21:19:17+08:00
-command: /usr/local/python3.11.10/bin/python bench_welmv4_rope_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_rope_result_95vpd8gb
-return_code: 1
-reason: benchmark exited with status 1; manifest_status=ERROR
+time: 2026-08-31T21:30:42+08:00
+command: /usr/local/python3.11.10/bin/python bench_welmv4_rope_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_rope_result__4buexql
+return_code: 2
+reason: benchmark exited with status 2; manifest_status=PERF_REGRESSION
 
 ===== stdout + stderr =====
 candidate differs from baseline: using iteration suite (set WELMV4_ROPE_FORCE_FULL=1 for the full remote suite)
@@ -136,7 +136,6 @@ candidate differs from baseline: using iteration suite (set WELMV4_ROPE_FORCE_FU
 [msprof] provider=baseline, kernel=_welmv4_inplace_rope_contiguous_prefill_kernel_npu, cases=3
 [msprof] provider=baseline, kernel=_welmv4_inplace_rope_kernel_npu, cases=8
 [msprof] provider=baseline, kernel=_welmv4_inplace_rope_segmented_prefill_kernel_npu, cases=1
-[msprof] provider=candidate, kernel=_welmv4_inplace_rope_contiguous_prefill_kernel_npu, cases=7
-[msprof] provider=candidate, kernel=_welmv4_inplace_rope_head_parallel_prefill_kernel_npu, cases=2
+[msprof] provider=candidate, kernel=_welmv4_inplace_rope_contiguous_prefill_kernel_npu, cases=9
 [msprof] provider=candidate, kernel=_welmv4_inplace_rope_segmented_prefill_kernel_npu, cases=3
-result=ERROR; manifest=/data2/hw_lly/testfiles/welm_rope_result_95vpd8gb/result.json
+result=PERF_REGRESSION; manifest=/data2/hw_lly/testfiles/welm_rope_result__4buexql/result.json
