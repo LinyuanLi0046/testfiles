@@ -2120,20 +2120,7 @@ def paged_attention_prefill_prepare(
     device=None,
 ):
     cube_num = get_num_cores("cube")
-    cu_q_lens_host = _tensor_to_cpu_list(cu_q_lens)
-    max_q_len = max(
-        (
-            cu_q_lens_host[i + 1] - cu_q_lens_host[i]
-            for i in range(len(cu_q_lens_host) - 1)
-        ),
-        default=0,
-    )
-    use_dp_large_m_tile = (
-        not gqa_interleave
-        and num_q_heads == num_kv_heads * 12
-        and max_q_len > 128
-    )
-    CHUNK_SIZE = 256 if use_dp_large_m_tile else 128
+    CHUNK_SIZE = 128
     BLOCK_SIZE_N = min(128, triton.next_power_of_2(page_size))
 
     task_b, task_q_block, task_q_head, core_task_offsets = _build_lpt_task_schedule(
@@ -2204,13 +2191,7 @@ def paged_attention_prefill_impl(
     o = torch.zeros_like(q)
     block_tables_i32 = block_tables.to(dtype=torch.int32).contiguous()
 
-    use_dp_large_m_tile = (
-        not gqa_interleave
-        and num_q_heads == num_kv_heads * 12
-        and max_q_len is not None
-        and max_q_len > 128
-    )
-    CHUNK_SIZE = 256 if use_dp_large_m_tile else 128
+    CHUNK_SIZE = 128
     BLOCK_SIZE_N = min(128, triton.next_power_of_2(page_size))
     cube_num = get_num_cores("cube")
     grid = (cube_num,)
@@ -4200,24 +4181,14 @@ def swa_paged_prefill_impl(
 
     o = torch.zeros_like(q, memory_format=torch.contiguous_format)
     small_q_per_request = max_q_len is not None and 1 <= max_q_len <= 4
-    use_dp_large_m_tile = (
-        q.dtype != torch.float32
-        and not gqa_interleave
-        and num_q_heads == num_kv_heads * 12
-        and max_q_len is not None
-        and max_q_len > 128
-    )
     if q.dtype == torch.float32:
         BLOCK_M = 64
         BLOCK_N = min(64, triton.next_power_of_2(page_size))
     else:
         # Verify/Draft-extend carries D=2/3 rows per request.  Its dedicated
         # M=16 path matches the Cube micro-tile and keeps the M16/N128/D256
-        # live set below the 248 KiB UB limit.  Long DP-attention prefill uses
-        # M256/N64 to reduce repeated KV scans without enlarging the CV N tile.
-        BLOCK_M = 16 if small_q_per_request else (
-            256 if use_dp_large_m_tile else 128
-        )
+        # live set below the 248 KiB UB limit.  Normal prefill retains M=128.
+        BLOCK_M = 16 if small_q_per_request else 128
         BLOCK_N = min(128, triton.next_power_of_2(page_size))
 
     BLOCK_D = head_dim
@@ -4417,9 +4388,7 @@ def swa_paged_prefill_impl(
     causal_mask_m_size, causal_mask_n_size = causal_mask.shape
 
     if page_size < 128 and 128 % page_size == 0:
-        PAGE_AGGREGATION_NUM = (
-            1 if use_dp_large_m_tile else 128 // page_size
-        )
+        PAGE_AGGREGATION_NUM = 128 // page_size
         _swa_paged_prefill_aggregation_sink_kernel[grid](
             o,
             q,
@@ -4466,6 +4435,8 @@ def swa_paged_prefill_impl(
             SINK_ENABLED=sink_enabled,
             enable_dynamic_cv_pipeline=True,
             enable_cube_block_merge=True,
+            enable_buffer_insert_optimization=True,
+            enable_ub_refine_opt=True,
         )
     else:
         _swa_paged_prefill_sink_kernel[grid](
