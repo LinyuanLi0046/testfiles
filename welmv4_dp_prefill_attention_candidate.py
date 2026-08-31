@@ -940,12 +940,35 @@ def paged_prefill_dp_six_head_rows_kernel(
                         <= query_positions[:, None].to(tl.float32)
                     )
                 )
-                acc0, l0, m0 = _full_grouped_rows_page_update(
-                    acc0, l0, m0, q0, k_t, v, mask, softmax_scale
+                qk0 = tl.dot(q0, k_t) * softmax_scale
+                qk0 = tl.where(mask, qk0, -1e6)
+                m0_ij = tl.maximum(
+                    m0,
+                    tl.max(qk0, 1, propagate_nan=True),
+                    propagate_nan=tl.PropagateNan.ALL,
                 )
-                acc1, l1, m1 = _full_grouped_rows_page_update(
-                    acc1, l1, m1, q1, k_t, v, mask, softmax_scale
+                p0 = tl.math.exp(qk0 - m0_ij[:, None])
+                l0_ij = tl.sum(p0, 1)
+                alpha0 = tl.math.exp(m0 - m0_ij)
+                l0 = l0 * alpha0 + l0_ij
+                acc0 = acc0 * alpha0[:, None]
+                acc0 = tl.dot(p0.to(k_t.dtype), v, acc0)
+                m0 = m0_ij
+
+                qk1 = tl.dot(q1, k_t) * softmax_scale
+                qk1 = tl.where(mask, qk1, -1e6)
+                m1_ij = tl.maximum(
+                    m1,
+                    tl.max(qk1, 1, propagate_nan=True),
+                    propagate_nan=tl.PropagateNan.ALL,
                 )
+                p1 = tl.math.exp(qk1 - m1_ij[:, None])
+                l1_ij = tl.sum(p1, 1)
+                alpha1 = tl.math.exp(m1 - m1_ij)
+                l1 = l1 * alpha1 + l1_ij
+                acc1 = acc1 * alpha1[:, None]
+                acc1 = tl.dot(p1.to(k_t.dtype), v, acc1)
+                m1 = m1_ij
 
             o_ptrs0 = (
                 o_ptr
