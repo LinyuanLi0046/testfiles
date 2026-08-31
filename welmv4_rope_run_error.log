@@ -1,5 +1,5 @@
-time: 2026-08-31T17:30:35+08:00
-command: /usr/local/python3.11.10/bin/python bench_welmv4_rope_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_rope_result_gv_7gu7u
+time: 2026-08-31T18:17:16+08:00
+command: /usr/local/python3.11.10/bin/python bench_welmv4_rope_npu.py --suite remote --mode both --device npu:5 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_rope_result_id0mf18x
 return_code: 1
 reason: benchmark exited with status 1; manifest_status=ERROR
 
@@ -164,43 +164,43 @@ candidate differs from baseline: using iteration suite (set WELMV4_ROPE_FORCE_FU
 [ir] segmented_mirror_n4096_b16_ctx4096_tp4_dp2
 [ir] segmented_mirror_n4096_b16_ctx4096_tp4_dp4
 [profile:pipe_utilization] contiguous_prefill_n16896_b0_ctx16896_tp4_dp2
-[2026-08-31 17:30:00] [WARNING] [1877523] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-31 17:30:01] [INFO] [1904323] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_rope_profile_bo58o7s4/TENCENT64-124_1877523_20260831173000847_ascend_pt
-|/-[2026-08-31 17:30:03] [INFO] [1904332] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017141
-[2026-08-31 17:30:04] [INFO] [1904323] profiler.py: All profiling data parsed in a total time of 0:00:03.031154
+[2026-08-31 18:16:33] [WARNING] [1909241] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-31 18:16:34] [INFO] [1928462] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_rope_profile_ejcci4nz/TENCENT64-124_1909241_20260831181633475_ascend_pt
+|/-[2026-08-31 18:16:36] [INFO] [1928471] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017470
+\[2026-08-31 18:16:37] [INFO] [1928462] profiler.py: All profiling data parsed in a total time of 0:00:03.113128
 [profile:memory] contiguous_prefill_n16896_b0_ctx16896_tp4_dp2
-[2026-08-31 17:30:04] [WARNING] [1877523] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-31 17:30:05] [INFO] [1904977] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_rope_profile__h9yvrqe/TENCENT64-124_1877523_20260831173004591_ascend_pt
-|/-[2026-08-31 17:30:07] [INFO] [1904986] profiler.py: CANN profiling data parsed in a total time of 0:00:02.016716
-[2026-08-31 17:30:08] [INFO] [1904977] profiler.py: All profiling data parsed in a total time of 0:00:03.041178
+[2026-08-31 18:16:38] [WARNING] [1909241] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-31 18:16:38] [INFO] [1928732] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_rope_profile_2ew72tx8/TENCENT64-124_1909241_20260831181638209_ascend_pt
+|/-[2026-08-31 18:16:40] [INFO] [1928741] profiler.py: CANN profiling data parsed in a total time of 0:00:02.016985
+\[2026-08-31 18:16:41] [INFO] [1928732] profiler.py: All profiling data parsed in a total time of 0:00:03.153469
 [profile:pipe_utilization] contiguous_prefill_n16896_b0_ctx16896_tp4_dp4
-[2026-08-31 17:30:09] [WARNING] [1877523] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-31 17:30:09] [INFO] [1905247] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_rope_profile_9kd6_8nx/TENCENT64-124_1877523_20260831173009158_ascend_pt
-|/-[2026-08-31 17:30:11] [INFO] [1905256] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017160
-[2026-08-31 17:30:12] [INFO] [1905247] profiler.py: All profiling data parsed in a total time of 0:00:03.045663
+[2026-08-31 18:16:43] [WARNING] [1909241] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-31 18:16:44] [INFO] [1929002] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_rope_profile_gyg6ezfz/TENCENT64-124_1909241_20260831181643761_ascend_pt
+|/-[2026-08-31 18:16:46] [INFO] [1929011] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017322
+\[2026-08-31 18:16:47] [INFO] [1929002] profiler.py: All profiling data parsed in a total time of 0:00:03.130237
 [profile:memory] contiguous_prefill_n16896_b0_ctx16896_tp4_dp4
-[2026-08-31 17:30:13] [WARNING] [1877523] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-31 17:30:13] [INFO] [1905517] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_rope_profile_94ohqcy5/TENCENT64-124_1877523_20260831173012869_ascend_pt
-|/-[2026-08-31 17:30:15] [INFO] [1905526] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017220
-[2026-08-31 17:30:16] [INFO] [1905517] profiler.py: All profiling data parsed in a total time of 0:00:03.062090
+[2026-08-31 18:16:48] [WARNING] [1909241] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-31 18:16:49] [INFO] [1929272] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_rope_profile_8vho0cqc/TENCENT64-124_1909241_20260831181648466_ascend_pt
+|/-[2026-08-31 18:16:51] [INFO] [1929281] profiler.py: CANN profiling data parsed in a total time of 0:00:02.037217
+\[2026-08-31 18:16:52] [INFO] [1929272] profiler.py: All profiling data parsed in a total time of 0:00:03.132317
 [profile:pipe_utilization] segmented_mirror_n16896_b16_ctx16896_tp4_dp2
-[2026-08-31 17:30:16] [WARNING] [1877523] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-31 17:30:17] [INFO] [1905787] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_rope_profile_yn_9ah_m/TENCENT64-124_1877523_20260831173016905_ascend_pt
-|/-[2026-08-31 17:30:19] [INFO] [1905796] profiler.py: CANN profiling data parsed in a total time of 0:00:02.016856
-[2026-08-31 17:30:20] [INFO] [1905787] profiler.py: All profiling data parsed in a total time of 0:00:03.069918
+[2026-08-31 18:16:53] [WARNING] [1909241] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-31 18:16:54] [INFO] [1929542] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_rope_profile_7w5nj36b/TENCENT64-124_1909241_20260831181653536_ascend_pt
+|/-[2026-08-31 18:16:56] [INFO] [1929551] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017022
+\[2026-08-31 18:16:57] [INFO] [1929542] profiler.py: All profiling data parsed in a total time of 0:00:03.190996
 [profile:memory] segmented_mirror_n16896_b16_ctx16896_tp4_dp2
-[2026-08-31 17:30:20] [WARNING] [1877523] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-31 17:30:21] [INFO] [1906057] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_rope_profile_10ja15ok/TENCENT64-124_1877523_20260831173020634_ascend_pt
-|/-[2026-08-31 17:30:23] [INFO] [1906066] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017728
-[2026-08-31 17:30:24] [INFO] [1906057] profiler.py: All profiling data parsed in a total time of 0:00:03.067815
+[2026-08-31 18:16:58] [WARNING] [1909241] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-31 18:16:58] [INFO] [1929812] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_rope_profile_t8z7c838/TENCENT64-124_1909241_20260831181658269_ascend_pt
+|/-[2026-08-31 18:17:01] [INFO] [1929821] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017218
+\[2026-08-31 18:17:02] [INFO] [1929812] profiler.py: All profiling data parsed in a total time of 0:00:03.227107
 [profile:pipe_utilization] segmented_mirror_n16896_b16_ctx16896_tp4_dp4
-[2026-08-31 17:30:24] [WARNING] [1877523] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-31 17:30:25] [INFO] [1906328] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_rope_profile_ox5isvdi/TENCENT64-124_1877523_20260831173024697_ascend_pt
-|/-[2026-08-31 17:30:27] [INFO] [1906337] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017094
-[2026-08-31 17:30:28] [INFO] [1906328] profiler.py: All profiling data parsed in a total time of 0:00:03.065512
+[2026-08-31 18:17:03] [WARNING] [1909241] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-31 18:17:04] [INFO] [1930082] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_rope_profile_whhi4fp8/TENCENT64-124_1909241_20260831181703384_ascend_pt
+|/-[2026-08-31 18:17:06] [INFO] [1930091] profiler.py: CANN profiling data parsed in a total time of 0:00:02.038227
+\[2026-08-31 18:17:07] [INFO] [1930082] profiler.py: All profiling data parsed in a total time of 0:00:03.189830
 [profile:memory] segmented_mirror_n16896_b16_ctx16896_tp4_dp4
-[2026-08-31 17:30:28] [WARNING] [1877523] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
-[2026-08-31 17:30:29] [INFO] [1906598] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_rope_profile_3rw3saye/TENCENT64-124_1877523_20260831173028423_ascend_pt
-|/-[2026-08-31 17:30:31] [INFO] [1906607] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017825
-[2026-08-31 17:30:32] [INFO] [1906598] profiler.py: All profiling data parsed in a total time of 0:00:03.065516
-result=ERROR; manifest=/data2/hw_lly/testfiles/welm_rope_result_gv_7gu7u/result.json
+[2026-08-31 18:17:08] [WARNING] [1909241] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-08-31 18:17:08] [INFO] [1930352] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_rope_profile_el68izvz/TENCENT64-124_1909241_20260831181708117_ascend_pt
+|/-[2026-08-31 18:17:10] [INFO] [1930361] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017148
+\[2026-08-31 18:17:11] [INFO] [1930352] profiler.py: All profiling data parsed in a total time of 0:00:03.147653
+result=ERROR; manifest=/data2/hw_lly/testfiles/welm_rope_result_id0mf18x/result.json
