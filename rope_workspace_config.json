@@ -84,14 +84,17 @@
         {"family": "segmented_mirror", "n": 16896, "batch_size": 16, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]}
       ],
       "performance": [
-        {"family": "segmented_mirror", "n": 4096, "batch_size": 16, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
-        {"family": "segmented_mirror", "n": 16896, "batch_size": 16, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]}
+        {"family": "contiguous_prefill", "n_values": [4096, 8192, 9616, 11000, 11264, 16500, 16896], "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "segmented_prefill", "n": 1024, "batch_size": 7, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "segmented_prefill", "n": 16896, "batch_size": 16, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]}
       ],
       "ir": [
-        {"family": "segmented_mirror", "n": 4096, "batch_size": 16, "topologies": ["tp4_dp2", "tp4_dp4"]}
+        {"family": "contiguous_prefill", "n_values": [640, 641], "topologies": ["tp4_dp2", "tp4_dp4"]},
+        {"family": "segmented_prefill", "n": 1024, "batch_size": 7, "topologies": ["tp4_dp2", "tp4_dp4"]}
       ],
       "profile": [
-        {"family": "segmented_mirror", "n": 16896, "batch_size": 16, "topologies": ["tp4_dp2", "tp4_dp4"]}
+        {"family": "contiguous_prefill", "n": 16896, "topologies": ["tp4_dp2", "tp4_dp4"]},
+        {"family": "segmented_prefill", "n": 1024, "batch_size": 7, "topologies": ["tp4_dp2", "tp4_dp4"]}
       ]
     },
     "remote": {

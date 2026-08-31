@@ -39,14 +39,16 @@ publishes `welmv4_rope_results/`.
 - Single-request and segmented KV-mirror prefill.
 - Dispatch boundaries 575/576/577 and 639/640/641.
 
-MTP/decode positions cover 4096, 8192 and 9616, plus the lower/central/upper
-points around 11K, 16.5K and 26K:
+MTP/decode positions cover 4096, 8192 and 9616, plus representative aligned
+and non-aligned points around 11K and 16.5K:
 
 ```text
 10240 / 11000 / 12288
 15360 / 16500 / 18432
-24576 / 26000 / 28672
 ```
+
+The 26K family is intentionally excluded from all subsequent correctness,
+performance, IR and profiling cycles.
 
 RoPE does not read KV cache, but these context values materially exercise the
 cos/sin-cache addressing pattern. Correctness uses a wider cross-product;
