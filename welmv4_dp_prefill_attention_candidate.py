@@ -2457,7 +2457,7 @@ def paged_attention_prefill_impl(
         )
     else:
         PAGE_AGGREGATION_NUM = (
-            2
+            4
             if use_dp_long_prefill_tile and page_size == 64
             else 1
             if page_size == 64 and head_dim == 256
@@ -2512,7 +2512,6 @@ def paged_attention_prefill_impl(
             enable_cube_block_merge=True,
             enable_buffer_insert_optimization=True,
             enable_ub_refine_opt=True,
-            hfusion_enable_multiple_consumer_fusion=use_dp_long_prefill_tile,
         )
 
     return o
