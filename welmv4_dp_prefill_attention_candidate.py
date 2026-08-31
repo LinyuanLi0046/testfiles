@@ -3242,7 +3242,6 @@ def _swa_paged_prefill_aggregation_sink_kernel(
     PAGE_SIZE: tl.constexpr,
     PAGE_AGGREGATION_NUM: tl.constexpr,
     SINK_ENABLED: tl.constexpr,
-    CONTIGUOUS_TASK_PARTITION: tl.constexpr,
 ):
     tl.static_assert(HEAD_DIM <= BLOCK_D, "BLOCK_SIZE_D should not be less than HEAD_DIM")
     tl.static_assert(PAGE_SIZE % BLOCK_N == 0, "BLOCK_N must be a divisor of PAGE_SIZE")
@@ -3263,17 +3262,7 @@ def _swa_paged_prefill_aggregation_sink_kernel(
         prev_q_tasks = cu_q_chunks * NUM_Q_HEADS
         cu_q_chunks += num_q_chunks
         new_q_tasks = num_q_chunks * NUM_Q_HEADS
-        if CONTIGUOUS_TASK_PARTITION:
-            task_begin = pid * new_q_tasks // n_programs
-            task_end = (pid + 1) * new_q_tasks // n_programs
-            task_step = 1
-        else:
-            prev_task_remainder = prev_q_tasks - (prev_q_tasks // n_programs) * n_programs
-            rotated_pid = n_programs - prev_task_remainder + pid
-            task_begin = rotated_pid - (rotated_pid // n_programs) * n_programs
-            task_end = new_q_tasks
-            task_step = n_programs
-        for q_task_id in range(task_begin, task_end, task_step):
+        for q_task_id in range((n_programs - prev_q_tasks % n_programs + pid) % n_programs, new_q_tasks, n_programs):
             q_block_id = q_task_id // NUM_Q_HEADS
             q_head_id = q_task_id % NUM_Q_HEADS
             if GQA_INTERLEAVE:
@@ -4423,17 +4412,6 @@ def swa_paged_prefill_impl(
 
     if page_size < 128 and 128 % page_size == 0:
         PAGE_AGGREGATION_NUM = 128 // page_size
-        use_contiguous_task_partition = (
-            q.dtype != torch.float32
-            and max_q_len is not None
-            and max_q_len > 256
-            and is_causal
-            and global_window_size == 0
-            and local_window_size is not None
-            and not gqa_interleave
-            and num_q_heads == num_kv_heads * 12
-            and num_kv_heads in (1, 2)
-        )
         _swa_paged_prefill_aggregation_sink_kernel[grid](
             o,
             q,
@@ -4478,7 +4456,6 @@ def swa_paged_prefill_impl(
             page_size,
             PAGE_AGGREGATION_NUM,
             SINK_ENABLED=sink_enabled,
-            CONTIGUOUS_TASK_PARTITION=use_contiguous_task_partition,
             enable_dynamic_cv_pipeline=True,
             enable_cube_block_merge=True,
         )
