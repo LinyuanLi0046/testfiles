@@ -187,7 +187,7 @@ def expected_kernel_names(
         if use_small_q6:
             return ("paged_prefill_small_q_grouped_kernel",)
         if use_small_dp:
-            return ("paged_prefill_dp_small_q_grouped_kernel",)
+            return ("paged_prefill_dp_padded_q_grouped_kernel",)
         if use_mid_q6:
             return ("paged_prefill_mid_q_grouped_kernel",)
         return ("paged_prefill_page_aggregation_kernel",)
