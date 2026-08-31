@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "workspace": "welmv4-npu-rope-dp-attention",
+  "production_source": {
+    "repository": "NEWSGLANG/sglang",
+    "commit": "009eb25525ada59efaf6aa1d1c70badbe7518f62",
+    "path": "python/sglang/srt/layers/welmv4_npu_op.py",
+    "production_sha256": "05d6ce2a4f82f687a75ba77f589c6e84ebdc8987d7c7e03b86014cabb4b095a8",
+    "standalone_baseline_sha256": "e191344f36544110f51107770727b4f94e0a2fa3313071e5247f0e2de59fa6f5"
+  },
+  "model_contract": {
+    "dtype": "bfloat16",
+    "cache_dtype": "float32",
+    "head_dim": 256,
+    "rope_dim": 64,
+    "global_num_q_heads": 24,
+    "global_num_kv_heads": 2,
+    "token_block": 64,
+    "max_position": 65536,
+    "optimized_exact64_threshold": 576,
+    "optimized_all_m_threshold": 640,
+    "optimized_head_layouts": {
+      "baseline": [[6, 1]],
+      "candidate": [[6, 1]]
+    },
+    "topologies": {
+      "tp4": {"tp_size": 4, "dp_attention_size": 1, "local_q_heads": 6, "local_kv_heads": 1},
+      "tp4_dp2": {"tp_size": 4, "dp_attention_size": 2, "local_q_heads": 12, "local_kv_heads": 1},
+      "tp4_dp4": {"tp_size": 4, "dp_attention_size": 4, "local_q_heads": 24, "local_kv_heads": 2}
+    }
+  },
+  "validation": {
+    "reference_atol": 0.015625,
+    "reference_rtol": 0.015625,
+    "baseline_candidate_atol": 0.0,
+    "baseline_candidate_rtol": 0.0,
+    "minimum_case_speedup": 1.0,
+    "maximum_normalized_cost_ratio_vs_tp4": 1.05,
+    "msprof_warmup_per_case": 1,
+    "msprof_samples_per_case": 5,
+    "profile_warmup": 5,
+    "profile_iterations": 3,
+    "max_artifact_bytes": 50000000,
+    "enable_npu_event_timing": false
+  },
+  "suites": {
+    "smoke": {
+      "correctness": [
+        {"family": "decode", "m_values": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 11000, 16500, 26000, 28672], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d2", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_length": 4096, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d3", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_length": 16500, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d4", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_length": 26000, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "contiguous_prefill", "n": 640, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "segmented_prefill", "n": 1024, "batch_size": 7, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "contiguous_mirror", "n": 4096, "batch_size": 1, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "segmented_mirror", "n": 4096, "batch_size": 16, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]}
+      ],
+      "performance": [
+        {"family": "decode", "m_values": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 11000, 16500, 26000, 28672], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d2", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432, 24576, 26000, 28672], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d3", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432, 24576, 26000, 28672], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d4", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432, 24576, 26000, 28672], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "contiguous_prefill", "n": 640, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "segmented_mirror", "n": 4096, "batch_size": 16, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]}
+      ],
+      "ir": [
+        {"family": "contiguous_prefill", "n": 640, "topologies": ["tp4_dp2"]}
+      ],
+      "profile": []
+    },
+    "remote": {
+      "correctness": [
+        {"family": "decode", "m_values": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432, 24576, 26000, 28672], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d2", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_length": 4096, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d3", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_length": 4096, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d4", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_length": 4096, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d2", "batch_sizes": [1, 16, 56], "context_lengths": [8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432, 24576, 26000, 28672], "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d3", "batch_sizes": [1, 16, 56], "context_lengths": [8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432, 24576, 26000, 28672], "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d4", "batch_sizes": [1, 16, 56], "context_lengths": [8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432, 24576, 26000, 28672], "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "generic", "n_values": [575, 576, 577, 639, 640, 641], "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "contiguous_prefill", "n_values": [576, 640, 641, 1024], "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "segmented_prefill", "n": 1024, "batch_size": 7, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "segmented_prefill", "n": 4096, "batch_size": 16, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "contiguous_mirror", "n_values": [640, 4096], "batch_size": 1, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "segmented_mirror", "n": 1024, "batch_size": 7, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "segmented_mirror", "n": 4096, "batch_size": 16, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]}
+      ],
+      "performance": [
+        {"family": "decode", "m_values": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432, 24576, 26000, 28672], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d2", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432, 24576, 26000, 28672], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d3", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432, 24576, 26000, 28672], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d4", "batch_sizes": [1, 4, 8, 16, 32, 40, 56], "context_lengths": [4096, 8192, 9616, 10240, 11000, 12288, 15360, 16500, 18432, 24576, 26000, 28672], "pairing": "cycle", "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "contiguous_prefill", "n_values": [576, 641, 1024, 11264, 16896, 26624], "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "segmented_prefill", "n": 1024, "batch_size": 7, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "segmented_prefill", "n": 16896, "batch_size": 16, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "contiguous_mirror", "n": 16896, "batch_size": 1, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]},
+        {"family": "segmented_mirror", "n": 16896, "batch_size": 16, "topologies": ["tp4", "tp4_dp2", "tp4_dp4"]}
+      ],
+      "ir": [
+        {"family": "decode", "m_values": [1, 56], "context_lengths": [4096, 26000], "pairing": "cycle", "topologies": ["tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d2", "batch_sizes": [1, 56], "context_lengths": [4096, 26000], "pairing": "cycle", "topologies": ["tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d4", "batch_sizes": [1, 56], "context_lengths": [9616, 28672], "pairing": "cycle", "topologies": ["tp4_dp2", "tp4_dp4"]},
+        {"family": "contiguous_prefill", "n_values": [640, 641], "topologies": ["tp4_dp2", "tp4_dp4"]},
+        {"family": "segmented_prefill", "n": 1024, "batch_size": 7, "topologies": ["tp4_dp2", "tp4_dp4"]},
+        {"family": "contiguous_mirror", "n": 16896, "batch_size": 1, "topologies": ["tp4_dp2", "tp4_dp4"]},
+        {"family": "segmented_mirror", "n": 4096, "batch_size": 16, "topologies": ["tp4_dp2", "tp4_dp4"]}
+      ],
+      "profile": [
+        {"family": "decode", "m_values": [1, 56], "context_lengths": [4096, 26000], "pairing": "cycle", "topologies": ["tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d2", "batch_sizes": [1, 56], "context_lengths": [4096, 26000], "pairing": "cycle", "topologies": ["tp4_dp2", "tp4_dp4"]},
+        {"family": "mtp_d4", "batch_sizes": [1, 56], "context_lengths": [9616, 28672], "pairing": "cycle", "topologies": ["tp4_dp2", "tp4_dp4"]},
+        {"family": "contiguous_prefill", "n": 16896, "topologies": ["tp4_dp2", "tp4_dp4"]},
+        {"family": "segmented_mirror", "n": 16896, "batch_size": 16, "topologies": ["tp4_dp2", "tp4_dp4"]}
+      ]
+    }
+  }
+}

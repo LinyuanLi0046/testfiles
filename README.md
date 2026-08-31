@@ -1,219 +1,127 @@
-# WeLMv4 NPU Full/SWA Prefill Attention optimization workspace
+# WeLMv4 NPU RoPE DP-Attention optimization workspace
 
-This repository is a self-contained Ascend worker for optimizing the WeLMv4
-NPU paged Prefill Attention used by normal Prefill and Spec-V2 MTP verify. It
-does **not** import a NEWSGLANG checkout on the remote machine.
+This repository is a standalone Ascend worker for preserving the current
+WeLMv4 RoPE performance while generalizing its optimized kernels from the
+original TP4 local layout to DP-Attention layouts. The remote worker does not
+need a NEWSGLANG checkout.
 
-The frozen baseline and initial candidate are exact copies of:
+## Head-layout contract
+
+The model has 24 global Q heads and 2 global KV heads:
+
+| topology | attention TP | local Q | local KV |
+|---|---:|---:|---:|
+| `tp4` | 4 | 6 | 1 |
+| `tp4_dp2` | 2 | 12 | 1 |
+| `tp4_dp4` | 1 | 24 | 2 |
+
+All cases use BF16 Q/K, FP32 cos/sin cache, `head_dim=256` and tail
+`rope_dim=64`. The candidate must retain the Q6/K1 latency while making Q12/K1
+and Q24/K2 scale with their real arithmetic and memory traffic instead of
+falling back to padded Q16/Q32 execution.
+
+`welmv4_rope_baseline.py` is a frozen production copy of
+`python/sglang/srt/layers/welmv4_npu_op.py`; its only standalone adaptation is
+the fallback `is_npu()` import. Its LF-normalized hash is pinned in
+`rope_workspace_config.json`. Optimization changes belong in
+`welmv4_rope_candidate.py`.
+
+The previous Full/SWA Attention files and result history remain for
+traceability. The active monitor now invokes `bench_welmv4_rope_npu.py` and
+publishes `welmv4_rope_results/`.
+
+## Covered execution families
+
+- Decode with local M=`1/4/8/16/32/40/56`.
+- MTP step1/2/3, represented by per-request widths D=`2/3/4`, across the same
+  batch values.
+- Contiguous and segmented ordinary prefill.
+- Single-request and segmented KV-mirror prefill.
+- Dispatch boundaries 575/576/577 and 639/640/641.
+
+MTP/decode positions cover 4096, 8192 and 9616, plus the lower/central/upper
+points around 11K, 16.5K and 26K:
 
 ```text
-NEWSGLANG/sglang @ 58a1448cc30c5a21feebaee6980f5b3612ed914e
-python/sglang/srt/hardware_backend/npu/attention/sink_full_attention.py
+10240 / 11000 / 12288
+15360 / 16500 / 18432
+24576 / 26000 / 28672
 ```
 
-`workspace_config.json` pins the LF-normalized baseline SHA-256. A run fails
-immediately if the frozen baseline is edited accidentally. Optimization commits
-should edit only `welmv4_prefill_attention_candidate.py` plus an intentional
-case/worker change when needed.
+RoPE does not read KV cache, but these context values materially exercise the
+cos/sin-cache addressing pattern. Correctness uses a wider cross-product;
+performance rotates representative `(M,D,context)` points instead of compiling
+every possible Cartesian combination.
 
-## Production contract represented here
+## Acceptance rules
 
-- BF16 Q/K/V and KV cache; FP32 learned sink.
-- Page size 64 and head dimension 256.
-- Global heads 24/2. The default TP4 rank has local Hq=6/Hkv=1; TP1/2/8 can
-  also be selected with `--tp-size`.
-- Native KV allocation is `[P*64,Hkv,256]`; the kernels receive the same
-  zero-copy `view(P,64,Hkv,256).permute(0,2,1,3)` view as NEWSGLANG.
-- Contiguous GQA grouping (`gqa_interleave=false`).
-- YaRN-adjusted softmax scale `0.09119556747428784`.
-- Full Attention plus a zero-value learned sink.
-- SWA Attention plus the same sink, left history 511 (visible span 512), and
-  global window 0.
-- `seq_lens_kv` is the post-write length: K/V for the current Query window is
-  already in paged cache.
+1. Baseline and candidate are checked against an FP32 torch reference.
+2. Candidate BF16 output must be bitwise-equal to the frozen baseline.
+3. Every timed Q6, Q12 and Q24 case must have candidate/baseline speedup >=1.0.
+4. Candidate microseconds per rotated value for DP2/DP4 may not exceed the
+   matching TP4 workload by more than the configured 5% noise tolerance.
+5. NPU Event timing is disabled and rejected. Acceptance uses ordered
+   `msprof op` task durations.
 
-At page64/head256 the current Full implementation executes
-`paged_prefill_page_aggregation_kernel` with BM/BN/BD=128/64/256 and page
-aggregation 1. SWA executes `_swa_paged_prefill_aggregation_sink_kernel` with
-the same blocks and page aggregation 2.
+The normalized rule does not require equal single-request latency when a rank
+owns two or four times as many Q heads. It requires the latency increase to
+match the actual rotated-value count, without extra loss from padding or a
+generic kernel.
 
-The candidate keeps those public Full/SWA prefill entry points. Dispatch is
-based on the largest per-request Query length, not on a verify-only API: a
-`max_q_len<=4` request uses the grouped small-Query branch, while larger Query
-windows use the general prefill branch. This also covers ordinary ragged
-prefill and draft-extend shapes without pretending that total `M` determines
-the per-request layout.
+## Initial baseline snapshot
 
-## M and topology
+`welmv4_rope_candidate.py` initially matches the frozen baseline byte for byte.
+The first remote cycle therefore records the current implementation, including
+the existing generic fallback for DP-Attention layouts, without pretending that
+an unverified optimization is ready.
 
-`M` always means total real Query rows, `sum(q_lens)`. It is not sufficient by
-itself to describe performance, so every result also records the complete
-`q_lens`, KV lengths, batch size, table stride, topology, and graph bucket.
+Because baseline and candidate hashes are equal, the first run marks timing rows
+as `BASELINE_SNAPSHOT`: timing noise cannot falsely fail the cycle. Normalized
+Q6/Q12/Q24 cost ratios are still emitted so padded/fallback inefficiencies are
+visible. Once the candidate changes, the strict no-regression and normalized
+efficiency gates automatically become active.
 
-- `dense`: one request with `q_len=M`; every integer M from 1 through 1024 is
-  legal.
-- `ragged_prefill`: multiple requests with positive, non-uniform `q_lens` and
-  exact `sum(q_lens)=M`, covering the ordinary batched Prefill scheduler/LPT
-  contract.
-- `verify_d2`: step=1, fixed verify width D=2, B=M/2 requests.
-- `verify_d3`: step=2, fixed verify width D=3, B=M/3 requests.
-
-The automatic optimization gate measures the Attention operator itself. It does
-not capture or replay NPU Graph; Graph integration remains in NEWSGLANG's model
-test and does not affect selection of the Triton kernel candidate here.
-
-SWA cases map evicted old logical pages to an allocated poison page (never
-`-1`) and retain shuffled physical pages only for the union of tokens visible
-to the Query window. An erroneous old-page read therefore becomes a numerical
-failure instead of an asynchronous device OOB crash.
-
-The remote matrix treats context length as a band, not three exact points. It
-covers roughly 10–12K, 15–18K, and 24–28K tokens, including the observed 11K,
-16.5K, and 26K regions. Ragged per-request lengths also create non-page-aligned
-tails. Exact lengths remain selectable with `--kv-lengths`.
-
-Performance iterations use representative rather than exhaustive M values:
-aligned points, deterministic non-aligned points, and `boundary-1/boundary/
-boundary+1` around candidate tile transitions. The matrix covers dense and
-ragged ordinary prefill from M=1 through 1024 plus D2/D3 verify in the
-M=128..1024 region. Every timed point runs the reference correctness gate
-before timing; a wider manual sweep remains available when a suspicious range
-needs refinement.
+Optimization must be driven by returned msprof/profile/MLIR evidence, and all
+Q6 regression gates must remain green.
 
 ## Remote worker
 
-Stop the old RoPE monitor once, pull this revision, then start the new worker
-from the NPU Python environment:
+Stop the previous worker once, pull this switch, and run:
 
 ```bash
 python auto_bench_on_git_update.py --run-now --device npu:5
 ```
 
-Useful worker flags:
+After that, no manual intervention is required. The existing protocol still
+fast-forwards from origin, stages a run safely, retains PASS/failure/regression
+artifacts, handles push races and commits only active generated artifacts.
+
+Manual smoke run:
 
 ```bash
-# Run one polling cycle, publish the generated result, and exit.
-python auto_bench_on_git_update.py --once --run-now --device npu:5
-
-# Change the polling interval.
-python auto_bench_on_git_update.py --interval 60 --device npu:5
+python bench_welmv4_rope_npu.py \
+  --suite smoke --mode both --device npu:5 \
+  --capture-msprof-op on --capture-ir on --capture-profile off
 ```
 
-`BENCH_PYTHON=/path/to/python` selects the NPU interpreter. The worker:
+`BENCH_PYTHON=/path/to/python` selects the NPU interpreter.
 
-1. fetches and fast-forwards the current branch;
-2. runs the remote Full/SWA correctness, performance, IR, profiler and msprof
-   suites without any Graph phase;
-3. preserves `welmv4_prefill_attention_results/` whenever a valid manifest was
-   produced, including failed/regressed runs, and adds a captured error log for
-   non-PASS runs;
-4. commits only those generated artifacts and pushes them to the same branch.
-
-Push races are detected before publication. A result produced from an obsolete
-HEAD is discarded and rerun on the newest code. Old successful results are
-never deleted by a later failed run.
-
-## Automatic result layout
+## Generated artifacts
 
 ```text
-welmv4_prefill_attention_results/
+welmv4_rope_results/
   result.json
   correctness.csv
+  performance_shape_validation.csv
   performance.csv
-  msprof_primary_kernel.csv
+  msprof_task_duration.csv
   ir.csv
   profile.csv
-  ir/full/.../*.mlir.gz
-  ir/swa/.../*.mlir.gz
-  profile/full/.../{pipe_utilization,memory}/*.csv.gz or *.json.gz
-  profile/swa/.../{pipe_utilization,memory}/*.csv.gz or *.json.gz
-  msprof/.../*.log.gz
-welmv4_prefill_attention_run_error.log  # only when the run fails
+  ir/<topology>/<case>/*.mlir.gz
+  profile/<topology>/<case>/{pipe_utilization,memory}/*.{csv,json}.gz
+  msprof/{baseline,candidate}/*.log.gz
+welmv4_rope_run_error.log
 ```
 
-`result.json` is the machine-readable authority. Status is one of `PASS`,
-`FAIL`, `PERF_REGRESSION`, or `ERROR`, with per-phase state and
-source/environment hashes.
-
-Correctness is checked in FP32 against causal paged GQA with the virtual
-zero-value sink. Candidate is also compared directly with the frozen baseline.
-Logical wrapper latency is measured with grouped NPU events and is the
-acceptance metric, so all device kernels introduced by a future split are
-included. Every timed shape passes its own reference/baseline correctness gate
-first, including `--mode performance`. Selected-name `msprof op` duration is a
-non-authoritative diagnostic for the current primary Triton kernel; a legal
-split/rename is recorded rather than rejected. Selected candidate calls export
-PipeUtilization and Memory/L2 profiler pipelines plus TTIR, TTAdapter, and
-last-pass MLIR as separate gzip artifacts.
-
-## Manual use
-
-Smoke test:
-
-```bash
-python bench_welmv4_prefill_attention_npu.py \
-  --suite smoke --mode both --device npu:0 \
-  --output-dir manual_results/smoke
-```
-
-Any dense M from 1 to 1024:
-
-```bash
-python bench_welmv4_prefill_attention_npu.py \
-  --mode correctness --device npu:0 \
-  --attention full,swa --topology dense,ragged_prefill \
-  --m-values 1:1024 --kv-lengths 4096 \
-  --prefill-batch-size 8 \
-  --output-dir manual_results/dense_all_m
-```
-
-Actual step1/step2 verify shapes (invalid non-divisible M values are skipped):
-
-```bash
-python bench_welmv4_prefill_attention_npu.py \
-  --mode both --device npu:0 \
-  --attention full,swa --topology verify_d2,verify_d3 \
-  --m-values 1:1024 --kv-lengths 511,512,513,4096 \
-  --length-pattern ragged \
-  --output-dir manual_results/verify_all_m
-```
-
-The three production context bands can be requested explicitly:
-
-```bash
-python bench_welmv4_prefill_attention_npu.py \
-  --mode both --device npu:0 --attention full,swa \
-  --topology verify_d2 --m-values 2,32,112 \
-  --kv-lengths 10240,11264,12288,15360,16896,18432,24576,26624,28672 \
-  --length-pattern ragged --output-dir manual_results/context_bands
-```
-
-Run one configured case repeatedly for `msprof`, debugger, or compiler work:
-
-```bash
-python run_welmv4_prefill_attention_case_npu.py \
-  --case-name full_verify_d2_m112_kv4096_uniform_compact_tp4 \
-  --provider candidate --iterations 20 --device npu:0
-```
-
-## Optimization discipline
-
-- Keep `welmv4_prefill_attention_baseline.py` frozen.
-- Make one optimization change at a time in the candidate.
-- Preserve all production semantics; do not specialize on runtime M, sequence
-  lengths, page IDs, or block-table contents.
-- Bounded static variants such as D=2/D=3 or a finite BM set are allowed, but
-  must be visible in source and reflected by IR/profile artifacts.
-- Correctness must pass before performance is accepted.
-- A candidate below the configured minimum speedup is published as
-  `PERF_REGRESSION`, not silently promoted.
-
-Two initial profiling targets are intentionally recorded in the sketches:
-
-- Full verify uses only 2/3 valid Query rows inside BM=128.
-- SWA additionally sizes its grid from `ceil(total_M/128)*Hq`, although its
-  actual task count is `sum_i ceil(q_len_i/128)*Hq`. For B=56,D=2 this is 6
-  programs serializing 336 request/head tasks.
-
-These are hypotheses/observations to validate with the returned profiler and
-MLIR evidence, not pre-applied optimizations.
+`result.json` is authoritative. Status is `PASS`, `FAIL`,
+`PERF_REGRESSION`, or `ERROR`.

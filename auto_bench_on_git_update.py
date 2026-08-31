@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Poll origin every minute and run the WeLMv4 prefill-Attention NPU benchmark.
+"""Poll origin every minute and run the WeLMv4 RoPE NPU benchmark.
 
 Put this file in the root of the ``testfiles`` Git repository, then run:
 
@@ -27,9 +27,9 @@ from typing import Sequence
 
 
 REMOTE = "origin"
-BENCHMARK_SCRIPT = "bench_welmv4_prefill_attention_npu.py"
-RESULT_DIR = "welmv4_prefill_attention_results"
-ERROR_LOG = "welmv4_prefill_attention_run_error.log"
+BENCHMARK_SCRIPT = "bench_welmv4_rope_npu.py"
+RESULT_DIR = "welmv4_rope_results"
+ERROR_LOG = "welmv4_rope_run_error.log"
 DEFAULT_INTERVAL_SECONDS = 60
 AUTO_COMMIT_MARKER = "Auto-Benchmark: true"
 
@@ -188,7 +188,7 @@ def run_benchmark(device: str) -> bool:
     returncode = -1
     captured = ""
     launch_error = ""
-    with tempfile.TemporaryDirectory(prefix="welm_attn_result_", dir=REPO) as tmp:
+    with tempfile.TemporaryDirectory(prefix="welm_rope_result_", dir=REPO) as tmp:
         staging = Path(tmp)
         command = benchmark_command(device, staging)
         log(f"starting benchmark: {shlex.join(command)}")
