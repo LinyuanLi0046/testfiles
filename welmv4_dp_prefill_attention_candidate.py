@@ -1581,14 +1581,19 @@ def paged_prefill_small_q_grouped_kernel(
     MAX_Q_LEN: tl.constexpr,
     SINK_ENABLED: tl.constexpr,
 ):
-    """Preserve the proven TP4 six-head grouped small-query path."""
+    """Group short-query rows with scalar sink loads for TP and DP layouts."""
+    Q_HEADS_PER_KV: tl.constexpr = NUM_Q_HEADS // NUM_KV_HEADS
     tl.static_assert(
-        NUM_Q_HEADS == 6,
-        "grouped WeLM small-Q prefill requires six local Q heads",
+        Q_HEADS_PER_KV * NUM_KV_HEADS == NUM_Q_HEADS,
+        "grouped WeLM small-Q prefill requires integral GQA groups",
     )
     tl.static_assert(
-        NUM_KV_HEADS == 1,
-        "grouped WeLM small-Q prefill requires one local KV head",
+        Q_HEADS_PER_KV >= 6,
+        "grouped WeLM small-Q prefill requires at least six Q heads per KV",
+    )
+    tl.static_assert(
+        Q_HEADS_PER_KV <= 12,
+        "grouped WeLM small-Q prefill supports at most 12 Q heads per KV",
     )
     tl.static_assert(
         MAX_Q_LEN >= 1 and MAX_Q_LEN <= 4,
@@ -1598,29 +1603,43 @@ def paged_prefill_small_q_grouped_kernel(
         PAGE_SIZE == BLOCK_SIZE_N,
         "grouped WeLM small-Q prefill uses one page per KV tile",
     )
-    GROUPED_ROWS: tl.constexpr = NUM_Q_HEADS * MAX_Q_LEN
+    GROUPED_ROWS: tl.constexpr = Q_HEADS_PER_KV * MAX_Q_LEN
     tl.static_assert(
         BLOCK_SIZE_M >= GROUPED_ROWS,
         "grouped WeLM small-Q prefill must pad all token/head rows",
     )
     tl.static_assert(
-        BLOCK_SIZE_M == 16 or BLOCK_SIZE_M == 32,
-        "grouped WeLM small-Q prefill uses Cube-aligned M=16/32",
+        BLOCK_SIZE_M >= 16,
+        "grouped WeLM small-Q prefill requires at least M16",
+    )
+    tl.static_assert(
+        BLOCK_SIZE_M <= 64,
+        "grouped WeLM small-Q prefill is bounded to M64",
     )
 
     pid = tl.program_id(0)
     n_programs = tl.num_programs(0)
-    b_begin = pid * batch_size // n_programs
-    b_end = (pid + 1) * batch_size // n_programs
+    num_tasks = batch_size * NUM_KV_HEADS
+    task_begin = pid * num_tasks // n_programs
+    task_end = (pid + 1) * num_tasks // n_programs
 
-    for b_id in range(b_begin, b_end):
+    for task_id in range(task_begin, task_end):
+        b_id = task_id // NUM_KV_HEADS
+        kv_head_id = task_id - b_id * NUM_KV_HEADS
+        q_head_base = kv_head_id * Q_HEADS_PER_KV
         q_start = tl.load(cu_q_lens_ptr + b_id).to(tl.int32)
         q_end = tl.load(cu_q_lens_ptr + b_id + 1).to(tl.int32)
         q_seq_len = q_end - q_start
         if q_seq_len.to(tl.float32) > 0.0:
             row_ids = tl.arange(0, BLOCK_SIZE_M)
-            row_tokens = row_ids // NUM_Q_HEADS
-            row_heads = row_ids - row_tokens * NUM_Q_HEADS
+            row_tokens = row_ids // Q_HEADS_PER_KV
+            row_heads = row_ids - row_tokens * Q_HEADS_PER_KV
+            safe_row_tokens = tl.where(
+                row_tokens.to(tl.float32) < MAX_Q_LEN,
+                row_tokens,
+                MAX_Q_LEN - 1,
+            )
+            q_head_ids = q_head_base + row_heads
             valid_rows = (row_ids.to(tl.float32) < GROUPED_ROWS) & (
                 row_tokens.to(tl.float32) < q_seq_len.to(tl.float32)
             )
@@ -1629,35 +1648,105 @@ def paged_prefill_small_q_grouped_kernel(
             q_ptrs = (
                 q_ptr
                 + q_start * stride_qt
-                + row_ids[:, None] * stride_qh
+                + safe_row_tokens[:, None] * stride_qt
+                + q_head_ids[:, None] * stride_qh
                 + dim_offsets[None, :] * stride_qd
             )
             q = tl.load(q_ptrs, mask=valid_rows[:, None], other=0.0)
 
             if SINK_ENABLED:
-                sink0 = tl.load(sinks_ptr).to(tl.float32)
-                sink1 = tl.load(sinks_ptr + stride_sink_head).to(tl.float32)
-                sink2 = tl.load(sinks_ptr + 2 * stride_sink_head).to(tl.float32)
-                sink3 = tl.load(sinks_ptr + 3 * stride_sink_head).to(tl.float32)
-                sink4 = tl.load(sinks_ptr + 4 * stride_sink_head).to(tl.float32)
-                sink5 = tl.load(sinks_ptr + 5 * stride_sink_head).to(tl.float32)
-                row_sink = tl.where(
-                    row_heads < 1,
-                    sink0,
-                    tl.where(
-                        row_heads < 2,
-                        sink1,
+                sink0 = tl.load(
+                    sinks_ptr + (q_head_base + 0) * stride_sink_head
+                ).to(tl.float32)
+                sink1 = tl.load(
+                    sinks_ptr + (q_head_base + 1) * stride_sink_head
+                ).to(tl.float32)
+                sink2 = tl.load(
+                    sinks_ptr + (q_head_base + 2) * stride_sink_head
+                ).to(tl.float32)
+                sink3 = tl.load(
+                    sinks_ptr + (q_head_base + 3) * stride_sink_head
+                ).to(tl.float32)
+                sink4 = tl.load(
+                    sinks_ptr + (q_head_base + 4) * stride_sink_head
+                ).to(tl.float32)
+                sink5 = tl.load(
+                    sinks_ptr + (q_head_base + 5) * stride_sink_head
+                ).to(tl.float32)
+                if Q_HEADS_PER_KV == 6:
+                    row_sink = tl.where(
+                        row_heads < 1,
+                        sink0,
                         tl.where(
-                            row_heads < 3,
-                            sink2,
+                            row_heads < 2,
+                            sink1,
                             tl.where(
-                                row_heads < 4,
-                                sink3,
-                                tl.where(row_heads < 5, sink4, sink5),
+                                row_heads < 3,
+                                sink2,
+                                tl.where(
+                                    row_heads < 4,
+                                    sink3,
+                                    tl.where(row_heads < 5, sink4, sink5),
+                                ),
                             ),
                         ),
-                    ),
-                )
+                    )
+                else:
+                    sink6 = tl.load(
+                        sinks_ptr + (q_head_base + 6) * stride_sink_head
+                    ).to(tl.float32)
+                    sink7 = tl.load(
+                        sinks_ptr + (q_head_base + 7) * stride_sink_head
+                    ).to(tl.float32)
+                    sink8 = tl.load(
+                        sinks_ptr + (q_head_base + 8) * stride_sink_head
+                    ).to(tl.float32)
+                    sink9 = tl.load(
+                        sinks_ptr + (q_head_base + 9) * stride_sink_head
+                    ).to(tl.float32)
+                    sink10 = tl.load(
+                        sinks_ptr + (q_head_base + 10) * stride_sink_head
+                    ).to(tl.float32)
+                    sink11 = tl.load(
+                        sinks_ptr + (q_head_base + 11) * stride_sink_head
+                    ).to(tl.float32)
+                    row_sink = tl.where(
+                        row_heads < 6,
+                        tl.where(
+                            row_heads < 1,
+                            sink0,
+                            tl.where(
+                                row_heads < 2,
+                                sink1,
+                                tl.where(
+                                    row_heads < 3,
+                                    sink2,
+                                    tl.where(
+                                        row_heads < 4,
+                                        sink3,
+                                        tl.where(row_heads < 5, sink4, sink5),
+                                    ),
+                                ),
+                            ),
+                        ),
+                        tl.where(
+                            row_heads < 7,
+                            sink6,
+                            tl.where(
+                                row_heads < 8,
+                                sink7,
+                                tl.where(
+                                    row_heads < 9,
+                                    sink8,
+                                    tl.where(
+                                        row_heads < 10,
+                                        sink9,
+                                        tl.where(row_heads < 11, sink10, sink11),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    )
                 m_i = tl.where(valid_rows, row_sink, -float("inf"))
                 l_i = tl.where(valid_rows, 1.0, 0.0).to(tl.float32)
             else:
@@ -1692,6 +1781,7 @@ def paged_prefill_small_q_grouped_kernel(
                     base=(
                         key_cache_ptr
                         + physical_page_id * stride_k_block
+                        + kv_head_id * stride_k_head
                     ),
                     shape=(HEAD_DIM, kv_block_len),
                     strides=(stride_k_dim, stride_k_blksz),
@@ -1703,6 +1793,7 @@ def paged_prefill_small_q_grouped_kernel(
                     base=(
                         value_cache_ptr
                         + physical_page_id * stride_v_block
+                        + kv_head_id * stride_v_head
                     ),
                     shape=(kv_block_len, HEAD_DIM),
                     strides=(stride_v_blksz, stride_v_dim),
@@ -1754,7 +1845,8 @@ def paged_prefill_small_q_grouped_kernel(
             o_ptrs = (
                 o_ptr
                 + q_start * stride_ot
-                + row_ids[:, None] * stride_oh
+                + safe_row_tokens[:, None] * stride_ot
+                + q_head_ids[:, None] * stride_oh
                 + dim_offsets[None, :] * stride_od
             )
             tl.store(
@@ -2176,7 +2268,7 @@ def paged_attention_prefill_impl(
     )
     if use_dp_grouped_small_q:
         grouped_grid = (min(cube_num, batch_size * num_kv_heads),)
-        paged_prefill_dp_six_head_rows_kernel[grouped_grid](
+        paged_prefill_small_q_grouped_kernel[grouped_grid](
             q,
             key_cache,
             value_cache,
@@ -2208,7 +2300,9 @@ def paged_attention_prefill_impl(
             NUM_KV_HEADS=num_kv_heads,
             HEAD_DIM=head_dim,
             PAGE_SIZE=page_size,
-            BLOCK_SIZE_M=16 if max_q_len <= 2 else 32,
+            BLOCK_SIZE_M=max(
+                16, triton.next_power_of_2(grouped_small_q_rows)
+            ),
             BLOCK_SIZE_D=head_dim,
             BLOCK_SIZE_N=page_size,
             MAX_Q_LEN=max_q_len,
