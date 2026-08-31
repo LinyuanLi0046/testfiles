@@ -152,6 +152,30 @@ class AttentionCase:
         return self.batch_size
 
     @property
+    def scheduled_batch_size(self) -> int:
+        """Number of request rows represented by host-side metadata.
+
+        This workspace benchmarks eager operator launches only, so there is no
+        larger captured Graph bucket: scheduled and live batch sizes coincide.
+        """
+        return self.real_batch_size
+
+    @property
+    def q_buffer_rows(self) -> int:
+        """Physical Q rows; eager launches contain no Graph padding rows."""
+        return self.m
+
+    @property
+    def capture_q_lens(self) -> tuple[int, ...]:
+        """Host query lengths used to prepare the production prefill schedule."""
+        return self.runtime_q_lens
+
+    @property
+    def capture_kv_lens(self) -> tuple[int, ...]:
+        """Host KV lengths used to prepare the production prefill schedule."""
+        return self.runtime_kv_lens
+
+    @property
     def local_num_q_heads(self) -> int:
         return head_layout(self.layout).local_num_q_heads
 
