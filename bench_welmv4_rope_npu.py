@@ -504,6 +504,14 @@ def primary_kernel_name(provider: str, case: RopeCase) -> str:
         case.n >= threshold_all
         or (case.n >= threshold_exact and case.n % block == 0)
     )
+    candidate_small_segmented_head_parallel = (
+        candidate_head_parallel
+        and case.family == "segmented_prefill"
+        and case.local_q_heads == 24
+        and case.local_kv_heads == 2
+        and len(segment_tile_starts(balanced_lengths(case.n, case.batch_size))) - 1
+        <= candidate_ops._get_num_sms()
+    )
     if candidate_head_parallel and (
         case.family == "contiguous_mirror"
         and case.n >= threshold_all
@@ -512,7 +520,10 @@ def primary_kernel_name(provider: str, case: RopeCase) -> str:
         return "_welmv4_inplace_rope_head_parallel_mirror_kernel_npu"
     if (
         not case.is_mirror
-        and case.family != "segmented_prefill"
+        and (
+            case.family != "segmented_prefill"
+            or candidate_small_segmented_head_parallel
+        )
         and blocked
         and candidate_head_parallel
         and case.n % block == 0
@@ -522,7 +533,11 @@ def primary_kernel_name(provider: str, case: RopeCase) -> str:
         return "_welmv4_inplace_rope_contiguous_mirror_kernel_npu"
     if case.family == "segmented_mirror" and supported:
         return "_welmv4_inplace_rope_segmented_mirror_kernel_npu"
-    if not case.is_mirror and blocked:
+    if (
+        not case.is_mirror
+        and blocked
+        and not candidate_small_segmented_head_parallel
+    ):
         if case.family == "segmented_prefill":
             return "_welmv4_inplace_rope_segmented_prefill_kernel_npu"
         if case.positions_are_contiguous:
