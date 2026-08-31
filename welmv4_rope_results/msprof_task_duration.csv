@@ -1,79 +1,2287 @@
-case,workload_id,family,topology,dp_attention_size,context_length,speculative_width,n,batch_size,q_rows,local_q_heads,local_kv_heads,rotated_values,record_type,provider,kernel_name,timing_authority,status,sample_count,task_min_us,task_p50_us,task_mean_us,task_max_us,artifact
-contiguous_prefill_n4096_b0_ctx4096_tp4,contiguous_prefill_n4096_b0_ctx4096,contiguous_prefill,tp4,1,4096,1,4096,0,4096,6,1,1835008,msprof_task_duration,baseline,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,12.831,13.374,13.1952,13.493,msprof/baseline/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
-contiguous_prefill_n8192_b0_ctx8192_tp4,contiguous_prefill_n8192_b0_ctx8192,contiguous_prefill,tp4,1,8192,1,8192,0,8192,6,1,3670016,msprof_task_duration,baseline,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,19.309999,19.662001,19.5925996,19.927999,msprof/baseline/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
-contiguous_prefill_n9616_b0_ctx9616_tp4,contiguous_prefill_n9616_b0_ctx9616,contiguous_prefill,tp4,1,9616,1,9616,0,9616,6,1,4307968,msprof_task_duration,baseline,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,24.583,24.790001,24.7589998,25.004999,msprof/baseline/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
-contiguous_prefill_n11000_b0_ctx11000_tp4,contiguous_prefill_n11000_b0_ctx11000,contiguous_prefill,tp4,1,11000,1,11000,0,11000,6,1,4928000,msprof_task_duration,baseline,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,31.138,31.214001,31.230800199999997,31.372,msprof/baseline/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
-contiguous_prefill_n11264_b0_ctx11264_tp4,contiguous_prefill_n11264_b0_ctx11264,contiguous_prefill,tp4,1,11264,1,11264,0,11264,6,1,5046272,msprof_task_duration,baseline,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,24.01,25.219,25.0715998,25.587999,msprof/baseline/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
-contiguous_prefill_n16500_b0_ctx16500_tp4,contiguous_prefill_n16500_b0_ctx16500,contiguous_prefill,tp4,1,16500,1,16500,0,16500,6,1,7392000,msprof_task_duration,baseline,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,39.699001,39.931,39.942200400000004,40.233002,msprof/baseline/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
-contiguous_prefill_n16896_b0_ctx16896_tp4,contiguous_prefill_n16896_b0_ctx16896,contiguous_prefill,tp4,1,16896,1,16896,0,16896,6,1,7569408,msprof_task_duration,baseline,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,31.864,32.386002,32.2928004,32.868,msprof/baseline/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
-contiguous_prefill_n4096_b0_ctx4096_tp4_dp2,contiguous_prefill_n4096_b0_ctx4096,contiguous_prefill,tp4_dp2,2,4096,1,4096,0,4096,12,1,3407872,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,73.653,73.995003,74.03520060000001,74.334999,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-contiguous_prefill_n4096_b0_ctx4096_tp4_dp4,contiguous_prefill_n4096_b0_ctx4096,contiguous_prefill,tp4_dp4,4,4096,1,4096,0,4096,24,2,6815744,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,77.210999,77.688004,77.615802,77.901001,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-contiguous_prefill_n8192_b0_ctx8192_tp4_dp2,contiguous_prefill_n8192_b0_ctx8192,contiguous_prefill,tp4_dp2,2,8192,1,8192,0,8192,12,1,6815744,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,145.539001,145.841995,145.94579779999998,146.276993,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-contiguous_prefill_n8192_b0_ctx8192_tp4_dp4,contiguous_prefill_n8192_b0_ctx8192,contiguous_prefill,tp4_dp4,4,8192,1,8192,0,8192,24,2,13631488,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,154.587997,154.882004,154.855597,155.123993,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-contiguous_prefill_n9616_b0_ctx9616_tp4_dp2,contiguous_prefill_n9616_b0_ctx9616,contiguous_prefill,tp4_dp2,2,9616,1,9616,0,9616,12,1,8000512,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,170.494003,170.991013,171.117798,171.582001,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-contiguous_prefill_n9616_b0_ctx9616_tp4_dp4,contiguous_prefill_n9616_b0_ctx9616,contiguous_prefill,tp4_dp4,4,9616,1,9616,0,9616,24,2,16001024,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,182.267014,182.619995,183.0250062,184.115997,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-contiguous_prefill_n11000_b0_ctx11000_tp4_dp2,contiguous_prefill_n11000_b0_ctx11000,contiguous_prefill,tp4_dp2,2,11000,1,11000,0,11000,12,1,9152000,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,196.320007,196.804993,196.9383972,197.891998,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-contiguous_prefill_n11000_b0_ctx11000_tp4_dp4,contiguous_prefill_n11000_b0_ctx11000,contiguous_prefill,tp4_dp4,4,11000,1,11000,0,11000,24,2,18304000,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,209.542007,209.925995,209.91759940000003,210.177994,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-contiguous_prefill_n11264_b0_ctx11264_tp4_dp2,contiguous_prefill_n11264_b0_ctx11264,contiguous_prefill,tp4_dp2,2,11264,1,11264,0,11264,12,1,9371648,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,200.798004,200.972992,201.0013976,201.307999,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-contiguous_prefill_n11264_b0_ctx11264_tp4_dp4,contiguous_prefill_n11264_b0_ctx11264,contiguous_prefill,tp4_dp4,4,11264,1,11264,0,11264,24,2,18743296,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,215.029999,215.423996,215.5604004,216.419998,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-contiguous_prefill_n16500_b0_ctx16500_tp4_dp2,contiguous_prefill_n16500_b0_ctx16500,contiguous_prefill,tp4_dp2,2,16500,1,16500,0,16500,12,1,13728000,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,295.843018,295.992981,296.062201,296.363007,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-contiguous_prefill_n16500_b0_ctx16500_tp4_dp4,contiguous_prefill_n16500_b0_ctx16500,contiguous_prefill,tp4_dp4,4,16500,1,16500,0,16500,24,2,27456000,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,318.121979,318.353973,318.4725952,318.963013,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-contiguous_prefill_n16896_b0_ctx16896_tp4_dp2,contiguous_prefill_n16896_b0_ctx16896,contiguous_prefill,tp4_dp2,2,16896,1,16896,0,16896,12,1,14057472,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,301.793976,302.020996,302.3395936,303.70401,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-contiguous_prefill_n16896_b0_ctx16896_tp4_dp4,contiguous_prefill_n16896_b0_ctx16896,contiguous_prefill,tp4_dp4,4,16896,1,16896,0,16896,24,2,28114944,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,325.507019,326.308014,326.2758118,327.292999,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-segmented_prefill_n1024_b7_ctx1024_tp4_dp2,segmented_prefill_n1024_b7_ctx1024,segmented_prefill,tp4_dp2,2,1024,1,1024,7,1024,12,1,851968,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,19.802999,19.888,19.9347996,20.138,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-segmented_prefill_n1024_b7_ctx1024_tp4_dp4,segmented_prefill_n1024_b7_ctx1024,segmented_prefill,tp4_dp4,4,1024,1,1024,7,1024,24,2,1703936,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,21.07,21.422001,21.3318002,21.485001,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-segmented_prefill_n16896_b16_ctx16896_tp4_dp2,segmented_prefill_n16896_b16_ctx16896,segmented_prefill,tp4_dp2,2,16896,1,16896,16,16896,12,1,14057472,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,302.268982,302.832001,302.9057984,303.424011,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-segmented_prefill_n16896_b16_ctx16896_tp4_dp4,segmented_prefill_n16896_b16_ctx16896,segmented_prefill,tp4_dp4,4,16896,1,16896,16,16896,24,2,28114944,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,326.295013,326.35199,326.3580076,326.424011,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-contiguous_mirror_n4096_b1_ctx4096_tp4_dp2,contiguous_mirror_n4096_b1_ctx4096,contiguous_mirror,tp4_dp2,2,4096,1,4096,1,1,12,1,262912,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,47.109001,47.207001,47.2600006,47.455002,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-contiguous_mirror_n4096_b1_ctx4096_tp4_dp4,contiguous_mirror_n4096_b1_ctx4096,contiguous_mirror,tp4_dp4,4,4096,1,4096,1,1,24,2,525824,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,57.428001,57.763,57.7272,57.974998,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-contiguous_mirror_n16896_b1_ctx16896_tp4_dp2,contiguous_mirror_n16896_b1_ctx16896,contiguous_mirror,tp4_dp2,2,16896,1,16896,1,1,12,1,1082112,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,186.196991,186.404999,186.5459932,186.908997,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-contiguous_mirror_n16896_b1_ctx16896_tp4_dp4,contiguous_mirror_n16896_b1_ctx16896,contiguous_mirror,tp4_dp4,4,16896,1,16896,1,1,24,2,2164224,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,228.337997,228.584991,228.6713988,229.350006,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-segmented_mirror_n4096_b16_ctx4096_tp4_dp2,segmented_mirror_n4096_b16_ctx4096,segmented_mirror,tp4_dp2,2,4096,1,4096,16,16,12,1,274432,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,47.033001,47.306999,47.357,47.650002,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-segmented_mirror_n4096_b16_ctx4096_tp4_dp4,segmented_mirror_n4096_b16_ctx4096,segmented_mirror,tp4_dp4,4,4096,1,4096,16,16,24,2,548864,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,57.554001,57.818001,57.811201000000004,58.011002,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-segmented_mirror_n16896_b16_ctx16896_tp4_dp2,segmented_mirror_n16896_b16_ctx16896,segmented_mirror,tp4_dp2,2,16896,1,16896,16,16,12,1,1093632,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,186.334,186.703003,186.65200220000003,186.804001,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-segmented_mirror_n16896_b16_ctx16896_tp4_dp4,segmented_mirror_n16896_b16_ctx16896,segmented_mirror,tp4_dp4,4,16896,1,16896,16,16,24,2,2187264,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,228.335007,228.835999,228.9533998,229.580002,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz
-segmented_prefill_n1024_b7_ctx1024_tp4,segmented_prefill_n1024_b7_ctx1024,segmented_prefill,tp4,1,1024,1,1024,7,1024,6,1,458752,msprof_task_duration,baseline,_welmv4_inplace_rope_segmented_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,7.767,7.864,7.8768,8.029,msprof/baseline/_welmv4_inplace_rope_segmented_prefill_kernel_npu.log.gz
-segmented_prefill_n16896_b16_ctx16896_tp4,segmented_prefill_n16896_b16_ctx16896,segmented_prefill,tp4,1,16896,1,16896,16,16896,6,1,7569408,msprof_task_duration,baseline,_welmv4_inplace_rope_segmented_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,32.441002,32.814999,32.9423998,33.812,msprof/baseline/_welmv4_inplace_rope_segmented_prefill_kernel_npu.log.gz
-contiguous_mirror_n4096_b1_ctx4096_tp4,contiguous_mirror_n4096_b1_ctx4096,contiguous_mirror,tp4,1,4096,1,4096,1,1,6,1,262528,msprof_task_duration,baseline,_welmv4_inplace_rope_contiguous_mirror_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,4.886,4.927,5.0174,5.284,msprof/baseline/_welmv4_inplace_rope_contiguous_mirror_kernel_npu.log.gz
-contiguous_mirror_n16896_b1_ctx16896_tp4,contiguous_mirror_n16896_b1_ctx16896,contiguous_mirror,tp4,1,16896,1,16896,1,1,6,1,1081728,msprof_task_duration,baseline,_welmv4_inplace_rope_contiguous_mirror_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,9.383,9.782,9.815999999999999,10.382,msprof/baseline/_welmv4_inplace_rope_contiguous_mirror_kernel_npu.log.gz
-segmented_mirror_n4096_b16_ctx4096_tp4,segmented_mirror_n4096_b16_ctx4096,segmented_mirror,tp4,1,4096,1,4096,16,16,6,1,268288,msprof_task_duration,baseline,_welmv4_inplace_rope_segmented_mirror_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,16.091,16.135,16.166,16.271,msprof/baseline/_welmv4_inplace_rope_segmented_mirror_kernel_npu.log.gz
-segmented_mirror_n16896_b16_ctx16896_tp4,segmented_mirror_n16896_b16_ctx16896,segmented_mirror,tp4,1,16896,1,16896,16,16,6,1,1087488,msprof_task_duration,baseline,_welmv4_inplace_rope_segmented_mirror_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,19.381001,19.705,19.7222004,20.037001,msprof/baseline/_welmv4_inplace_rope_segmented_mirror_kernel_npu.log.gz
-contiguous_prefill_n4096_b0_ctx4096_tp4,contiguous_prefill_n4096_b0_ctx4096,contiguous_prefill,tp4,1,4096,1,4096,0,4096,6,1,1835008,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,12.981,13.13,13.209,13.667,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
-contiguous_prefill_n8192_b0_ctx8192_tp4,contiguous_prefill_n8192_b0_ctx8192,contiguous_prefill,tp4,1,8192,1,8192,0,8192,6,1,3670016,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,18.757999,19.500999,19.4953998,20.292,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
-contiguous_prefill_n9616_b0_ctx9616_tp4,contiguous_prefill_n9616_b0_ctx9616,contiguous_prefill,tp4,1,9616,1,9616,0,9616,6,1,4307968,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,24.547001,24.975,24.8780002,25.047001,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
-contiguous_prefill_n9616_b0_ctx9616_tp4_dp2,contiguous_prefill_n9616_b0_ctx9616,contiguous_prefill,tp4_dp2,2,9616,1,9616,0,9616,12,1,8000512,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,33.487999,34.032001,34.0019996,34.618999,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
-contiguous_prefill_n9616_b0_ctx9616_tp4_dp4,contiguous_prefill_n9616_b0_ctx9616,contiguous_prefill,tp4_dp4,4,9616,1,9616,0,9616,24,2,16001024,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,69.505997,70.429001,70.24719999999999,70.93,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
-contiguous_prefill_n11000_b0_ctx11000_tp4,contiguous_prefill_n11000_b0_ctx11000,contiguous_prefill,tp4,1,11000,1,11000,0,11000,6,1,4928000,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,30.660999,31.051001,30.9932004,31.193001,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
-contiguous_prefill_n11000_b0_ctx11000_tp4_dp2,contiguous_prefill_n11000_b0_ctx11000,contiguous_prefill,tp4_dp2,2,11000,1,11000,0,11000,12,1,9152000,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,43.282001,43.563999,43.6863996,44.161999,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
-contiguous_prefill_n11000_b0_ctx11000_tp4_dp4,contiguous_prefill_n11000_b0_ctx11000,contiguous_prefill,tp4_dp4,4,11000,1,11000,0,11000,24,2,18304000,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,90.522003,91.68,91.4475996,92.526001,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
-contiguous_prefill_n11264_b0_ctx11264_tp4,contiguous_prefill_n11264_b0_ctx11264,contiguous_prefill,tp4,1,11264,1,11264,0,11264,6,1,5046272,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,25.065001,25.256001,25.450000600000003,26.132,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
-contiguous_prefill_n16500_b0_ctx16500_tp4,contiguous_prefill_n16500_b0_ctx16500,contiguous_prefill,tp4,1,16500,1,16500,0,16500,6,1,7392000,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,39.846001,40.141998,40.1101996,40.341999,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
-contiguous_prefill_n16500_b0_ctx16500_tp4_dp2,contiguous_prefill_n16500_b0_ctx16500,contiguous_prefill,tp4_dp2,2,16500,1,16500,0,16500,12,1,13728000,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,56.325001,56.889999,56.891000399999996,57.311001,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
-contiguous_prefill_n16500_b0_ctx16500_tp4_dp4,contiguous_prefill_n16500_b0_ctx16500,contiguous_prefill,tp4_dp4,4,16500,1,16500,0,16500,24,2,27456000,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,127.443001,128.798996,128.415799,129.119995,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
-contiguous_prefill_n16896_b0_ctx16896_tp4,contiguous_prefill_n16896_b0_ctx16896,contiguous_prefill,tp4,1,16896,1,16896,0,16896,6,1,7569408,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,31.805,32.186001,32.5486,34.084,msprof/candidate/_welmv4_inplace_rope_contiguous_prefill_kernel_npu.log.gz
-contiguous_prefill_n4096_b0_ctx4096_tp4_dp2,contiguous_prefill_n4096_b0_ctx4096,contiguous_prefill,tp4_dp2,2,4096,1,4096,0,4096,12,1,3407872,msprof_task_duration,candidate,_welmv4_inplace_rope_head_parallel_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,16.686001,17.028999,16.9747996,17.139999,msprof/candidate/_welmv4_inplace_rope_head_parallel_prefill_kernel_npu.log.gz
-contiguous_prefill_n4096_b0_ctx4096_tp4_dp4,contiguous_prefill_n4096_b0_ctx4096,contiguous_prefill,tp4_dp4,4,4096,1,4096,0,4096,24,2,6815744,msprof_task_duration,candidate,_welmv4_inplace_rope_head_parallel_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,31.167999,31.261,31.269799799999998,31.413,msprof/candidate/_welmv4_inplace_rope_head_parallel_prefill_kernel_npu.log.gz
-contiguous_prefill_n8192_b0_ctx8192_tp4_dp2,contiguous_prefill_n8192_b0_ctx8192,contiguous_prefill,tp4_dp2,2,8192,1,8192,0,8192,12,1,6815744,msprof_task_duration,candidate,_welmv4_inplace_rope_head_parallel_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,30.594,30.683001,30.726999999999997,30.955,msprof/candidate/_welmv4_inplace_rope_head_parallel_prefill_kernel_npu.log.gz
-contiguous_prefill_n8192_b0_ctx8192_tp4_dp4,contiguous_prefill_n8192_b0_ctx8192,contiguous_prefill,tp4_dp4,4,8192,1,8192,0,8192,24,2,13631488,msprof_task_duration,candidate,_welmv4_inplace_rope_head_parallel_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,60.476002,60.551998,60.579599800000004,60.712002,msprof/candidate/_welmv4_inplace_rope_head_parallel_prefill_kernel_npu.log.gz
-contiguous_prefill_n11264_b0_ctx11264_tp4_dp2,contiguous_prefill_n11264_b0_ctx11264,contiguous_prefill,tp4_dp2,2,11264,1,11264,0,11264,12,1,9371648,msprof_task_duration,candidate,_welmv4_inplace_rope_head_parallel_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,40.57,41.164001,40.9694,41.339001,msprof/candidate/_welmv4_inplace_rope_head_parallel_prefill_kernel_npu.log.gz
-contiguous_prefill_n11264_b0_ctx11264_tp4_dp4,contiguous_prefill_n11264_b0_ctx11264,contiguous_prefill,tp4_dp4,4,11264,1,11264,0,11264,24,2,18743296,msprof_task_duration,candidate,_welmv4_inplace_rope_head_parallel_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,83.662003,84.411003,84.4030014,85.555,msprof/candidate/_welmv4_inplace_rope_head_parallel_prefill_kernel_npu.log.gz
-contiguous_prefill_n16896_b0_ctx16896_tp4_dp2,contiguous_prefill_n16896_b0_ctx16896,contiguous_prefill,tp4_dp2,2,16896,1,16896,0,16896,12,1,14057472,msprof_task_duration,candidate,_welmv4_inplace_rope_head_parallel_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,60.799999,61.092999,61.34639979999999,62.279999,msprof/candidate/_welmv4_inplace_rope_head_parallel_prefill_kernel_npu.log.gz
-contiguous_prefill_n16896_b0_ctx16896_tp4_dp4,contiguous_prefill_n16896_b0_ctx16896,contiguous_prefill,tp4_dp4,4,16896,1,16896,0,16896,24,2,28114944,msprof_task_duration,candidate,_welmv4_inplace_rope_head_parallel_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,133.610001,133.904007,134.454599,135.815002,msprof/candidate/_welmv4_inplace_rope_head_parallel_prefill_kernel_npu.log.gz
-segmented_prefill_n1024_b7_ctx1024_tp4,segmented_prefill_n1024_b7_ctx1024,segmented_prefill,tp4,1,1024,1,1024,7,1024,6,1,458752,msprof_task_duration,candidate,_welmv4_inplace_rope_segmented_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,7.698,7.814,7.8591999999999995,8.047,msprof/candidate/_welmv4_inplace_rope_segmented_prefill_kernel_npu.log.gz
-segmented_prefill_n1024_b7_ctx1024_tp4_dp2,segmented_prefill_n1024_b7_ctx1024,segmented_prefill,tp4_dp2,2,1024,1,1024,7,1024,12,1,851968,msprof_task_duration,candidate,_welmv4_inplace_rope_segmented_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,11.772,11.872,11.8734,11.985,msprof/candidate/_welmv4_inplace_rope_segmented_prefill_kernel_npu.log.gz
-segmented_prefill_n1024_b7_ctx1024_tp4_dp4,segmented_prefill_n1024_b7_ctx1024,segmented_prefill,tp4_dp4,4,1024,1,1024,7,1024,24,2,1703936,msprof_task_duration,candidate,_welmv4_inplace_rope_segmented_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,22.445,22.698999,22.7157996,23.0,msprof/candidate/_welmv4_inplace_rope_segmented_prefill_kernel_npu.log.gz
-segmented_prefill_n16896_b16_ctx16896_tp4,segmented_prefill_n16896_b16_ctx16896,segmented_prefill,tp4,1,16896,1,16896,16,16896,6,1,7569408,msprof_task_duration,candidate,_welmv4_inplace_rope_segmented_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,32.456001,32.966,33.033200199999996,33.977001,msprof/candidate/_welmv4_inplace_rope_segmented_prefill_kernel_npu.log.gz
-segmented_prefill_n16896_b16_ctx16896_tp4_dp2,segmented_prefill_n16896_b16_ctx16896,segmented_prefill,tp4_dp2,2,16896,1,16896,16,16896,12,1,14057472,msprof_task_duration,candidate,_welmv4_inplace_rope_segmented_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,56.860001,57.104,57.1330004,57.514,msprof/candidate/_welmv4_inplace_rope_segmented_prefill_kernel_npu.log.gz
-segmented_prefill_n16896_b16_ctx16896_tp4_dp4,segmented_prefill_n16896_b16_ctx16896,segmented_prefill,tp4_dp4,4,16896,1,16896,16,16896,24,2,28114944,msprof_task_duration,candidate,_welmv4_inplace_rope_segmented_prefill_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,131.451004,132.268997,132.3064028,132.889008,msprof/candidate/_welmv4_inplace_rope_segmented_prefill_kernel_npu.log.gz
-contiguous_mirror_n4096_b1_ctx4096_tp4,contiguous_mirror_n4096_b1_ctx4096,contiguous_mirror,tp4,1,4096,1,4096,1,1,6,1,262528,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_mirror_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,4.837,4.925,5.0414,5.339,msprof/candidate/_welmv4_inplace_rope_contiguous_mirror_kernel_npu.log.gz
-contiguous_mirror_n16896_b1_ctx16896_tp4,contiguous_mirror_n16896_b1_ctx16896,contiguous_mirror,tp4,1,16896,1,16896,1,1,6,1,1081728,msprof_task_duration,candidate,_welmv4_inplace_rope_contiguous_mirror_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,9.382,9.682,9.6914,10.151,msprof/candidate/_welmv4_inplace_rope_contiguous_mirror_kernel_npu.log.gz
-contiguous_mirror_n4096_b1_ctx4096_tp4_dp2,contiguous_mirror_n4096_b1_ctx4096,contiguous_mirror,tp4_dp2,2,4096,1,4096,1,1,12,1,262912,msprof_task_duration,candidate,_welmv4_inplace_rope_head_parallel_mirror_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,5.057,5.146,5.1664,5.287,msprof/candidate/_welmv4_inplace_rope_head_parallel_mirror_kernel_npu.log.gz
-contiguous_mirror_n4096_b1_ctx4096_tp4_dp4,contiguous_mirror_n4096_b1_ctx4096,contiguous_mirror,tp4_dp4,4,4096,1,4096,1,1,24,2,525824,msprof_task_duration,candidate,_welmv4_inplace_rope_head_parallel_mirror_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,5.98,6.15,6.1664,6.345,msprof/candidate/_welmv4_inplace_rope_head_parallel_mirror_kernel_npu.log.gz
-contiguous_mirror_n16896_b1_ctx16896_tp4_dp2,contiguous_mirror_n16896_b1_ctx16896,contiguous_mirror,tp4_dp2,2,16896,1,16896,1,1,12,1,1082112,msprof_task_duration,candidate,_welmv4_inplace_rope_head_parallel_mirror_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,9.499,9.615,9.658199999999999,10.024,msprof/candidate/_welmv4_inplace_rope_head_parallel_mirror_kernel_npu.log.gz
-contiguous_mirror_n16896_b1_ctx16896_tp4_dp4,contiguous_mirror_n16896_b1_ctx16896,contiguous_mirror,tp4_dp4,4,16896,1,16896,1,1,24,2,2164224,msprof_task_duration,candidate,_welmv4_inplace_rope_head_parallel_mirror_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,14.297,14.608,14.6284,14.949,msprof/candidate/_welmv4_inplace_rope_head_parallel_mirror_kernel_npu.log.gz
-segmented_mirror_n4096_b16_ctx4096_tp4,segmented_mirror_n4096_b16_ctx4096,segmented_mirror,tp4,1,4096,1,4096,16,16,6,1,268288,msprof_task_duration,candidate,_welmv4_inplace_rope_segmented_mirror_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,16.127001,16.219999,16.2317996,16.379,msprof/candidate/_welmv4_inplace_rope_segmented_mirror_kernel_npu.log.gz
-segmented_mirror_n4096_b16_ctx4096_tp4_dp2,segmented_mirror_n4096_b16_ctx4096,segmented_mirror,tp4_dp2,2,4096,1,4096,16,16,12,1,274432,msprof_task_duration,candidate,_welmv4_inplace_rope_segmented_mirror_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,19.548,20.059999,20.0341998,20.381001,msprof/candidate/_welmv4_inplace_rope_segmented_mirror_kernel_npu.log.gz
-segmented_mirror_n4096_b16_ctx4096_tp4_dp4,segmented_mirror_n4096_b16_ctx4096,segmented_mirror,tp4_dp4,4,4096,1,4096,16,16,24,2,548864,msprof_task_duration,candidate,_welmv4_inplace_rope_segmented_mirror_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,31.179001,31.506001,31.4752004,31.694,msprof/candidate/_welmv4_inplace_rope_segmented_mirror_kernel_npu.log.gz
-segmented_mirror_n16896_b16_ctx16896_tp4,segmented_mirror_n16896_b16_ctx16896,segmented_mirror,tp4,1,16896,1,16896,16,16,6,1,1087488,msprof_task_duration,candidate,_welmv4_inplace_rope_segmented_mirror_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,19.285999,19.591,19.5653996,19.83,msprof/candidate/_welmv4_inplace_rope_segmented_mirror_kernel_npu.log.gz
-segmented_mirror_n16896_b16_ctx16896_tp4_dp2,segmented_mirror_n16896_b16_ctx16896,segmented_mirror,tp4_dp2,2,16896,1,16896,16,16,12,1,1093632,msprof_task_duration,candidate,_welmv4_inplace_rope_segmented_mirror_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,21.532,21.6,21.6698002,21.908001,msprof/candidate/_welmv4_inplace_rope_segmented_mirror_kernel_npu.log.gz
-segmented_mirror_n16896_b16_ctx16896_tp4_dp4,segmented_mirror_n16896_b16_ctx16896,segmented_mirror,tp4_dp4,4,16896,1,16896,16,16,24,2,2187264,msprof_task_duration,candidate,_welmv4_inplace_rope_segmented_mirror_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,35.91,36.014999,36.0532004,36.255001,msprof/candidate/_welmv4_inplace_rope_segmented_mirror_kernel_npu.log.gz
+case,workload_id,family,topology,dp_attention_size,context_length,speculative_width,n,batch_size,q_rows,local_q_heads,local_kv_heads,rotated_values,record_type,provider,kernel_name,timing_authority,status,sample_count,task_min_us,task_p50_us,task_mean_us,task_max_us,artifact,capture_log_tail
+segmented_mirror_n4096_b16_ctx4096_tp4,segmented_mirror_n4096_b16_ctx4096,segmented_mirror,tp4,1,4096,1,4096,16,16,6,1,268288,msprof_task_duration,baseline,_welmv4_inplace_rope_segmented_mirror_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,16.087999,16.275,16.292799199999997,16.476999,msprof/baseline/_welmv4_inplace_rope_segmented_mirror_kernel_npu.log.gz,
+segmented_mirror_n16896_b16_ctx16896_tp4,segmented_mirror_n16896_b16_ctx16896,segmented_mirror,tp4,1,16896,1,16896,16,16,6,1,1087488,msprof_task_duration,baseline,_welmv4_inplace_rope_segmented_mirror_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,19.214001,19.705999,19.6628002,20.118,msprof/baseline/_welmv4_inplace_rope_segmented_mirror_kernel_npu.log.gz,
+segmented_mirror_n4096_b16_ctx4096_tp4_dp2,segmented_mirror_n4096_b16_ctx4096,segmented_mirror,tp4_dp2,2,4096,1,4096,16,16,12,1,274432,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,46.987999,47.155998,47.1513992,47.313,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz,
+segmented_mirror_n4096_b16_ctx4096_tp4_dp4,segmented_mirror_n4096_b16_ctx4096,segmented_mirror,tp4_dp4,4,4096,1,4096,16,16,24,2,548864,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,57.518002,57.575001,57.75920120000001,58.209,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz,
+segmented_mirror_n16896_b16_ctx16896_tp4_dp2,segmented_mirror_n16896_b16_ctx16896,segmented_mirror,tp4_dp2,2,16896,1,16896,16,16,12,1,1093632,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,185.973999,186.350006,186.29440319999998,186.658005,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz,
+segmented_mirror_n16896_b16_ctx16896_tp4_dp4,segmented_mirror_n16896_b16_ctx16896,segmented_mirror,tp4_dp4,4,16896,1,16896,16,16,24,2,2187264,msprof_task_duration,baseline,_welmv4_inplace_rope_kernel_npu,msprof_op_task_duration_acceptance,MEASURED,5,227.813995,228.436005,228.3512024,228.907013,msprof/baseline/_welmv4_inplace_rope_kernel_npu.log.gz,
+segmented_mirror_n4096_b16_ctx4096_tp4,segmented_mirror_n4096_b16_ctx4096,segmented_mirror,tp4,1,4096,1,4096,16,16,6,1,268288,msprof_task_duration,candidate,_welmv4_inplace_rope_segmented_mirror_kernel_npu,,ERROR,,,,,,msprof/candidate/_welmv4_inplace_rope_segmented_mirror_kernel_npu.log.gz,"returncode=0, expected=36, got=12, parse_error=None, discovered=['_welmv4_inplace_rope_segmented_mirror_kernel_npu']
+ay lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Profiling running finished. All task success.
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 0
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.250999
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 1
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.201000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 10
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.555000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 11
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.698000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 2
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.528000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 3
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.110001
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 4
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.478001
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 5
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.187000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 6
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.471001
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 7
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.507000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 8
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.563999
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 9
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.656000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Profiling results saved in /tmp/welm_rope_msprof_k5_3vna3/OPPROF_20260831193223_KIZFNKPRJBYFKPFA
+[INFO]  Profiling data parse finished.
+[INFO]  Op profiling finish. Welcome to next use.
+"
+segmented_mirror_n4096_b16_ctx4096_tp4_dp2,segmented_mirror_n4096_b16_ctx4096,segmented_mirror,tp4_dp2,2,4096,1,4096,16,16,12,1,274432,msprof_task_duration,candidate,_welmv4_inplace_rope_segmented_mirror_kernel_npu,,ERROR,,,,,,msprof/candidate/_welmv4_inplace_rope_segmented_mirror_kernel_npu.log.gz,"returncode=0, expected=36, got=12, parse_error=None, discovered=['_welmv4_inplace_rope_segmented_mirror_kernel_npu']
+ay lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Profiling running finished. All task success.
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 0
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.250999
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 1
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.201000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 10
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.555000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 11
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.698000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 2
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.528000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 3
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.110001
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 4
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.478001
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 5
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.187000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 6
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.471001
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 7
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.507000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 8
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.563999
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 9
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.656000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Profiling results saved in /tmp/welm_rope_msprof_k5_3vna3/OPPROF_20260831193223_KIZFNKPRJBYFKPFA
+[INFO]  Profiling data parse finished.
+[INFO]  Op profiling finish. Welcome to next use.
+"
+segmented_mirror_n4096_b16_ctx4096_tp4_dp4,segmented_mirror_n4096_b16_ctx4096,segmented_mirror,tp4_dp4,4,4096,1,4096,16,16,24,2,548864,msprof_task_duration,candidate,_welmv4_inplace_rope_segmented_mirror_kernel_npu,,ERROR,,,,,,msprof/candidate/_welmv4_inplace_rope_segmented_mirror_kernel_npu.log.gz,"returncode=0, expected=36, got=12, parse_error=None, discovered=['_welmv4_inplace_rope_segmented_mirror_kernel_npu']
+ay lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Profiling running finished. All task success.
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 0
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.250999
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 1
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.201000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 10
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.555000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 11
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.698000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 2
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.528000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 3
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.110001
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 4
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.478001
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 5
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.187000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 6
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.471001
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 7
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.507000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 8
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.563999
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 9
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.656000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Profiling results saved in /tmp/welm_rope_msprof_k5_3vna3/OPPROF_20260831193223_KIZFNKPRJBYFKPFA
+[INFO]  Profiling data parse finished.
+[INFO]  Op profiling finish. Welcome to next use.
+"
+segmented_mirror_n16896_b16_ctx16896_tp4,segmented_mirror_n16896_b16_ctx16896,segmented_mirror,tp4,1,16896,1,16896,16,16,6,1,1087488,msprof_task_duration,candidate,_welmv4_inplace_rope_segmented_mirror_kernel_npu,,ERROR,,,,,,msprof/candidate/_welmv4_inplace_rope_segmented_mirror_kernel_npu.log.gz,"returncode=0, expected=36, got=12, parse_error=None, discovered=['_welmv4_inplace_rope_segmented_mirror_kernel_npu']
+ay lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Profiling running finished. All task success.
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 0
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.250999
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 1
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.201000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 10
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.555000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 11
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.698000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 2
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.528000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 3
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.110001
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 4
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.478001
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 5
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.187000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 6
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.471001
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 7
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.507000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 8
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.563999
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 9
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.656000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Profiling results saved in /tmp/welm_rope_msprof_k5_3vna3/OPPROF_20260831193223_KIZFNKPRJBYFKPFA
+[INFO]  Profiling data parse finished.
+[INFO]  Op profiling finish. Welcome to next use.
+"
+segmented_mirror_n16896_b16_ctx16896_tp4_dp2,segmented_mirror_n16896_b16_ctx16896,segmented_mirror,tp4_dp2,2,16896,1,16896,16,16,12,1,1093632,msprof_task_duration,candidate,_welmv4_inplace_rope_segmented_mirror_kernel_npu,,ERROR,,,,,,msprof/candidate/_welmv4_inplace_rope_segmented_mirror_kernel_npu.log.gz,"returncode=0, expected=36, got=12, parse_error=None, discovered=['_welmv4_inplace_rope_segmented_mirror_kernel_npu']
+ay lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Profiling running finished. All task success.
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 0
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.250999
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 1
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.201000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 10
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.555000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 11
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.698000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 2
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.528000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 3
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.110001
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 4
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.478001
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 5
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.187000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 6
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.471001
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 7
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.507000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 8
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.563999
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 9
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.656000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Profiling results saved in /tmp/welm_rope_msprof_k5_3vna3/OPPROF_20260831193223_KIZFNKPRJBYFKPFA
+[INFO]  Profiling data parse finished.
+[INFO]  Op profiling finish. Welcome to next use.
+"
+segmented_mirror_n16896_b16_ctx16896_tp4_dp4,segmented_mirror_n16896_b16_ctx16896,segmented_mirror,tp4_dp4,4,16896,1,16896,16,16,24,2,2187264,msprof_task_duration,candidate,_welmv4_inplace_rope_segmented_mirror_kernel_npu,,ERROR,,,,,,msprof/candidate/_welmv4_inplace_rope_segmented_mirror_kernel_npu.log.gz,"returncode=0, expected=36, got=12, parse_error=None, discovered=['_welmv4_inplace_rope_segmented_mirror_kernel_npu']
+ay lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO] <ProfData> Start profiling on device 5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[WARN] <GetCoreNumForDbi> Some sub block may lose dynamic instrumentation data because sub blocks exceeding 108.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Kernel TensorMove_d2db1a80c523e7e59a032c95969880af_high_performance_2 skipped: not selected via --kernel-name.
+[INFO]  Kernel _welmv4_inplace_rope_head_parallel_mirror_kernel_npu skipped: not selected via --kernel-name.
+[INFO]  Profiling running finished. All task success.
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 0
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.250999
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 1
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.201000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 10
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.555000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 11
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.698000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 2
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.528000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 3
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.110001
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 4
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.478001
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 5
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 16.187000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 6
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.471001
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 7
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.507000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 8
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.563999
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device5, kernel: _welmv4_inplace_rope_segmented_mirror_kernel_npu, name is: 9
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) MTE2 bandwidth utilization lower than 80% when active.
+	2) aivector compute usage lower than 20%.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _welmv4_inplace_rope_segmented_mirror_kernel_npu
+	Op Type: vector
+	Task Duration(us): 19.656000
+	Block Dim: 56
+	Mix Block Dim: 
+	Device Id: 5
+	Pid: 2011480
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Profiling results saved in /tmp/welm_rope_msprof_k5_3vna3/OPPROF_20260831193223_KIZFNKPRJBYFKPFA
+[INFO]  Profiling data parse finished.
+[INFO]  Op profiling finish. Welcome to next use.
+"
