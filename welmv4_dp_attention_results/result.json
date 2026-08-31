@@ -1,15 +1,15 @@
 {
-  "benchmark_base": "28434386d6871d4e51d2f1c67d179cf81cbb88b8",
+  "benchmark_base": "d69f685df4717de7ff58f1d2a5709aec39f203ea",
   "device": {
     "baseline_sha256": {
       "decode": "c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec",
       "prefill": "c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54"
     },
-    "benchmark_base": "28434386d6871d4e51d2f1c67d179cf81cbb88b8",
+    "benchmark_base": "d69f685df4717de7ff58f1d2a5709aec39f203ea",
     "cache_layout": "native_NHD_then_page_head_token_dim_permute",
     "candidate_sha256": {
       "decode": "c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec",
-      "prefill": "1e8ad5702bf4aa7315c540c5ced53733a46065f615386b3d6d5e3d68155e74a1"
+      "prefill": "c1a92fd62657cdf61bf5dd312edcf7b16b89bca5f1649c4bda571bfbb1509c72"
     },
     "cann_version": "9.1.0",
     "causal": true,
@@ -27,66 +27,66 @@
     "torch_npu_version": "2.10.0.post4.dev20260715",
     "torch_version": "2.10.0+cpu",
     "triton_version": "3.2.0",
-    "workspace_commit": "28434386d6871d4e51d2f1c67d179cf81cbb88b8"
+    "workspace_commit": "d69f685df4717de7ff58f1d2a5709aec39f203ea"
   },
   "files": [
     {
       "path": "msprof_preflight/msprof/baseline/_swa_paged_decode_sink_kernel.log.gz",
-      "sha256": "e2a1c65a49fa067d8f835b80f0d6c0a12e610bdd606758e7ee77641cafc34edf",
-      "size_bytes": 1378
+      "sha256": "cd87ad5d2a2e18eed43a9f06ad6cb7d3a597a7acc31442f0cdec0393d37c85de",
+      "size_bytes": 1376
     },
     {
       "path": "msprof_preflight/msprof/baseline/_swa_paged_prefill_aggregation_sink_kernel.log.gz",
-      "sha256": "22a1ed645554b08a1d88b3f7a66f4732f5b4f94ef0e9b2d0486f90505723bba3",
-      "size_bytes": 1388
+      "sha256": "b581f4abae184f941654d0f84b28376f469da30405c2f6f9afcd44c0661333af",
+      "size_bytes": 1389
     },
     {
       "path": "msprof_preflight/msprof/baseline/paged_decode_fd_kernel.log.gz",
-      "sha256": "5ee94c0cae430b62b2aa0b0750e54e897dcec9c0b1b93c2621eba722af57da90",
-      "size_bytes": 1187
+      "sha256": "012dab17e3c3e7328cc378c4a1b6e37997de65d02b094b2317a647057a7a6045",
+      "size_bytes": 1188
     },
     {
       "path": "msprof_preflight/msprof/baseline/paged_decode_fd_reduce_kernel.log.gz",
-      "sha256": "7ce7661a30426e1785cd74f05158adc8c6c838effd29f6c5442b28daf94d97a0",
-      "size_bytes": 1236
+      "sha256": "ee5f5555d5bcf72c3da85b53c297a81a338d809fae0ba08d70c88cab748ece92",
+      "size_bytes": 1231
     },
     {
       "path": "msprof_preflight/msprof/baseline/paged_prefill_page_aggregation_kernel.log.gz",
-      "sha256": "c3b4653f53a1c5fefcc5b6d7da7a5dd36574aa176319947122969ae23dc13cd6",
-      "size_bytes": 1189
+      "sha256": "b7d18a7c662fa8e07b17fb6272a2df20ca84502a45bf4422662bc89cf19ebb54",
+      "size_bytes": 1192
     },
     {
       "path": "msprof_preflight/msprof/candidate/_swa_paged_decode_sink_kernel.log.gz",
-      "sha256": "eedfbda06b16e8aa54a9a72e70f58c321043acd239a3cf81e9f984869d84e9ad",
-      "size_bytes": 1381
+      "sha256": "bbc0bd80ad8888581b8c90311ba533d03adab74483be9498565b8747af136c9d",
+      "size_bytes": 1385
     },
     {
       "path": "msprof_preflight/msprof/candidate/_swa_paged_prefill_aggregation_sink_kernel.log.gz",
-      "sha256": "d440891e33c8603726c3d3dbff4298a9d85fc716988fbd6b40840efd107c1aeb",
-      "size_bytes": 1539
+      "sha256": "e06416a4d6bfd90cca7234addad9327486e022015f3f38d057acc2b9d6879379",
+      "size_bytes": 1538
     },
     {
       "path": "msprof_preflight/msprof/candidate/paged_decode_fd_kernel.log.gz",
-      "sha256": "27c99d41b460f7bbc0960b218493cae2163a5b2bdb99ce5cdaea2f273f522edb",
-      "size_bytes": 1193
+      "sha256": "be55c99a469a62ab9f7e6ddb4938888d32e2983c4d6503cf0b1bab83e2d49b95",
+      "size_bytes": 1189
     },
     {
       "path": "msprof_preflight/msprof/candidate/paged_decode_fd_reduce_kernel.log.gz",
-      "sha256": "5eca4b5a3d1becb8127e34f731b577dcd23eb78814919529ae31c2de4d2925da",
-      "size_bytes": 1234
+      "sha256": "43cc9196810030785351090798a0c78509c474195e41dedf2845f09a43281e03",
+      "size_bytes": 1235
     },
     {
-      "path": "msprof_preflight/msprof/candidate/paged_prefill_dp_padded_q_grouped_kernel.log.gz",
-      "sha256": "5531cefe90f1ab0299ad8b34d5cb129744e33d0c825fe8e103dd66da68613d17",
-      "size_bytes": 2967
+      "path": "msprof_preflight/msprof/candidate/paged_prefill_dp_six_head_rows_kernel.log.gz",
+      "sha256": "7900de01ea4ee16919d3807ab4e732d127c8c81d001b367c9ae18cdfc611afa1",
+      "size_bytes": 120967
     },
     {
       "path": "msprof_preflight.csv",
-      "sha256": "452b2e466180f3c952379f9f954d15af943e88a146e6e6b8e456076e1458c7c5",
-      "size_bytes": 26433
+      "sha256": "3d5bcd945c3f815b288b15c58744956dca58aac376b715eaf825331025f0048c",
+      "size_bytes": 31825
     }
   ],
-  "finished_at": "2026-08-31T17:27:01+00:00",
+  "finished_at": "2026-08-31T17:38:48+00:00",
   "mode": "both",
   "model_contract": {
     "dtype": "bfloat16",
@@ -142,7 +142,7 @@
     }
   },
   "schema_version": 1,
-  "started_at": "2026-08-31T17:23:39+00:00",
+  "started_at": "2026-08-31T17:35:26+00:00",
   "status": "ERROR",
   "suite": "remote",
   "validation": {
@@ -194,5 +194,5 @@
     ]
   },
   "workspace": "welmv4-npu-dp-attention-full-swa",
-  "workspace_commit": "28434386d6871d4e51d2f1c67d179cf81cbb88b8"
+  "workspace_commit": "d69f685df4717de7ff58f1d2a5709aec39f203ea"
 }
