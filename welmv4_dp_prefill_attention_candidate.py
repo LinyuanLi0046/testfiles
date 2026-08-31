@@ -4326,6 +4326,10 @@ def swa_paged_prefill_impl(
         and not gqa_interleave
         and num_q_heads == num_kv_heads * 12
         and num_kv_heads in (1, 2)
+        # Grouping removes Q-head parallelism, so use it only when request/KV
+        # tasks can occupy at least half of the Cube cores.  Small ordinary
+        # prefill batches retain the head-parallel fallback.
+        and bsz * num_kv_heads >= (cube_num + 1) // 2
         and q.stride(0) == num_q_heads * q.stride(1)
         and o.stride(0) == num_q_heads * o.stride(1)
         and page_size == 64
