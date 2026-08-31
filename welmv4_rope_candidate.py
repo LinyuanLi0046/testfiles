@@ -1369,6 +1369,285 @@ def _welmv4_inplace_rope_segmented_mirror_kernel_npu(
                     )
 
 
+@triton.jit(do_not_specialize=["num_tasks", "N"])
+def _welmv4_inplace_rope_head_parallel_prefill_kernel_npu(
+    q_ptr: tl.tensor,
+    k_ptr: tl.tensor,
+    position_ptr: tl.tensor,
+    cos_sin_cache_ptr: tl.tensor,
+    segment_tile_starts_ptr: tl.tensor,
+    num_tasks: int,
+    N: int,
+    q_token_stride: tl.constexpr,
+    k_token_stride: tl.constexpr,
+    head_dim: tl.constexpr,
+    rope_dim: tl.constexpr,
+    token_block: tl.constexpr,
+    masked: tl.constexpr,
+    position_mode: tl.constexpr,
+    num_q_heads: tl.constexpr,
+    num_k_heads: tl.constexpr,
+):
+    """DP-attention prefill with token tiles and 2-head groups as tasks."""
+    half_rope_dim: tl.constexpr = rope_dim // 2
+    num_q_head_groups: tl.constexpr = num_q_heads // 2
+    num_head_groups: tl.constexpr = num_k_heads + num_q_head_groups
+    token_offsets = tl.arange(0, token_block)
+    cos_offsets = tl.arange(0, half_rope_dim)
+    sin_offsets = tl.arange(half_rope_dim, rope_dim)
+
+    tasks_per_program = tl.cdiv(num_tasks, tl.num_programs(0))
+    task_start = tl.program_id(0) * tasks_per_program
+    task_end = tl.minimum(task_start + tasks_per_program, num_tasks)
+    for task_id in tl.range(task_start, task_end, num_stages=1):
+        task_id_i32 = task_id.to(tl.int32)
+        tile_id = task_id_i32 // num_head_groups
+        head_group_id = task_id_i32 - tile_id * num_head_groups
+        if position_mode == 2:
+            token_base = tl.load(segment_tile_starts_ptr + tile_id).to(tl.int32)
+            token_end = tl.load(segment_tile_starts_ptr + tile_id + 1).to(
+                tl.int32
+            )
+            token_mask = token_offsets.to(tl.float32) < (
+                token_end - token_base
+            ).to(tl.float32)
+        else:
+            token_base = tile_id * token_block
+            token_mask = (token_base + token_offsets).to(tl.float32) < N.to(
+                tl.float32
+            )
+
+        if position_mode == 0:
+            position_ids = tl.load(
+                position_ptr + token_base + token_offsets,
+                mask=token_mask,
+                other=0,
+            ).to(tl.int32)
+        else:
+            position_base = tl.load(position_ptr + token_base).to(tl.int32)
+            position_ids = position_base + token_offsets
+
+        if masked:
+            cos = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + cos_offsets[None, :],
+                mask=token_mask[:, None],
+                other=0.0,
+                care_padding=False,
+            )
+            sin = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + sin_offsets[None, :],
+                mask=token_mask[:, None],
+                other=0.0,
+                care_padding=False,
+            )
+        else:
+            cos = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + cos_offsets[None, :],
+                care_padding=False,
+            )
+            sin = tl.load(
+                cos_sin_cache_ptr
+                + position_ids[:, None] * rope_dim
+                + sin_offsets[None, :],
+                care_padding=False,
+            )
+        if position_mode == 0:
+            tl.extra.cann.extension.compile_hint(cos, "mayDiscretememaccess")
+            tl.extra.cann.extension.compile_hint(sin, "mayDiscretememaccess")
+
+        if head_group_id.to(tl.float32) < num_k_heads:
+            k_data = (
+                k_ptr
+                + token_base * k_token_stride
+                + head_group_id * head_dim
+                + head_dim
+                - rope_dim
+            )
+            _welmv4_apply_token_block_rope_npu(
+                k_data,
+                token_offsets,
+                k_token_stride,
+                cos,
+                sin,
+                token_mask,
+                masked,
+                head_dim,
+                rope_dim,
+            )
+        else:
+            q_head_base = (head_group_id - num_k_heads) * 2
+            q_data = (
+                q_ptr
+                + token_base * q_token_stride
+                + q_head_base * head_dim
+                + head_dim
+                - rope_dim
+            )
+            if masked:
+                _welmv4_apply_masked_token_head_block_rope_npu(
+                    q_data,
+                    token_offsets,
+                    q_token_stride,
+                    cos,
+                    sin,
+                    token_mask,
+                    2,
+                    head_dim,
+                    rope_dim,
+                )
+            else:
+                _welmv4_apply_token_head_block_rope_npu(
+                    q_data,
+                    token_offsets,
+                    q_token_stride,
+                    cos,
+                    sin,
+                    2,
+                    head_dim,
+                    rope_dim,
+                )
+
+
+@triton.jit(
+    do_not_specialize=[
+        "num_q_tasks",
+        "num_tasks",
+        "N",
+    ]
+)
+def _welmv4_inplace_rope_head_parallel_mirror_kernel_npu(
+    q_ptr: tl.tensor,
+    k_ptr: tl.tensor,
+    position_ptr: tl.tensor,
+    cos_sin_cache_ptr: tl.tensor,
+    last_index_ptr: tl.tensor,
+    segment_tile_starts_ptr: tl.tensor,
+    num_q_tasks: int,
+    num_tasks: int,
+    N: int,
+    q_token_stride: tl.constexpr,
+    k_token_stride: tl.constexpr,
+    head_dim: tl.constexpr,
+    rope_dim: tl.constexpr,
+    token_block: tl.constexpr,
+    segmented: tl.constexpr,
+    masked: tl.constexpr,
+    num_q_heads: tl.constexpr,
+    num_k_heads: tl.constexpr,
+):
+    """DP-attention mirror RoPE with Q groups and K tiles as AIV tasks."""
+    half_rope_dim: tl.constexpr = rope_dim // 2
+    num_q_head_groups: tl.constexpr = num_q_heads // 2
+    token_offsets = tl.arange(0, token_block)
+    cos_offsets = tl.arange(0, half_rope_dim)
+    sin_offsets = tl.arange(half_rope_dim, rope_dim)
+
+    tasks_per_program = tl.cdiv(num_tasks, tl.num_programs(0))
+    task_start = tl.program_id(0) * tasks_per_program
+    task_end = tl.minimum(task_start + tasks_per_program, num_tasks)
+    for task_id in tl.range(task_start, task_end, num_stages=1):
+        task_id_i32 = task_id.to(tl.int32)
+        if task_id_i32.to(tl.float32) < num_q_tasks.to(tl.float32):
+            request_id = task_id_i32 // num_q_head_groups
+            q_head_group = task_id_i32 - request_id * num_q_head_groups
+            q_source_token = tl.load(last_index_ptr + request_id).to(tl.int32)
+            q_position = tl.load(position_ptr + q_source_token).to(tl.int32)
+            q_cos = tl.load(
+                cos_sin_cache_ptr + q_position * rope_dim + cos_offsets,
+                care_padding=False,
+            )
+            q_sin = tl.load(
+                cos_sin_cache_ptr + q_position * rope_dim + sin_offsets,
+                care_padding=False,
+            )
+            q_data = (
+                q_ptr
+                + request_id * q_token_stride
+                + q_head_group * 2 * head_dim
+                + head_dim
+                - rope_dim
+            )
+            _rope_npu(
+                q_data, q_cos, q_sin, 2, 2, head_dim, rope_dim
+            )
+        else:
+            k_task_id = task_id_i32 - num_q_tasks.to(tl.int32)
+            tile_id = k_task_id // num_k_heads
+            k_head_id = k_task_id - tile_id * num_k_heads
+            if segmented:
+                token_base = tl.load(segment_tile_starts_ptr + tile_id).to(
+                    tl.int32
+                )
+                token_end = tl.load(segment_tile_starts_ptr + tile_id + 1).to(
+                    tl.int32
+                )
+                token_mask = token_offsets.to(tl.float32) < (
+                    token_end - token_base
+                ).to(tl.float32)
+            else:
+                token_base = tile_id * token_block
+                token_mask = (token_base + token_offsets).to(tl.float32) < N.to(
+                    tl.float32
+                )
+
+            position_base = tl.load(position_ptr + token_base).to(tl.int32)
+            position_ids = position_base + token_offsets
+            if masked:
+                cos = tl.load(
+                    cos_sin_cache_ptr
+                    + position_ids[:, None] * rope_dim
+                    + cos_offsets[None, :],
+                    mask=token_mask[:, None],
+                    other=0.0,
+                    care_padding=False,
+                )
+                sin = tl.load(
+                    cos_sin_cache_ptr
+                    + position_ids[:, None] * rope_dim
+                    + sin_offsets[None, :],
+                    mask=token_mask[:, None],
+                    other=0.0,
+                    care_padding=False,
+                )
+            else:
+                cos = tl.load(
+                    cos_sin_cache_ptr
+                    + position_ids[:, None] * rope_dim
+                    + cos_offsets[None, :],
+                    care_padding=False,
+                )
+                sin = tl.load(
+                    cos_sin_cache_ptr
+                    + position_ids[:, None] * rope_dim
+                    + sin_offsets[None, :],
+                    care_padding=False,
+                )
+            k_data = (
+                k_ptr
+                + token_base * k_token_stride
+                + k_head_id * head_dim
+                + head_dim
+                - rope_dim
+            )
+            _welmv4_apply_token_block_rope_npu(
+                k_data,
+                token_offsets,
+                k_token_stride,
+                cos,
+                sin,
+                token_mask,
+                masked,
+                head_dim,
+                rope_dim,
+            )
+
+
 def welmv4_inplace_rope_npu(
     query: torch.Tensor,
     key: torch.Tensor,
@@ -1457,7 +1736,110 @@ def welmv4_inplace_rope_npu(
         and query.shape[0] == N
         and key.shape[0] == N
     )
-    if use_contiguous_mirror:
+    use_head_parallel = num_q_heads != 6
+    num_q_head_groups = num_q_heads // 2
+    num_head_groups = num_k_heads + num_q_head_groups
+    if use_contiguous_mirror and use_head_parallel:
+        num_token_blocks = triton.cdiv(N, _WELMV4_ROPE_PREFILL_TOKEN_BLOCK)
+        num_q_tasks = BS * num_q_head_groups
+        num_tasks = num_q_tasks + num_token_blocks * num_k_heads
+        num_sms = min(num_tasks, _get_num_sms())
+        _welmv4_inplace_rope_head_parallel_mirror_kernel_npu[(num_sms,)](
+            query,
+            key,
+            positions,
+            cos_sin_cache,
+            last_index,
+            None,
+            num_q_tasks,
+            num_tasks,
+            N,
+            query.stride(0),
+            key.stride(0),
+            head_dim,
+            rope_dim,
+            _WELMV4_ROPE_PREFILL_TOKEN_BLOCK,
+            False,
+            N % _WELMV4_ROPE_PREFILL_TOKEN_BLOCK != 0,
+            num_q_heads,
+            num_k_heads,
+            multibuffer=True,
+        )
+    elif use_segmented_mirror and use_head_parallel:
+        num_segment_tiles = segment_tile_starts.numel() - 1
+        num_q_tasks = BS * num_q_head_groups
+        num_tasks = num_q_tasks + num_segment_tiles * num_k_heads
+        num_sms = min(num_tasks, _get_num_sms())
+        _welmv4_inplace_rope_head_parallel_mirror_kernel_npu[(num_sms,)](
+            query,
+            key,
+            positions,
+            cos_sin_cache,
+            last_index,
+            segment_tile_starts,
+            num_q_tasks,
+            num_tasks,
+            N,
+            query.stride(0),
+            key.stride(0),
+            head_dim,
+            rope_dim,
+            _WELMV4_ROPE_PREFILL_TOKEN_BLOCK,
+            True,
+            True,
+            num_q_heads,
+            num_k_heads,
+            multibuffer=True,
+        )
+    elif use_segmented_prefill and use_head_parallel:
+        num_segment_tiles = segment_tile_starts.numel() - 1
+        num_tasks = num_segment_tiles * num_head_groups
+        num_sms = min(num_tasks, _get_num_sms())
+        _welmv4_inplace_rope_head_parallel_prefill_kernel_npu[(num_sms,)](
+            query,
+            key,
+            positions,
+            cos_sin_cache,
+            segment_tile_starts,
+            num_tasks,
+            N,
+            query.stride(0),
+            key.stride(0),
+            head_dim,
+            rope_dim,
+            _WELMV4_ROPE_PREFILL_TOKEN_BLOCK,
+            True,
+            2,
+            num_q_heads,
+            num_k_heads,
+            multibuffer=True,
+        )
+    elif use_blocked_prefill and use_head_parallel:
+        prefill_masked = N % _WELMV4_ROPE_PREFILL_TOKEN_BLOCK != 0
+        num_token_blocks = triton.cdiv(N, _WELMV4_ROPE_PREFILL_TOKEN_BLOCK)
+        num_tasks = num_token_blocks * num_head_groups
+        num_sms = min(num_tasks, _get_num_sms())
+        position_mode = 1 if positions_are_contiguous else 0
+        _welmv4_inplace_rope_head_parallel_prefill_kernel_npu[(num_sms,)](
+            query,
+            key,
+            positions,
+            cos_sin_cache,
+            None,
+            num_tasks,
+            N,
+            query.stride(0),
+            key.stride(0),
+            head_dim,
+            rope_dim,
+            _WELMV4_ROPE_PREFILL_TOKEN_BLOCK,
+            prefill_masked,
+            position_mode,
+            num_q_heads,
+            num_k_heads,
+            multibuffer=True,
+        )
+    elif use_contiguous_mirror:
         num_token_blocks = triton.cdiv(N, _WELMV4_ROPE_PREFILL_TOKEN_BLOCK)
         num_sms = min(num_token_blocks, _get_num_sms())
         _welmv4_inplace_rope_contiguous_mirror_kernel_npu[(num_sms,)](
