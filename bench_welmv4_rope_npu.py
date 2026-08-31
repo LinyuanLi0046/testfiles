@@ -516,6 +516,13 @@ def primary_kernel_name(provider: str, case: RopeCase) -> str:
         )
         <= candidate_ops._get_num_sms()
     )
+    candidate_shared_cache_contiguous_prefill = (
+        candidate_head_parallel
+        and case.family == "contiguous_prefill"
+        and blocked
+        and (case.n + block - 1) // block
+        >= 4 * candidate_ops._get_num_sms()
+    )
     if candidate_small_segmented_generic:
         return "_welmv4_inplace_rope_kernel_npu"
     if candidate_head_parallel and (
@@ -529,6 +536,7 @@ def primary_kernel_name(provider: str, case: RopeCase) -> str:
         and case.family != "segmented_prefill"
         and blocked
         and candidate_head_parallel
+        and not candidate_shared_cache_contiguous_prefill
         and case.n % block == 0
     ):
         return "_welmv4_inplace_rope_head_parallel_prefill_kernel_npu"
