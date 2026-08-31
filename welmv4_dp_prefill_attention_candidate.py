@@ -4435,8 +4435,6 @@ def swa_paged_prefill_impl(
             SINK_ENABLED=sink_enabled,
             enable_dynamic_cv_pipeline=True,
             enable_cube_block_merge=True,
-            enable_buffer_insert_optimization=True,
-            enable_ub_refine_opt=True,
         )
     else:
         _swa_paged_prefill_sink_kernel[grid](
