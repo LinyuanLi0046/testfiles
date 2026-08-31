@@ -697,8 +697,12 @@ def paged_prefill_small_q_grouped_kernel(
         "grouped WeLM small-Q prefill must pad all token/head rows",
     )
     tl.static_assert(
-        BLOCK_SIZE_M == 16 or BLOCK_SIZE_M == 32 or BLOCK_SIZE_M == 64,
-        "grouped WeLM small-Q prefill uses Cube-aligned M=16/32/64",
+        BLOCK_SIZE_M >= 16,
+        "grouped WeLM small-Q prefill requires at least one Cube M tile",
+    )
+    tl.static_assert(
+        BLOCK_SIZE_M <= 64,
+        "grouped WeLM small-Q prefill is bounded to M64 for UB capacity",
     )
 
     pid = tl.program_id(0)
