@@ -1,7 +1,7 @@
-case,workload_id,family,topology,dp_attention_size,context_length,speculative_width,n,batch_size,q_rows,local_q_heads,local_kv_heads,rotated_values,status,reason
-segmented_mirror_n4096_b16_ctx4096_tp4,segmented_mirror_n4096_b16_ctx4096,segmented_mirror,tp4,1,4096,1,4096,16,16,6,1,268288,ERROR,missing msprof measurement
-segmented_mirror_n4096_b16_ctx4096_tp4_dp2,segmented_mirror_n4096_b16_ctx4096,segmented_mirror,tp4_dp2,2,4096,1,4096,16,16,12,1,274432,ERROR,missing msprof measurement
-segmented_mirror_n4096_b16_ctx4096_tp4_dp4,segmented_mirror_n4096_b16_ctx4096,segmented_mirror,tp4_dp4,4,4096,1,4096,16,16,24,2,548864,ERROR,missing msprof measurement
-segmented_mirror_n16896_b16_ctx16896_tp4,segmented_mirror_n16896_b16_ctx16896,segmented_mirror,tp4,1,16896,1,16896,16,16,6,1,1087488,ERROR,missing msprof measurement
-segmented_mirror_n16896_b16_ctx16896_tp4_dp2,segmented_mirror_n16896_b16_ctx16896,segmented_mirror,tp4_dp2,2,16896,1,16896,16,16,12,1,1093632,ERROR,missing msprof measurement
-segmented_mirror_n16896_b16_ctx16896_tp4_dp4,segmented_mirror_n16896_b16_ctx16896,segmented_mirror,tp4_dp4,4,16896,1,16896,16,16,24,2,2187264,ERROR,missing msprof measurement
+case,workload_id,family,topology,dp_attention_size,context_length,speculative_width,n,batch_size,q_rows,local_q_heads,local_kv_heads,rotated_values,status,baseline_kernel,candidate_kernel,baseline_p50_us,candidate_p50_us,speedup_vs_baseline,candidate_us_per_rotated_value,minimum_case_speedup,effective_minimum_case_speedup,normalized_cost_ratio_vs_tp4,maximum_normalized_cost_ratio_vs_tp4,normalized_efficiency_pass,reason
+segmented_mirror_n4096_b16_ctx4096_tp4,segmented_mirror_n4096_b16_ctx4096,segmented_mirror,tp4,1,4096,1,4096,16,16,6,1,268288,PASS,_welmv4_inplace_rope_segmented_mirror_kernel_npu,_welmv4_inplace_rope_segmented_mirror_kernel_npu,16.223,16.288,0.9960093320235756,6.071087786259542e-05,1.0,0.98,1.0,1.05,True,
+segmented_mirror_n4096_b16_ctx4096_tp4_dp2,segmented_mirror_n4096_b16_ctx4096,segmented_mirror,tp4_dp2,2,4096,1,4096,16,16,12,1,274432,ERROR,,,,,,,,,,,,missing msprof measurement
+segmented_mirror_n4096_b16_ctx4096_tp4_dp4,segmented_mirror_n4096_b16_ctx4096,segmented_mirror,tp4_dp4,4,4096,1,4096,16,16,24,2,548864,ERROR,,,,,,,,,,,,missing msprof measurement
+segmented_mirror_n16896_b16_ctx16896_tp4,segmented_mirror_n16896_b16_ctx16896,segmented_mirror,tp4,1,16896,1,16896,16,16,6,1,1087488,PASS,_welmv4_inplace_rope_segmented_mirror_kernel_npu,_welmv4_inplace_rope_segmented_mirror_kernel_npu,19.684,19.646999,1.0018832901655872,1.8066405330449624e-05,1.0,0.98,1.0,1.05,True,
+segmented_mirror_n16896_b16_ctx16896_tp4_dp2,segmented_mirror_n16896_b16_ctx16896,segmented_mirror,tp4_dp2,2,16896,1,16896,16,16,12,1,1093632,ERROR,,,,,,,,,,,,missing msprof measurement
+segmented_mirror_n16896_b16_ctx16896_tp4_dp4,segmented_mirror_n16896_b16_ctx16896,segmented_mirror,tp4_dp4,4,16896,1,16896,16,16,24,2,2187264,ERROR,,,,,,,,,,,,missing msprof measurement
