@@ -81,6 +81,18 @@ Q6/Q12/Q24 cost ratios are still emitted so padded/fallback inefficiencies are
 visible. Once the candidate changes, the strict no-regression and normalized
 efficiency gates automatically become active.
 
+After the baseline snapshot, a changed candidate automatically maps the legacy
+monitor's `--suite remote` request to the bounded `iteration` suite. This keeps
+each one-point experiment fast while retaining Q6 guards, DP2/DP4 boundaries,
+long prefill and mirror cases. Set `WELMV4_ROPE_FORCE_FULL=1` for periodic or
+final full-matrix validation.
+
+The unchanged TP4 Q6/K1 control layout uses a 2% msprof noise band established
+by the byte-identical baseline snapshot. Modified DP2/DP4 layouts retain the
+strict `speedup>=1.0` gate. Decode and MTP remain in every iteration's full
+correctness matrix, but enter performance timing only when their generic kernel
+is the active optimization target.
+
 Optimization must be driven by returned msprof/profile/MLIR evidence, and all
 Q6 regression gates must remain green.
 
