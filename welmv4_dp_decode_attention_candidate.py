@@ -3136,6 +3136,7 @@ def _swa_paged_decode_sink_dp4_page128_kernel(
 
 @triton.jit(
     do_not_specialize=[
+        "BATCH_SIZE",
         "block_tables_ptr",
         "stride_bt_batch",
     ]
@@ -3177,6 +3178,7 @@ def _swa_paged_decode_sink_kernel(
     BLOCK_SIZE_D: tl.constexpr,
     BLOCK_SIZE_N: tl.constexpr,
     SINK_ENABLED: tl.constexpr,
+    CONTIGUOUS_TASKS: tl.constexpr,
 ):
     GROUP_SIZE: tl.constexpr = NUM_Q_HEADS // NUM_KV_HEADS
     tl.static_assert(HEAD_DIM <= BLOCK_SIZE_D, "HEAD_DIM should be <= BLOCK_SIZE_D")
@@ -3187,9 +3189,23 @@ def _swa_paged_decode_sink_kernel(
 
     num_tasks = BATCH_SIZE * NUM_KV_HEADS
 
-    for kv_task_id in range(pid, num_tasks, n_progs):
-        kv_head_id = kv_task_id % NUM_KV_HEADS
+    if CONTIGUOUS_TASKS:
+        base_tasks = num_tasks // n_progs
+        extra_tasks = num_tasks - base_tasks * n_progs
+        task_begin = pid * base_tasks + tl.minimum(pid, extra_tasks)
+        task_count = base_tasks + (
+            pid.to(tl.float32) < extra_tasks.to(tl.float32)
+        ).to(tl.int32)
+        task_end = task_begin + task_count
+        task_stride = 1
+    else:
+        task_begin = pid
+        task_end = num_tasks
+        task_stride = n_progs
+
+    for kv_task_id in range(task_begin, task_end, task_stride):
         b_id = kv_task_id // NUM_KV_HEADS
+        kv_head_id = kv_task_id - b_id * NUM_KV_HEADS
 
         kv_seq_len = tl.load(seqlens_ptr + b_id)
 
@@ -3685,7 +3701,7 @@ def swa_paged_decode_impl(
     #   under swa, the kv workload is rather evenly across diffrent queries,
     #   so we have low necessity to apply split-kv strategy
 
-    use_dp4_page128 = (
+    use_dp4_contiguous_tasks = (
         num_q_heads == 24
         and num_kv_heads == 2
         and page_size == 64
@@ -3721,32 +3737,20 @@ def swa_paged_decode_impl(
         sinks_pass.stride(0),
         softmax_scale,
     )
-    if use_dp4_page128:
-        _swa_paged_decode_sink_dp4_page128_kernel[grid](
-            *common_args,
-            NUM_Q_HEADS=num_q_heads,
-            NUM_KV_HEADS=num_kv_heads,
-            GQA_INTERLEAVE=gqa_interleave,
-            HEAD_DIM=head_dim,
-            PAGE_SIZE=page_size,
-            BLOCK_SIZE_D=BLOCK_SIZE_D,
-            SINK_ENABLED=sink_enabled,
-            multibuffer=False,
-        )
-    else:
-        _swa_paged_decode_sink_kernel[grid](
-            *common_args,
-            GLOBAL_WINDOW=global_window_size,
-            LOCAL_WINDOW=local_window_size,
-            NUM_Q_HEADS=num_q_heads,
-            NUM_KV_HEADS=num_kv_heads,
-            GQA_INTERLEAVE=gqa_interleave,
-            HEAD_DIM=head_dim,
-            PAGE_SIZE=page_size,
-            BLOCK_SIZE_D=BLOCK_SIZE_D,
-            BLOCK_SIZE_N=BLOCK_SIZE_N,
-            SINK_ENABLED=sink_enabled,
-        )
+    _swa_paged_decode_sink_kernel[grid](
+        *common_args,
+        GLOBAL_WINDOW=global_window_size,
+        LOCAL_WINDOW=local_window_size,
+        NUM_Q_HEADS=num_q_heads,
+        NUM_KV_HEADS=num_kv_heads,
+        GQA_INTERLEAVE=gqa_interleave,
+        HEAD_DIM=head_dim,
+        PAGE_SIZE=page_size,
+        BLOCK_SIZE_D=BLOCK_SIZE_D,
+        BLOCK_SIZE_N=BLOCK_SIZE_N,
+        SINK_ENABLED=sink_enabled,
+        CONTIGUOUS_TASKS=use_dp4_contiguous_tasks,
+    )
     return o
 
 
