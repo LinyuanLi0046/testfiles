@@ -1,11 +1,11 @@
-time: 2026-09-01T12:59:29+08:00
-command: /usr/local/python3.11.10/bin/python bench_welmv4_dp_attention_npu.py --suite remote --mode both --device npu:1 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_dp_attn_result_cms8j1eq
+time: 2026-09-01T13:03:24+08:00
+command: /usr/local/python3.11.10/bin/python bench_welmv4_dp_attention_npu.py --suite remote --mode both --device npu:1 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_dp_attn_result_nefqlsyz
 return_code: 3
 reason: benchmark exited with status 3; manifest_status=ERROR
 
 ===== stdout + stderr =====
 WeLMv4 NPU Full/SWA DP-Attention optimization workspace
-device=npu:1 (Ascend950PR_957b), base=151ea24d6db8, baseline={'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}, candidate={'prefill': 'd8d94e75bea451908cd0b58b60c08503c030cf5d15e491d7694f6706aa094a90', 'decode': 'c52b868911df72e80b41ec39470f6184aab830d1c125d2b7b5c6c0a65227a27e'}
+device=npu:1 (Ascend950PR_957b), base=06a0af6ac458, baseline={'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}, candidate={'prefill': 'd8d94e75bea451908cd0b58b60c08503c030cf5d15e491d7694f6706aa094a90', 'decode': 'dc47cf0d1f32db17351fd9a2535746710139309f6bb030765f65c6f67094f9d9'}
 [msprof-op batch] provider=baseline, kernel=_swa_paged_decode_sink_kernel, cases=1
 [msprof-op batch] provider=candidate, kernel=_swa_paged_decode_sink_dp4_page128_kernel, cases=1
-result=ERROR; manifest=/data2/hw_lly/testfiles/welm_dp_attn_result_cms8j1eq/result.json
+result=ERROR; manifest=/data2/hw_lly/testfiles/welm_dp_attn_result_nefqlsyz/result.json
