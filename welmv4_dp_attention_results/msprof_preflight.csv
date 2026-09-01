@@ -1,3 +1,112 @@
-attention,baseline_sha256,batch_size,benchmark_base,block_table_width,cache_layout,candidate_sha256,cann_version,capture_returncode,case,causal,device,device_index,device_name,dp_size,draft_width,dtype,family,gqa_interleave,head_dim,kernel_name,kv_length,layout,length_pattern,m,max_kv_len_hint,max_q_len,min_runtime_kv_length,num_cube_cores,num_kv_heads,num_q_heads,num_vector_cores,page_size,path,provider,python_version,q_head_scale,record_type,runtime_kv_lens,runtime_q_lens,sample_count,schema_version,seed,sha256,sink_dtype,size_bytes,softmax_scale,status,swa_left_window,task_max_us,task_mean_us,task_min_us,task_p50_us,timing_authority,topology,torch_npu_version,torch_version,triton_version,workload_id,workspace_commit
-swa,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",1,55381345369baced1e62e914d994cb259da325b2,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'd8d94e75bea451908cd0b58b60c08503c030cf5d15e491d7694f6706aa094a90', 'decode': 'fa252f55c7acb306712274ea94fa4c90d5a4407f3f0633dccd6124d516cfe922'}",9.1.0,0,swa_decode_m1_b1_kv4096_ragged_tp4_dp4,True,npu:1,1,Ascend950PR_957b,4,,bfloat16,decode,False,256,_swa_paged_decode_sink_kernel,4096,tp4_dp4,ragged,1,4079,1,4079,28,2,24,56,64,msprof_preflight/msprof/baseline/_swa_paged_decode_sink_kernel.log.gz,baseline,3.11.10,4.0,msprof_kernel_component,[4079],[1],3,1,20260829,fa47ecaf9ffdbdf9b6a6a3ac49725a6ede1140a190e7554147d957dd0802589a,float32,1378,0.09119556747428784,MEASURED,511,9.991,9.937666666666667,9.853,9.969,msprof_op_task_duration_acceptance,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,swa_decode_m1_b1_kv4096_ragged,55381345369baced1e62e914d994cb259da325b2
-swa,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",1,55381345369baced1e62e914d994cb259da325b2,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'd8d94e75bea451908cd0b58b60c08503c030cf5d15e491d7694f6706aa094a90', 'decode': 'fa252f55c7acb306712274ea94fa4c90d5a4407f3f0633dccd6124d516cfe922'}",9.1.0,0,swa_decode_m1_b1_kv4096_ragged_tp4_dp4,True,npu:1,1,Ascend950PR_957b,4,,bfloat16,decode,False,256,_swa_paged_decode_sink_kernel,4096,tp4_dp4,ragged,1,4079,1,4079,28,2,24,56,64,msprof_preflight/msprof/candidate/_swa_paged_decode_sink_kernel.log.gz,candidate,3.11.10,4.0,msprof_kernel_component,[4079],[1],3,1,20260829,fb8e38dcbfe361d40fe96ba2ee32d381229c073dbeebc7145340dc51d07470a4,float32,1379,0.09119556747428784,MEASURED,511,10.984,10.462,9.478,10.924,msprof_op_task_duration_acceptance,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,swa_decode_m1_b1_kv4096_ragged,55381345369baced1e62e914d994cb259da325b2
+attention,baseline_sha256,batch_size,benchmark_base,block_table_width,cache_layout,candidate_sha256,cann_version,capture_log_tail,capture_returncode,case,causal,device,device_index,device_name,dp_size,draft_width,dtype,family,gqa_interleave,head_dim,kernel_name,kv_length,layout,length_pattern,m,max_kv_len_hint,max_q_len,min_runtime_kv_length,num_cube_cores,num_kv_heads,num_q_heads,num_vector_cores,page_size,path,provider,python_version,q_head_scale,record_type,runtime_kv_lens,runtime_q_lens,sample_count,schema_version,seed,sha256,sink_dtype,size_bytes,softmax_scale,status,swa_left_window,task_max_us,task_mean_us,task_min_us,task_p50_us,timing_authority,topology,torch_npu_version,torch_version,triton_version,workload_id,workspace_commit
+swa,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",1,744d2dfa6117ea2933933ba0ac545606d3c663de,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'd8d94e75bea451908cd0b58b60c08503c030cf5d15e491d7694f6706aa094a90', 'decode': '9bce6729f98a66a64a8ddcdaded89c6ecec3261e7f1ef121413263633ad142d4'}",9.1.0,,0,swa_decode_m1_b1_kv4096_ragged_tp4_dp4,True,npu:1,1,Ascend950PR_957b,4,,bfloat16,decode,False,256,_swa_paged_decode_sink_kernel,4096,tp4_dp4,ragged,1,4079,1,4079,28,2,24,56,64,msprof_preflight/msprof/baseline/_swa_paged_decode_sink_kernel.log.gz,baseline,3.11.10,4.0,msprof_kernel_component,[4079],[1],3,1,20260829,829a62d56c0d8089f1be12ce3abe457b01e698421597cdbd96f0919e7043c07c,float32,1380,0.09119556747428784,MEASURED,511,10.022,9.972333333333333,9.928,9.967,msprof_op_task_duration_acceptance,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,swa_decode_m1_b1_kv4096_ragged,744d2dfa6117ea2933933ba0ac545606d3c663de
+swa,"{'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}",1,744d2dfa6117ea2933933ba0ac545606d3c663de,64,native_NHD_then_page_head_token_dim_permute,"{'prefill': 'd8d94e75bea451908cd0b58b60c08503c030cf5d15e491d7694f6706aa094a90', 'decode': '9bce6729f98a66a64a8ddcdaded89c6ecec3261e7f1ef121413263633ad142d4'}",9.1.0,"expected 4 ordered durations, got 1; ordering_error=None; discovered=['', '_swa_paged_decode_sink_dp4_pair64_kernel_mix_aic']
+=================================================================
+                   >>>>>   MindStudio   <<<<<
+    THE END-TO-END TOOLCHAIN TO UNLEASH HUAWEI ASCEND COMPUTE
+=================================================================
+
+[W901 13:23:13.915570797 FunctionLoader.cpp:48] Warning: LD_PRELOAD detected, FunctionLoader prefers RTLD_DEFAULT for symbol resolution. (function operator())
+[WARN]  Currently, the root permission is used, which is unrecommended. Please ensure the security of the execution environment and programs.
+[INFO]  Op profiling analysis start.
+[INFO]  Running device task: DeviceProf
+[INFO]  Kernel OnesLike_BOOL_high_performance_13 skipped: not selected via --kernel-name.
+[INFO]  Kernel Tril_93b3f8e9594b4018902b635fff3a83c5_high_performance_21 skipped: not selected via --kernel-name.
+[INFO]  Kernel StatelessNormal_9c8573a88cba4fd81bb9851413a4ebba_high_performance_100_mix_aiv skipped: not selected via --kernel-name.
+[INFO]  Kernel StatelessNormal_9c8573a88cba4fd81bb9851413a4ebba_high_performance_100_mix_aiv skipped: not selected via --kernel-name.
+[INFO]  Kernel Fill_INT64_BFLOAT16_high_performance_101 skipped: not selected via --kernel-name.
+[INFO]  Kernel Fill_INT64_BFLOAT16_high_performance_101 skipped: not selected via --kernel-name.
+[INFO]  Kernel StatelessNormal_9c8573a88cba4fd81bb9851413a4ebba_high_performance_100_mix_aiv skipped: not selected via --kernel-name.
+[INFO]  Kernel LinSpace_54f1d1caf8fe36c496f699fefe98fbca_high_performance_1002 skipped: not selected via --kernel-name.
+/data2/hw_lly/testfiles/welmv4_dp_decode_attention_candidate.py:3699: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:423.)
+  o = torch.empty_like(q, memory_format=torch.contiguous_format)
+[INFO] <ProfData> Start profiling on device 1, kernel: _swa_paged_decode_sink_dp4_pair64_kernel_mix_aic
+[WARN] <RunDbiRecordTask> Operand record kernel launch failed, ret is 507015.
+[WARN] <GenerateOrderingFile> dump probe symbols failed.
+[WARN] <Convert> generate link ordering file failed
+[ERROR] <PrepareDbiTask> Stub run failed, dbi mode is 7
+[ERROR] <MemCopyWithStream> aclrtSynchronizeStreamImpl failed. ret=507015
+[INFO] <ProfData> memoryContext failed!
+[WARN] <RunDbiRecordTask> Operand record kernel launch failed, ret is 507015.
+[WARN] <GenerateOrderingFile> dump probe symbols failed.
+[WARN] <Convert> generate link ordering file failed
+[ERROR] <PrepareDbiTask> Stub run failed, dbi mode is 7
+terminate called after throwing an instance of 'c10::Error'
+  what():  InnerRun:../torch_npu/csrc/framework/OpParamMaker.cpp:200 NPU function error: device error type 3, error code is 507015
+[ERROR] 2026-09-01-13:23:29 (PID:2750312, Device:1, RankID:-1) ERR00100 PTA call acl api failed
+Exception raised from InnerRun at ../torch_npu/csrc/framework/OpParamMaker.cpp:200 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x7f7098140f6d in /usr/local/python3.11.10/lib/python3.11/site-packages/torch/lib/libc10.so)
+frame #1: c10::detail::torchCheckFail(char const*, char const*, unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) + 0xc3 (0x7f70980d63a1 in /usr/local/python3.11.10/lib/python3.11/site-packages/torch/lib/libc10.so)
+frame #2: <unknown function> + 0x5778810 (0x7f6fdd7b5810 in /usr/local/python3.11.10/lib/python3.11/site-packages/torch_npu/lib/libtorch_npu.so)
+frame #3: <unknown function> + 0x577c0a2 (0x7f6fdd7b90a2 in /usr/local/python3.11.10/lib/python3.11/site-packages/torch_npu/lib/libtorch_npu.so)
+frame #4: at_npu::native::OpCommand::Run() + 0xb3 (0x7f6fdd7a2ad3 in /usr/local/python3.11.10/lib/python3.11/site-packages/torch_npu/lib/libtorch_npu.so)
+frame #5: triton_async_launch + 0xc3 (0x7f6f83970743 in /root/.triton/cache/qSQE4Gjv-gPv1ev8lxPAVg/npu_utils.so)
+frame #6: <unknown function> + 0x14476 (0x7f707e3eb476 in /root/.triton/cache/80E7_pddecUspj7MAj7zOe-WZGD3WjhhltYlkUDbCjE/launcher_cxx11abi1.cpython-311-x86_64-linux-gnu.so)
+frame #7: <unknown function> + 0x13a07 (0x7f707e3eaa07 in /root/.triton/cache/80E7_pddecUspj7MAj7zOe-WZGD3WjhhltYlkUDbCjE/launcher_cxx11abi1.cpython-311-x86_64-linux-gnu.so)
+<omitting python frames>
+frame #30: <unknown function> + 0x23ad0 (0x7f709a52ead0 in /usr/lib64/libc.so.6)
+frame #31: __libc_start_main + 0x89 (0x7f709a52eb89 in /usr/lib64/libc.so.6)
+frame #32: _start + 0x25 (0x401075 in /usr/local/python3.11.10/bin/python)
+
+[WARN]  Child process killed by signal 6
+[ERROR] Get profiling data failed.
+[WARN]  Profiling running finished. May cause generating performance files to fail.
+[WARN]  Running task failed, data parsing start
+[INFO]  Start analyze kernel on device: device1, kernel: _swa_paged_decode_sink_dp4_pair64_kernel_mix_aic, name is: 0
+[INFO]  Save profiling data with metric [PipeUtilization] success.
+[INFO]  Save profiling data with metric [ArithmeticUtilization] success.
+[INFO]  Save profiling data with metric [L2Cache] success.
+[INFO]  Save profiling data with metric [Memory] success.
+[INFO]  Save profiling data with metric [ResourceConflictRatio] success.
+[INFO]  Save profiling data with metric [MemoryL0] success.
+[INFO]  Save profiling data with metric [MemoryUB] success.
+[INFO]  Performance Summary Report:
+
+	1) aicore MTE1 bandwidth utilization lower than 80% when active.
+	2) aicore MTE2 bandwidth utilization lower than 80% when active.
+	3) aicore MTE3 bandwidth utilization lower than 80% when active.
+	4) aicore compute usage lower than 20%.
+	5) aivector MTE2 bandwidth utilization lower than 80% when active.
+
+[INFO]  Operator Basic Information:
+
+	Op Name: _swa_paged_decode_sink_dp4_pair64_kernel_mix_aic
+	Op Type: mix
+	Task Duration(us): 14.097000
+	Block Dim: 28
+	Mix Block Dim: 56
+	Device Id: 1
+	Pid: 2750312
+	Current Freq: 1650
+	Rated Freq: 1650
+
+[INFO]  Start analyze kernel on device: device1, kernel: _swa_paged_decode_sink_dp4_pair64_kernel_mix_aic, name is: 1
+[WARN]  Access [/tmp/welm_attn_msprof_p9en8lc3/OPPROF_20260901132312_FPVGWEYDOWMZNWAK/device1/_swa_paged_decode_sink_dp4_pair64_kernel_mix_aic/1/dump/op_basic_info.txt] failed. Maybe do not contain this file or it is not readable. Please check.
+[WARN]  Failed to analyze op basic info
+[WARN]  Access profiling data file [/tmp/welm_attn_msprof_p9en8lc3/OPPROF_20260901132312_FPVGWEYDOWMZNWAK/device1/_swa_paged_decode_sink_dp4_pair64_kernel_mix_aic/1/dump/DeviceProf1.bin] failed, maybe do not contain this file or it is not readable. Some indicators of [l2cache,occupancy,roofline] failed to be collected.
+[WARN]  Access profiling data file [/tmp/welm_attn_msprof_p9en8lc3/OPPROF_20260901132312_FPVGWEYDOWMZNWAK/device1/_swa_paged_decode_sink_dp4_pair64_kernel_mix_aic/1/dump/DeviceProf2.bin] failed, maybe do not contain this file or it is not readable. Some indicators of [arithmeticutilization,l2cache,memory,occupancy,pipeutilization,resourceconflictratio,roofline] failed to be collected.
+[WARN]  Access profiling data file [/tmp/welm_attn_msprof_p9en8lc3/OPPROF_20260901132312_FPVGWEYDOWMZNWAK/device1/_swa_paged_decode_sink_dp4_pair64_kernel_mix_aic/1/dump/DeviceProf3.bin] failed, maybe do not contain this file or it is not readable. Some indicators of [memory,memoryl0,memoryub,occupancy,pipeutilization,roofline] failed to be collected.
+[WARN]  Access profiling data file [/tmp/welm_attn_msprof_p9en8lc3/OPPROF_20260901132312_FPVGWEYDOWMZNWAK/device1/_swa_paged_decode_sink_dp4_pair64_kernel_mix_aic/1/dump/DeviceProf4.bin] failed, maybe do not contain this file or it is not readable. Some indicators of [memory,memoryl0,memoryub,pipeutilization,roofline] failed to be collected.
+[WARN]  Access profiling data file [/tmp/welm_attn_msprof_p9en8lc3/OPPROF_20260901132312_FPVGWEYDOWMZNWAK/device1/_swa_paged_decode_sink_dp4_pair64_kernel_mix_aic/1/dump/DeviceProf5.bin] failed, maybe do not contain this file or it is not readable. Some indicators of [pipeutilization,resourceconflictratio] failed to be collected.
+[WARN]  Access profiling data file [/tmp/welm_attn_msprof_p9en8lc3/OPPROF_20260901132312_FPVGWEYDOWMZNWAK/device1/_swa_paged_decode_sink_dp4_pair64_kernel_mix_aic/1/dump/DeviceProf6.bin] failed, maybe do not contain this file or it is not readable. Some indicators of [arithmeticutilization,memory,occupancy,pipeutilization] failed to be collected.
+[WARN]  Failed to analyze metric data.
+[WARN]  Access [/tmp/welm_attn_msprof_p9en8lc3/OPPROF_20260901132312_FPVGWEYDOWMZNWAK/device1/_swa_paged_decode_sink_dp4_pair64_kernel_mix_aic/1/dump/duration.bin] failed. Maybe do not contain this file or it is not readable. Please check.
+[INFO]  Operator Basic Information:
+
+	Op Name: 
+	Op Type: vector
+	Task Duration(us): 0.000000
+	Block Dim: 
+	Mix Block Dim: 
+	Device Id: 
+	Pid: 
+	Current Freq: 
+	Rated Freq: 
+
+[ERROR] Analyzing kernel data failed, device: device1, kernel: _swa_paged_decode_sink_dp4_pair64_kernel_mix_aic, name is: 1
+[WARN]  Parsing /tmp/welm_attn_msprof_p9en8lc3/OPPROF_20260901132312_FPVGWEYDOWMZNWAK/tmp_dump/tmp_2750312_20260901132328001994031 failed, which maybe empty or too many kernels.
+[INFO]  Profiling results saved in /tmp/welm_attn_msprof_p9en8lc3/OPPROF_20260901132312_FPVGWEYDOWMZNWAK
+[WARN]  Profiling kernels result is: 1 success, 1 failed. Please check
+[INFO]  Profiling data parse finished.
+[INFO]  Op profiling finish. Welcome to next use.
+",0,swa_decode_m1_b1_kv4096_ragged_tp4_dp4,True,npu:1,1,Ascend950PR_957b,4,,bfloat16,decode,False,256,_swa_paged_decode_sink_dp4_pair64_kernel,4096,tp4_dp4,ragged,1,4079,1,4079,28,2,24,56,64,msprof_preflight/msprof/candidate/_swa_paged_decode_sink_dp4_pair64_kernel.log.gz,candidate,3.11.10,4.0,msprof_kernel_component,[4079],[1],,1,20260829,fceecca1198a57cbaff15ebf897c35d98f715fae0a15b38a78fa80592c3264bc,float32,2701,0.09119556747428784,ERROR,511,,,,,msprof_op_task_duration,decode,2.10.0.post4.dev20260715,2.10.0+cpu,3.2.0,swa_decode_m1_b1_kv4096_ragged,744d2dfa6117ea2933933ba0ac545606d3c663de
