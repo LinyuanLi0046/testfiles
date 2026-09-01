@@ -3707,7 +3707,7 @@ def swa_paged_decode_impl(
     #   under swa, the kv workload is rather evenly across diffrent queries,
     #   so we have low necessity to apply split-kv strategy
 
-    use_dp4_pair64 = (
+    use_dp4_pipeline = (
         num_q_heads == 24
         and num_kv_heads == 2
         and page_size == 64
@@ -3743,16 +3743,22 @@ def swa_paged_decode_impl(
         sinks_pass.stride(0),
         softmax_scale,
     )
-    if use_dp4_pair64:
-        _swa_paged_decode_sink_dp4_pair64_kernel[grid](
+    if use_dp4_pipeline:
+        _swa_paged_decode_sink_kernel[grid](
             *common_args,
+            GLOBAL_WINDOW=global_window_size,
+            LOCAL_WINDOW=local_window_size,
             NUM_Q_HEADS=num_q_heads,
             NUM_KV_HEADS=num_kv_heads,
             GQA_INTERLEAVE=gqa_interleave,
             HEAD_DIM=head_dim,
             PAGE_SIZE=page_size,
             BLOCK_SIZE_D=BLOCK_SIZE_D,
+            BLOCK_SIZE_N=BLOCK_SIZE_N,
             SINK_ENABLED=sink_enabled,
+            CONTIGUOUS_TASKS=True,
+            enable_dynamic_cv_pipeline=True,
+            enable_cube_block_merge=True,
         )
     else:
         _swa_paged_decode_sink_kernel[grid](
