@@ -154,6 +154,8 @@ def expected_kernel_names(
 
     if case.family == "decode":
         if case.attention == "swa":
+            if provider == "candidate" and case.layout == "tp4_dp4":
+                return ("_swa_paged_decode_sink_dp4_page128_kernel",)
             return ("_swa_paged_decode_sink_kernel",)
         group_size = case.local_num_q_heads // case.local_num_kv_heads
         loop_times = case.real_batch_size * case.local_num_kv_heads
@@ -1342,10 +1344,10 @@ def main() -> int:
     # Fail fast on msprof command/kernel-name/parser problems before compiling
     # and validating the much larger iteration matrix.
     if args.capture_msprof_op == "on":
-        # Exercise both production source families and both attention kinds
-        # before entering the long matrix. This also covers Full decode's
-        # two-component FD path, so msprof/parser failures stop within minutes.
-        preflight_cases = suite_cases("smoke", "correctness")[:4]
+        # Exercise the selected workspace target before entering its matrix.
+        # Focused optimization suites must not spend time compiling unrelated
+        # attention families merely to validate the msprof plumbing.
+        preflight_cases = select_phase_cases(args, "correctness")[:1]
         preflight_dir = output_dir / "msprof_preflight"
         preflight_rows, preflight_failures = capture_msprof_op(
             harness, preflight_cases, preflight_dir

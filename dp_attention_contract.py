@@ -9,7 +9,6 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -340,7 +339,7 @@ def deduplicate_cases(cases: Iterable[AttentionCase]) -> list[AttentionCase]:
 
 def suite_cases(suite: str, phase: str) -> list[AttentionCase]:
     if suite == "remote":
-        suite = "full" if os.environ.get("WELMV4_DP_ATTENTION_FORCE_FULL") == "1" else "iteration"
+        suite = "swa_dp4_decode"
     try:
         suite_config = CONFIG["suites"][suite]
     except KeyError as exc:

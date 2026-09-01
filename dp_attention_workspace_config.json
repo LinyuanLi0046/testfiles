@@ -148,6 +148,50 @@
         {"attention": "swa", "topology": "verify_d2", "layout": "tp4_dp4", "batch_size": 40, "kv_length": 4096}
       ]
     },
+    "swa_dp4_decode": {
+      "correctness_groups": [
+        {
+          "attention": ["swa"],
+          "layouts": ["tp4_dp4"],
+          "topology": "decode",
+          "batch_sizes": [1, 4, 8, 16, 32, 40, 56],
+          "kv_length": 4096,
+          "length_pattern": "ragged"
+        },
+        {
+          "attention": ["swa"],
+          "layouts": ["tp4_dp4"],
+          "topology": "decode",
+          "batch_sizes": [1, 56],
+          "kv_length": 16896,
+          "length_pattern": "ragged"
+        }
+      ],
+      "performance_groups": [
+        {
+          "attention": ["swa"],
+          "layouts": ["tp4", "tp4_dp4"],
+          "topology": "decode",
+          "batch_sizes": [1, 4, 8, 16, 32, 40, 56],
+          "kv_length": 4096,
+          "length_pattern": "ragged"
+        },
+        {
+          "attention": ["swa"],
+          "layouts": ["tp4", "tp4_dp4"],
+          "topology": "decode",
+          "batch_sizes": [1],
+          "kv_length": 16896,
+          "length_pattern": "ragged"
+        }
+      ],
+      "ir": [
+        {"attention": "swa", "topology": "decode", "layout": "tp4_dp4", "batch_size": 56, "kv_length": 4096, "length_pattern": "ragged"}
+      ],
+      "profile": [
+        {"attention": "swa", "topology": "decode", "layout": "tp4_dp4", "batch_size": 56, "kv_length": 4096, "length_pattern": "ragged"}
+      ]
+    },
     "full": {
       "correctness_groups": [
         {

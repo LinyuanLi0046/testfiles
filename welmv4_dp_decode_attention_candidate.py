@@ -2897,6 +2897,245 @@ def swa_paged_prefill_impl(
 # may have a different base alignment and row stride from the graph table.
 @triton.jit(
     do_not_specialize=[
+        "BATCH_SIZE",
+        "stride_bt_batch",
+    ]
+)
+def _swa_paged_decode_sink_dp4_page128_kernel(
+    q_ptr,
+    k_cache_ptr,
+    v_cache_ptr,
+    o_ptr,
+    seqlens_ptr,
+    block_tables_ptr,
+    sinks_ptr,
+    BATCH_SIZE,
+    stride_qb,
+    stride_qh,
+    stride_qd,
+    stride_k_block,
+    stride_k_head,
+    stride_k_blksz,
+    stride_k_dim,
+    stride_v_block,
+    stride_v_head,
+    stride_v_blksz,
+    stride_v_dim,
+    stride_ob,
+    stride_oh,
+    stride_od,
+    stride_bt_batch,
+    stride_bt_block,
+    stride_sink_head,
+    softmax_scale,
+    NUM_Q_HEADS: tl.constexpr,
+    NUM_KV_HEADS: tl.constexpr,
+    GQA_INTERLEAVE: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    PAGE_SIZE: tl.constexpr,
+    BLOCK_SIZE_D: tl.constexpr,
+    SINK_ENABLED: tl.constexpr,
+):
+    """DP4 SWA decode with two 64-token cache pages per QK/PV update."""
+    GROUP_SIZE: tl.constexpr = NUM_Q_HEADS // NUM_KV_HEADS
+    BLOCK_SIZE_N: tl.constexpr = 128
+    PAGE_AGGREGATION_NUM: tl.constexpr = 2
+    LOCAL_WINDOW: tl.constexpr = 511
+    tl.static_assert(GROUP_SIZE == 12, "DP4 page aggregation expects GQA group 12")
+    tl.static_assert(PAGE_SIZE == 64, "DP4 page aggregation expects page size 64")
+    tl.static_assert(HEAD_DIM <= BLOCK_SIZE_D, "HEAD_DIM should be <= BLOCK_SIZE_D")
+
+    pid = tl.program_id(0)
+    n_progs = tl.num_programs(0)
+    num_tasks = BATCH_SIZE * NUM_KV_HEADS
+    tasks_per_prog = tl.cdiv(num_tasks, n_progs)
+    task_begin = pid * tasks_per_prog
+    task_end = tl.minimum(task_begin + tasks_per_prog, num_tasks)
+
+    for kv_task_id in range(task_begin, task_end):
+        b_id = kv_task_id // NUM_KV_HEADS
+        kv_head_id = kv_task_id - b_id * NUM_KV_HEADS
+        kv_seq_len = tl.load(seqlens_ptr + b_id)
+
+        g_offsets = tl.arange(0, GROUP_SIZE)
+        if GQA_INTERLEAVE:
+            q_head_ids = kv_head_id + g_offsets * NUM_KV_HEADS
+        else:
+            q_head_ids = kv_head_id * GROUP_SIZE + g_offsets
+
+        offs_d = tl.arange(0, BLOCK_SIZE_D)
+        q_ptrs = (
+            q_ptr
+            + b_id * stride_qb
+            + q_head_ids[:, None] * stride_qh
+            + offs_d[None, :] * stride_qd
+        )
+        q = tl.load(
+            q_ptrs,
+            mask=offs_d[None, :].to(tl.float32) < HEAD_DIM,
+            other=0.0,
+        )
+
+        m_i = tl.zeros((GROUP_SIZE,), dtype=tl.float32)
+        l_i = tl.zeros((GROUP_SIZE,), dtype=tl.float32)
+        if SINK_ENABLED:
+            s_h = tl.load(
+                sinks_ptr + q_head_ids * stride_sink_head,
+                mask=q_head_ids.to(tl.float32) < NUM_Q_HEADS,
+                other=-float("inf"),
+            ).to(tl.float32)
+            m_i = m_i + s_h
+            l_i = l_i + 1.0
+        else:
+            m_i = m_i - float("inf")
+        acc = tl.zeros((GROUP_SIZE, BLOCK_SIZE_D), dtype=tl.float32)
+
+        # The WeLM SWA window contains the current token plus 511 history
+        # tokens.  Start at the containing 64-token page; the element mask
+        # removes the prefix before the exact ragged window boundary.
+        window_start = tl.maximum(kv_seq_len - (LOCAL_WINDOW + 1), 0)
+        first_page = window_start // PAGE_SIZE
+        num_pages = tl.cdiv(kv_seq_len, PAGE_SIZE)
+
+        for page_id in range(first_page, num_pages, PAGE_AGGREGATION_NUM):
+            block_start = page_id * PAGE_SIZE
+            k = tl.zeros(
+                (BLOCK_SIZE_N, BLOCK_SIZE_D),
+                dtype=k_cache_ptr.dtype.element_ty,
+            )
+
+            for page_iter in tl.extra.cann.extension.parallel(
+                0, PAGE_AGGREGATION_NUM
+            ):
+                current_page = page_id + page_iter
+                safe_page = tl.minimum(
+                    current_page,
+                    tl.maximum(num_pages - 1, 0),
+                )
+                physical_page_id = tl.load(
+                    block_tables_ptr
+                    + b_id * stride_bt_batch
+                    + safe_page * stride_bt_block
+                )
+                page_token_start = current_page * PAGE_SIZE
+                page_token_count = tl.maximum(
+                    tl.minimum(kv_seq_len - page_token_start, PAGE_SIZE),
+                    0,
+                )
+                k_page_ptr = tl.make_block_ptr(
+                    base=(
+                        k_cache_ptr
+                        + physical_page_id * stride_k_block
+                        + kv_head_id * stride_k_head
+                    ),
+                    shape=(page_token_count, HEAD_DIM),
+                    strides=(stride_k_blksz, stride_k_dim),
+                    offsets=(0, 0),
+                    block_shape=(PAGE_SIZE, BLOCK_SIZE_D),
+                    order=(1, 0),
+                )
+                k_page = tl.load(
+                    k_page_ptr,
+                    boundary_check=(0, 1),
+                    padding_option="zero",
+                )
+                k = tl.extra.cann.extension.insert_slice(
+                    k,
+                    k_page,
+                    offsets=(page_iter * PAGE_SIZE, 0),
+                    sizes=(PAGE_SIZE, BLOCK_SIZE_D),
+                    strides=(1, 1),
+                )
+
+            token_offsets = block_start + tl.arange(0, BLOCK_SIZE_N)
+            token_offsets_fp32 = token_offsets.to(tl.float32)
+            mask = (
+                token_offsets_fp32 >= window_start.to(tl.float32)
+            ) & (token_offsets_fp32 < kv_seq_len.to(tl.float32))
+            k_t = tl.trans(k)
+            qk = tl.dot(q, k_t)
+            qk = qk * softmax_scale + tl.where(
+                mask[None, :],
+                0.0,
+                -2.0**30,
+            )
+            m_ij = tl.maximum(
+                m_i,
+                tl.max(qk, 1, propagate_nan=True),
+                propagate_nan=tl.PropagateNan.ALL,
+            )
+            p = tl.math.exp(qk - m_ij[:, None])
+            v = tl.zeros(
+                (BLOCK_SIZE_N, BLOCK_SIZE_D),
+                dtype=v_cache_ptr.dtype.element_ty,
+            )
+            for page_iter in tl.extra.cann.extension.parallel(
+                0, PAGE_AGGREGATION_NUM
+            ):
+                current_page = page_id + page_iter
+                safe_page = tl.minimum(
+                    current_page,
+                    tl.maximum(num_pages - 1, 0),
+                )
+                physical_page_id = tl.load(
+                    block_tables_ptr
+                    + b_id * stride_bt_batch
+                    + safe_page * stride_bt_block
+                )
+                page_token_start = current_page * PAGE_SIZE
+                page_token_count = tl.maximum(
+                    tl.minimum(kv_seq_len - page_token_start, PAGE_SIZE),
+                    0,
+                )
+                v_page_ptr = tl.make_block_ptr(
+                    base=(
+                        v_cache_ptr
+                        + physical_page_id * stride_v_block
+                        + kv_head_id * stride_v_head
+                    ),
+                    shape=(page_token_count, HEAD_DIM),
+                    strides=(stride_v_blksz, stride_v_dim),
+                    offsets=(0, 0),
+                    block_shape=(PAGE_SIZE, BLOCK_SIZE_D),
+                    order=(1, 0),
+                )
+                v_page = tl.load(
+                    v_page_ptr,
+                    boundary_check=(0, 1),
+                    padding_option="zero",
+                )
+                v = tl.extra.cann.extension.insert_slice(
+                    v,
+                    v_page,
+                    offsets=(page_iter * PAGE_SIZE, 0),
+                    sizes=(PAGE_SIZE, BLOCK_SIZE_D),
+                    strides=(1, 1),
+                )
+            pv = tl.dot(p.to(k_t.dtype), v)
+            l_ij = tl.sum(p, 1)
+            alpha = tl.math.exp(m_i - m_ij)
+            l_i = l_i * alpha + l_ij
+            acc = acc * alpha[:, None] + pv
+            m_i = m_ij
+
+        if kv_seq_len.to(tl.float32) > 0.0:
+            acc = acc / l_i[:, None]
+
+        o_ptrs = (
+            o_ptr
+            + b_id * stride_ob
+            + q_head_ids[:, None] * stride_oh
+            + offs_d[None, :] * stride_od
+        )
+        tl.store(
+            o_ptrs,
+            acc.to(o_ptr.dtype.element_ty),
+            mask=offs_d[None, :].to(tl.float32) < HEAD_DIM,
+        )
+
+
+@triton.jit(
+    do_not_specialize=[
         "block_tables_ptr",
         "stride_bt_batch",
     ]
@@ -3446,7 +3685,15 @@ def swa_paged_decode_impl(
     #   under swa, the kv workload is rather evenly across diffrent queries,
     #   so we have low necessity to apply split-kv strategy
 
-    _swa_paged_decode_sink_kernel[grid](
+    use_dp4_page128 = (
+        num_q_heads == 24
+        and num_kv_heads == 2
+        and page_size == 64
+        and head_dim == 256
+        and global_window_size == 0
+        and local_window_size == 511
+    )
+    common_args = (
         q,
         key_cache,
         value_cache,
@@ -3473,17 +3720,32 @@ def swa_paged_decode_impl(
         block_tables.stride(1),
         sinks_pass.stride(0),
         softmax_scale,
-        global_window_size,
-        local_window_size,
-        num_q_heads,
-        num_kv_heads,
-        gqa_interleave,
-        head_dim,
-        page_size,
-        BLOCK_SIZE_D=BLOCK_SIZE_D,
-        BLOCK_SIZE_N=BLOCK_SIZE_N,
-        SINK_ENABLED=sink_enabled,
     )
+    if use_dp4_page128:
+        _swa_paged_decode_sink_dp4_page128_kernel[grid](
+            *common_args,
+            NUM_Q_HEADS=num_q_heads,
+            NUM_KV_HEADS=num_kv_heads,
+            GQA_INTERLEAVE=gqa_interleave,
+            HEAD_DIM=head_dim,
+            PAGE_SIZE=page_size,
+            BLOCK_SIZE_D=BLOCK_SIZE_D,
+            SINK_ENABLED=sink_enabled,
+        )
+    else:
+        _swa_paged_decode_sink_kernel[grid](
+            *common_args,
+            GLOBAL_WINDOW=global_window_size,
+            LOCAL_WINDOW=local_window_size,
+            NUM_Q_HEADS=num_q_heads,
+            NUM_KV_HEADS=num_kv_heads,
+            GQA_INTERLEAVE=gqa_interleave,
+            HEAD_DIM=head_dim,
+            PAGE_SIZE=page_size,
+            BLOCK_SIZE_D=BLOCK_SIZE_D,
+            BLOCK_SIZE_N=BLOCK_SIZE_N,
+            SINK_ENABLED=sink_enabled,
+        )
     return o
 
 
