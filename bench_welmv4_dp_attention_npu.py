@@ -154,6 +154,8 @@ def expected_kernel_names(
 
     if case.family == "decode":
         if case.attention == "swa":
+            if provider == "candidate" and case.layout == "tp4_dp4":
+                return ("_swa_paged_decode_sink_dp4_pair64_kernel",)
             return ("_swa_paged_decode_sink_kernel",)
         group_size = case.local_num_q_heads // case.local_num_kv_heads
         loop_times = case.real_batch_size * case.local_num_kv_heads
