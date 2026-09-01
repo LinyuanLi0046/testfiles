@@ -3731,7 +3731,7 @@ def swa_paged_decode_impl(
             PAGE_SIZE=page_size,
             BLOCK_SIZE_D=BLOCK_SIZE_D,
             SINK_ENABLED=sink_enabled,
-            enable_auto_multi_buffer=False,
+            multibuffer=False,
         )
     else:
         _swa_paged_decode_sink_kernel[grid](
