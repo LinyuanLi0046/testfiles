@@ -1,11 +1,60 @@
-time: 2026-09-01T13:06:19+08:00
-command: /usr/local/python3.11.10/bin/python bench_welmv4_dp_attention_npu.py --suite remote --mode both --device npu:1 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_dp_attn_result_g82y9a0e
-return_code: 3
-reason: benchmark exited with status 3; manifest_status=ERROR
+time: 2026-09-01T13:15:34+08:00
+command: /usr/local/python3.11.10/bin/python bench_welmv4_dp_attention_npu.py --suite remote --mode both --device npu:1 --capture-ir on --capture-profile on --capture-msprof-op on --output-dir /data2/hw_lly/testfiles/welm_dp_attn_result_64mh3kto
+return_code: 2
+reason: benchmark exited with status 2; manifest_status=PERF_REGRESSION
 
 ===== stdout + stderr =====
 WeLMv4 NPU Full/SWA DP-Attention optimization workspace
-device=npu:1 (Ascend950PR_957b), base=1228ace0b562, baseline={'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}, candidate={'prefill': 'd8d94e75bea451908cd0b58b60c08503c030cf5d15e491d7694f6706aa094a90', 'decode': '7ea1ec3bc9f92b60164ef198a1f4d025760fcf179abdb4f4b520af2c0223bdd9'}
+device=npu:1 (Ascend950PR_957b), base=55381345369b, baseline={'prefill': 'c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54', 'decode': 'c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec'}, candidate={'prefill': 'd8d94e75bea451908cd0b58b60c08503c030cf5d15e491d7694f6706aa094a90', 'decode': 'fa252f55c7acb306712274ea94fa4c90d5a4407f3f0633dccd6124d516cfe922'}
 [msprof-op batch] provider=baseline, kernel=_swa_paged_decode_sink_kernel, cases=1
-[msprof-op batch] provider=candidate, kernel=_swa_paged_decode_sink_dp4_page128_kernel, cases=1
-result=ERROR; manifest=/data2/hw_lly/testfiles/welm_dp_attn_result_g82y9a0e/result.json
+[msprof-op batch] provider=candidate, kernel=_swa_paged_decode_sink_kernel, cases=1
+[correctness 1/9] swa_decode_m1_b1_kv4096_ragged_tp4_dp4
+/data2/hw_lly/testfiles/welmv4_dp_decode_attention_baseline.py:3438: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:423.)
+  o = torch.empty_like(q, memory_format=torch.contiguous_format)
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 2/9] swa_decode_m4_b4_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 3/9] swa_decode_m8_b8_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 4/9] swa_decode_m16_b16_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 5/9] swa_decode_m32_b32_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 6/9] swa_decode_m40_b40_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 7/9] swa_decode_m56_b56_kv4096_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[correctness 8/9] swa_decode_m1_b1_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00195312, pair max_abs=0
+[correctness 9/9] swa_decode_m56_b56_kv16896_ragged_tp4_dp4
+  PASS: candidate max_abs=0.00390625, pair max_abs=0
+[performance 1/16] swa_decode_m1_b1_kv4096_ragged_tp4
+[performance 2/16] swa_decode_m4_b4_kv4096_ragged_tp4
+[performance 3/16] swa_decode_m8_b8_kv4096_ragged_tp4
+[performance 4/16] swa_decode_m16_b16_kv4096_ragged_tp4
+[performance 5/16] swa_decode_m32_b32_kv4096_ragged_tp4
+[performance 6/16] swa_decode_m40_b40_kv4096_ragged_tp4
+[performance 7/16] swa_decode_m56_b56_kv4096_ragged_tp4
+[performance 8/16] swa_decode_m1_b1_kv4096_ragged_tp4_dp4
+[performance 9/16] swa_decode_m4_b4_kv4096_ragged_tp4_dp4
+[performance 10/16] swa_decode_m8_b8_kv4096_ragged_tp4_dp4
+[performance 11/16] swa_decode_m16_b16_kv4096_ragged_tp4_dp4
+[performance 12/16] swa_decode_m32_b32_kv4096_ragged_tp4_dp4
+[performance 13/16] swa_decode_m40_b40_kv4096_ragged_tp4_dp4
+[performance 14/16] swa_decode_m56_b56_kv4096_ragged_tp4_dp4
+[performance 15/16] swa_decode_m1_b1_kv16896_ragged_tp4
+[performance 16/16] swa_decode_m1_b1_kv16896_ragged_tp4_dp4
+[msprof-op batch] provider=baseline, kernel=_swa_paged_decode_sink_kernel, cases=16
+[msprof-op batch] provider=candidate, kernel=_swa_paged_decode_sink_kernel, cases=16
+[ir] swa_decode_m56_b56_kv4096_ragged_tp4_dp4
+[profile:pipe_utilization] swa_decode_m56_b56_kv4096_ragged_tp4_dp4
+[2026-09-01 13:15:23] [WARNING] [2741912] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-09-01 13:15:24] [INFO] [2748827] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_pipe_utilization_dttvqxou/TENCENT64-124_2741912_20260901131523710_ascend_pt
+|/-[2026-09-01 13:15:26] [INFO] [2748836] profiler.py: CANN profiling data parsed in a total time of 0:00:02.017540
+[2026-09-01 13:15:27] [INFO] [2748827] profiler.py: All profiling data parsed in a total time of 0:00:03.016007
+[profile:memory] swa_decode_m56_b56_kv4096_ragged_tp4_dp4
+[2026-09-01 13:15:27] [WARNING] [2741912] profiler.py: Incorrect schedule: Stop profiler while current state is RECORD which may result in incomplete parsed data.
+[2026-09-01 13:15:28] [INFO] [2749097] profiler.py: Start parsing profiling data in sync mode at: /tmp/welm_attn_profile_swa_memory_58vkfyen/TENCENT64-124_2741912_20260901131527414_ascend_pt
+|/-[2026-09-01 13:15:30] [INFO] [2749106] profiler.py: CANN profiling data parsed in a total time of 0:00:02.016499
+[2026-09-01 13:15:31] [INFO] [2749097] profiler.py: All profiling data parsed in a total time of 0:00:03.004679
+result=PERF_REGRESSION; manifest=/data2/hw_lly/testfiles/welm_dp_attn_result_64mh3kto/result.json
