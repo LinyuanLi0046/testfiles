@@ -1,14 +1,14 @@
 {
-  "benchmark_base": "06a0af6ac458b760ee16e8e7f044c13622e95e73",
+  "benchmark_base": "1228ace0b562b157a2c19a91bf327011438f221e",
   "device": {
     "baseline_sha256": {
       "decode": "c47f9bdcfb879eb73723521240a48a9bae99349d094a1fb82563535aabde82ec",
       "prefill": "c4166cfe326127daf30bc629493d8b251d8be85f97cda2efa510eab6bc6d3a54"
     },
-    "benchmark_base": "06a0af6ac458b760ee16e8e7f044c13622e95e73",
+    "benchmark_base": "1228ace0b562b157a2c19a91bf327011438f221e",
     "cache_layout": "native_NHD_then_page_head_token_dim_permute",
     "candidate_sha256": {
-      "decode": "dc47cf0d1f32db17351fd9a2535746710139309f6bb030765f65c6f67094f9d9",
+      "decode": "7ea1ec3bc9f92b60164ef198a1f4d025760fcf179abdb4f4b520af2c0223bdd9",
       "prefill": "d8d94e75bea451908cd0b58b60c08503c030cf5d15e491d7694f6706aa094a90"
     },
     "cann_version": "9.1.0",
@@ -27,26 +27,26 @@
     "torch_npu_version": "2.10.0.post4.dev20260715",
     "torch_version": "2.10.0+cpu",
     "triton_version": "3.2.0",
-    "workspace_commit": "06a0af6ac458b760ee16e8e7f044c13622e95e73"
+    "workspace_commit": "1228ace0b562b157a2c19a91bf327011438f221e"
   },
   "files": [
     {
       "path": "msprof_preflight/msprof/baseline/_swa_paged_decode_sink_kernel.log.gz",
-      "sha256": "8f63170969c59772906e9082af9fbd388c1dbc522e777981f828a9b37ef65871",
-      "size_bytes": 1381
+      "sha256": "1dbb0da8ec975394af2e77b0ed4109d40b37c449d65f0d23a40bdacd24d0c0dd",
+      "size_bytes": 1379
     },
     {
       "path": "msprof_preflight/msprof/candidate/_swa_paged_decode_sink_dp4_page128_kernel.log.gz",
-      "sha256": "16c60f95b85ea019ff2ab84051f8bdc35e8a41558f4d114ad173e237aab6fb47",
-      "size_bytes": 1549
+      "sha256": "15ffb4b48775a7ccdced432e7bab7224bc4acb379f5be8e6e8becb0014a354d5",
+      "size_bytes": 55025
     },
     {
       "path": "msprof_preflight.csv",
-      "sha256": "3c514032ea224b345c111bcea2470734460e19f3e3403e1ae85a12b9b58fe99a",
-      "size_bytes": 6846
+      "sha256": "28d41f8fba9f0cd6ab120fce9590af4137f5ff63b172a274bd0a506405ffa499",
+      "size_bytes": 22915
     }
   ],
-  "finished_at": "2026-09-01T05:03:21+00:00",
+  "finished_at": "2026-09-01T05:06:16+00:00",
   "mode": "both",
   "model_contract": {
     "dtype": "bfloat16",
@@ -102,7 +102,7 @@
     }
   },
   "schema_version": 1,
-  "started_at": "2026-09-01T05:02:45+00:00",
+  "started_at": "2026-09-01T05:05:39+00:00",
   "status": "ERROR",
   "suite": "remote",
   "validation": {
@@ -154,5 +154,5 @@
     ]
   },
   "workspace": "welmv4-npu-dp-attention-full-swa",
-  "workspace_commit": "06a0af6ac458b760ee16e8e7f044c13622e95e73"
+  "workspace_commit": "1228ace0b562b157a2c19a91bf327011438f221e"
 }
